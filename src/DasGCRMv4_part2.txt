@@ -1,0 +1,376 @@
+﻿// ── ESTILOS GLOBAIS ───────────────────────────────────────
+const css = `
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #f9fafb; color: #111; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #f1f1f1; }
+  ::-webkit-scrollbar-thumb { background: #c4a45a; border-radius: 3px; }
+  input, textarea, select { font-family: inherit; }
+  button { cursor: pointer; font-family: inherit; }
+`;
+
+// ── COMPONENTES UI ────────────────────────────────────────
+function Badge({ label, color = '#6366f1', size = 'sm' }) {
+  const pad = size === 'sm' ? '2px 8px' : '4px 12px';
+  return (
+    <span style={{ background: color + '22', color, border: `1px solid ${color}55`, borderRadius: 20, padding: pad, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+      {label}
+    </span>
+  );
+}
+
+function Drawer({ open, onClose, title, children, width = 480 }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    if (open) document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open, onClose]);
+
+  return (
+    <>
+      {open && (
+        <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100 }} />
+      )}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, height: '100vh', width,
+        background: '#fff', zIndex: 101, boxShadow: '-4px 0 24px rgba(0,0,0,0.15)',
+        transform: open ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.3s ease', display: 'flex', flexDirection: 'column',
+      }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111' }}>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{title}</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#c4a45a', fontSize: 22, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+          {children}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Campo({ label, value, onChange, type = 'text', options, readonly }) {
+  const style = { width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, background: readonly ? '#f9fafb' : '#fff' };
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</label>
+      {readonly ? (
+        <div style={{ ...style, color: '#374151' }}>{value || '—'}</div>
+      ) : options ? (
+        <select value={value} onChange={e => onChange(e.target.value)} style={style}>
+          <option value="">Selecionar...</option>
+          {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      ) : type === 'textarea' ? (
+        <textarea value={value} onChange={e => onChange(e.target.value)} rows={3} style={style} />
+      ) : (
+        <input type={type} value={value} onChange={e => onChange(e.target.value)} style={style} />
+      )}
+    </div>
+  );
+}
+
+function Card({ children, style = {} }) {
+  return <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e5e7eb', padding: 20, ...style }}>{children}</div>;
+}
+
+function BtnPrimary({ children, onClick, small, disabled }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      background: disabled ? '#d1d5db' : '#c4a45a', color: '#fff', border: 'none',
+      borderRadius: 6, padding: small ? '6px 14px' : '10px 20px',
+      fontSize: small ? 13 : 14, fontWeight: 600,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+    }}>{children}</button>
+  );
+}
+
+function BtnSecondary({ children, onClick, small }) {
+  return (
+    <button onClick={onClick} style={{
+      background: '#fff', color: '#374151', border: '1px solid #d1d5db',
+      borderRadius: 6, padding: small ? '6px 14px' : '10px 20px',
+      fontSize: small ? 13 : 14, fontWeight: 600,
+    }}>{children}</button>
+  );
+}
+
+function TabBar({ tabs, active, onChange }) {
+  return (
+    <div style={{ display: 'flex', gap: 2, borderBottom: '2px solid #e5e7eb', marginBottom: 20 }}>
+      {tabs.map(t => (
+        <button key={t.id} onClick={() => onChange(t.id)} style={{
+          padding: '10px 18px', border: 'none', background: 'none',
+          fontWeight: 600, fontSize: 14, cursor: 'pointer',
+          color: active === t.id ? '#c4a45a' : '#6b7280',
+          borderBottom: active === t.id ? '3px solid #c4a45a' : '3px solid transparent',
+          marginBottom: -2,
+        }}>{t.label}</button>
+      ))}
+    </div>
+  );
+}
+
+function StatusBadge({ statusIdx }) {
+  const s = STATUS_OS[statusIdx - 1] || STATUS_OS[0];
+  return <Badge label={s.label} color={s.cor} />;
+}
+
+// ── MÓDULO: CENTRAL DE ATENDIMENTO ───────────────────────
+function CentralAtendimento({ conversas, leads, onNovoCad }) {
+  const [aba, setAba] = useState('whatsapp');
+  const [convSel, setConvSel] = useState(null);
+  const [filtro, setFiltro] = useState('todos');
+  const [showFormLead, setShowFormLead] = useState(false);
+  const [novoLead, setNovoLead] = useState({
+    nome: '', telefone: '', instagram: '', procura: '',
+    ocasiao: '', data_evento: '', como_chegou: '', servico_interesse: ''
+  });
+  const [servicoSel, setServicoSel] = useState(null);
+
+  const statusMap = { lead_novo: { label: 'Lead novo', cor: '#f59e0b' }, qualificando: { label: 'Qualificando', cor: '#6366f1' }, agendando: { label: 'Agendando', cor: '#3b82f6' }, em_negociacao: { label: 'Em negociação', cor: '#f97316' }, convertido: { label: 'Convertido', cor: '#22c55e' }, cliente: { label: 'Cliente', cor: '#16a34a' } };
+
+  const convsFiltradas = conversas.filter(c => {
+    if (filtro === 'todos') return true;
+    if (filtro === 'leads') return ['lead_novo', 'qualificando'].includes(c.status);
+    if (filtro === 'clientes') return c.status === 'cliente';
+    if (filtro === 'sem_resposta') return c.nao_lidas > 0;
+    return true;
+  }).filter(c => aba === 'instagram' ? c.canal === 'instagram' : c.canal === 'whatsapp' || c.canal === undefined);
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111' }}>Central de Atendimento</h1>
+        <p style={{ color: '#6b7280', marginTop: 4 }}>Monitor de conversas, leads e redes sociais</p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+        <Card style={{ borderLeft: '4px solid #f59e0b' }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: '#f59e0b' }}>{conversas.filter(c => c.nao_lidas > 0).length}</div>
+          <div style={{ color: '#6b7280', fontSize: 14 }}>Conversas pendentes</div>
+        </Card>
+        <Card style={{ borderLeft: '4px solid #6366f1' }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: '#6366f1' }}>{leads.length}</div>
+          <div style={{ color: '#6b7280', fontSize: 14 }}>Leads ativos</div>
+        </Card>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 20 }}>
+        {/* Lista de conversas */}
+        <div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            {['todos', 'leads', 'clientes', 'sem_resposta'].map(f => (
+              <button key={f} onClick={() => setFiltro(f)} style={{
+                padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                background: filtro === f ? '#111' : '#f3f4f6', color: filtro === f ? '#fff' : '#374151', border: 'none',
+              }}>{f === 'todos' ? 'Todos' : f === 'leads' ? 'Leads' : f === 'clientes' ? 'Clientes' : 'Sem resposta'}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button onClick={() => setAba('whatsapp')} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer', background: aba === 'whatsapp' ? '#25D366' : '#f3f4f6', color: aba === 'whatsapp' ? '#fff' : '#374151' }}>WhatsApp</button>
+            <button onClick={() => setAba('instagram')} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer', background: aba === 'instagram' ? '#E1306C' : '#f3f4f6', color: aba === 'instagram' ? '#fff' : '#374151' }}>Instagram</button>
+          </div>
+          <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
+            {convsFiltradas.map((c, i) => (
+              <div key={c.id} onClick={() => setConvSel(c)} style={{ padding: '14px 16px', cursor: 'pointer', borderBottom: i < convsFiltradas.length - 1 ? '1px solid #f3f4f6' : 'none', background: convSel?.id === c.id ? '#fef9f0' : '#fff', transition: 'background 0.15s' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14 }}>{c.nome}</span>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, color: '#9ca3af' }}>{c.tempo}</span>
+                    {c.nao_lidas > 0 && <span style={{ background: '#c4a45a', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{c.nao_lidas}</span>}
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.ultima_msg}</div>
+                <Badge label={(statusMap[c.status] || { label: c.status }).label} color={(statusMap[c.status] || { cor: '#6b7280' }).cor} />
+              </div>
+            ))}
+            {convsFiltradas.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af' }}>Nenhuma conversa</div>}
+          </div>
+        </div>
+
+        {/* Painel direito */}
+        <div>
+          {convSel ? (
+            <Card>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                <div>
+                  <h3 style={{ fontSize: 18, fontWeight: 700 }}>{convSel.nome}</h3>
+                  {convSel.telefone && <div style={{ color: '#6b7280', fontSize: 13 }}>{convSel.telefone}</div>}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {convSel.telefone && (
+                    <a href={`https://wa.me/${convSel.telefone}`} target="_blank" rel="noreferrer">
+                      <BtnPrimary small>Abrir WhatsApp</BtnPrimary>
+                    </a>
+                  )}
+                  <BtnSecondary small onClick={() => setShowFormLead(true)}>Pré-cadastrar</BtnSecondary>
+                </div>
+              </div>
+              <div style={{ background: '#f9fafb', borderRadius: 8, padding: 16, minHeight: 200, color: '#9ca3af', fontSize: 14 }}>
+                Histórico da conversa aparecerá aqui após integração com WhatsApp via Supabase Realtime.
+              </div>
+              <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                <input placeholder="Digitar resposta rápida..." style={{ flex: 1, padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }} />
+                <BtnPrimary small>Enviar</BtnPrimary>
+              </div>
+            </Card>
+          ) : (
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: '#374151' }}>Cards de Serviços</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                {MOCK_SERVICOS.map(s => (
+                  <Card key={s.id} style={{ cursor: 'pointer', border: servicoSel?.id === s.id ? '2px solid #c4a45a' : '1px solid #e5e7eb' }} >
+                    <div style={{ fontWeight: 700, marginBottom: 6 }}>{s.nome}</div>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 10 }}>{s.descricao}</div>
+                    <ul style={{ paddingLeft: 16, fontSize: 12, color: '#374151', marginBottom: 10 }}>
+                      {s.inclui.map((i, idx) => <li key={idx}>{i}</li>)}
+                    </ul>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#c4a45a', marginBottom: 10 }}>{s.faixa_preco}</div>
+                    <BtnPrimary small onClick={() => setServicoSel(s)}>Enviar informações</BtnPrimary>
+                  </Card>
+                ))}
+              </div>
+
+              <div style={{ marginTop: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: '#374151' }}>Pré-cadastro de Lead</h3>
+                  <BtnPrimary small onClick={() => setShowFormLead(!showFormLead)}>{showFormLead ? 'Fechar' : 'Novo lead'}</BtnPrimary>
+                </div>
+
+                {showFormLead && (
+                  <Card style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <Campo label="Nome completo" value={novoLead.nome} onChange={v => setNovoLead(p => ({ ...p, nome: v }))} />
+                      <Campo label="Telefone (WhatsApp)" value={novoLead.telefone} onChange={v => setNovoLead(p => ({ ...p, telefone: v }))} />
+                      <Campo label="Instagram / Rede social" value={novoLead.instagram} onChange={v => setNovoLead(p => ({ ...p, instagram: v }))} />
+                      <Campo label="O que procura" value={novoLead.procura} onChange={v => setNovoLead(p => ({ ...p, procura: v }))} />
+                      <Campo label="Ocasião" value={novoLead.ocasiao} onChange={v => setNovoLead(p => ({ ...p, ocasiao: v }))} options={[{ value: 'casamento', label: 'Casamento' }, { value: 'formatura', label: 'Formatura' }, { value: 'aniversario', label: 'Aniversário' }, { value: 'evento_corporativo', label: 'Evento corporativo' }, { value: 'dia_a_dia', label: 'Dia a dia' }, { value: 'outro', label: 'Outro' }]} />
+                      <Campo label="Data do evento" value={novoLead.data_evento} onChange={v => setNovoLead(p => ({ ...p, data_evento: v }))} type="date" />
+                      <Campo label="Como chegou até nós" value={novoLead.como_chegou} onChange={v => setNovoLead(p => ({ ...p, como_chegou: v }))} options={[{ value: 'instagram', label: 'Instagram' }, { value: 'indicacao', label: 'Indicação' }, { value: 'loja_fisica', label: 'Loja física' }, { value: 'google', label: 'Google' }, { value: 'outro', label: 'Outro' }]} />
+                      <Campo label="Serviço de interesse" value={novoLead.servico_interesse} onChange={v => setNovoLead(p => ({ ...p, servico_interesse: v }))} options={MOCK_SERVICOS.map(s => ({ value: s.slug, label: s.nome }))} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                      <BtnPrimary onClick={() => { onNovoCad(novoLead); setShowFormLead(false); setNovoLead({ nome: '', telefone: '', instagram: '', procura: '', ocasiao: '', data_evento: '', como_chegou: '', servico_interesse: '' }); }}>Cadastrar lead</BtnPrimary>
+                      <BtnSecondary onClick={() => setShowFormLead(false)}>Cancelar</BtnSecondary>
+                    </div>
+                  </Card>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {leads.map(l => (
+                    <Card key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 700 }}>{l.nome}</div>
+                        <div style={{ fontSize: 13, color: '#6b7280' }}>{l.telefone} · {l.ocasiao} · {fmtDate(l.data_evento)}</div>
+                      </div>
+                      <Badge label={l.status === 'novo' ? 'Novo' : 'Qualificando'} color={l.status === 'novo' ? '#f59e0b' : '#6366f1'} />
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── MÓDULO: DASHBOARD ─────────────────────────────────────
+function Dashboard({ clientes, os, agenda, tarefas, pedidos, contasPagar }) {
+  const hoje = new Date();
+  const agendaHoje = agenda.filter(a => new Date(a.data).toDateString() === hoje.toDateString());
+  const osParadas = os.filter(o => {
+    const dias = (hoje - new Date(o.ultima_atualizacao)) / (1000 * 60 * 60 * 24);
+    return dias >= 14 && o.status_idx < 23;
+  });
+  const receitaTotal = pedidos.reduce((acc, p) => acc + p.parcelas.filter(x => x.status === 'recebido').reduce((a, x) => a + x.valor, 0), 0);
+  const receitaPendente = pedidos.reduce((acc, p) => acc + p.parcelas.filter(x => x.status === 'pendente').reduce((a, x) => a + x.valor, 0), 0);
+  const tarefasPend = tarefas.filter(t => t.status !== 'concluida');
+  const contasPend = contasPagar.filter(c => c.status === 'pendente');
+
+  return (
+    <div>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Dashboard</h1>
+      <p style={{ color: '#6b7280', marginBottom: 24 }}>Visão geral do ateliê — {hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+        {[
+          { label: 'Receita recebida', valor: fmt(receitaTotal), cor: '#22c55e' },
+          { label: 'A receber', valor: fmt(receitaPendente), cor: '#f59e0b' },
+          { label: 'Clientes ativos', valor: clientes.length, cor: '#6366f1' },
+          { label: 'OS em andamento', valor: os.filter(o => o.status_idx < 22).length, cor: '#c4a45a' },
+        ].map((m, i) => (
+          <Card key={i} style={{ borderTop: `4px solid ${m.cor}` }}>
+            <div style={{ fontSize: 24, fontWeight: 700, color: m.cor }}>{m.valor}</div>
+            <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{m.label}</div>
+          </Card>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <Card>
+          <h3 style={{ fontWeight: 700, marginBottom: 14 }}>Agenda de hoje</h3>
+          {agendaHoje.length === 0 ? (
+            <div style={{ color: '#9ca3af', fontSize: 14 }}>Sem eventos hoje</div>
+          ) : agendaHoje.map(a => (
+            <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: a.cor, flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{a.cliente}</div>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>{new Date(a.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · {a.tipo}</div>
+              </div>
+            </div>
+          ))}
+        </Card>
+
+        <Card>
+          <h3 style={{ fontWeight: 700, marginBottom: 14 }}>Tarefas pendentes</h3>
+          {tarefasPend.slice(0, 5).map(t => (
+            <div key={t.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: t.prioridade === 'alta' ? '#ef4444' : t.prioridade === 'normal' ? '#f59e0b' : '#d1d5db' }} />
+              <div style={{ fontSize: 14, flex: 1 }}>{t.titulo}</div>
+              <div style={{ fontSize: 11, color: '#9ca3af' }}>{fmtDate(t.prazo)}</div>
+            </div>
+          ))}
+          {tarefasPend.length === 0 && <div style={{ color: '#9ca3af', fontSize: 14 }}>Nenhuma tarefa pendente</div>}
+        </Card>
+
+        {osParadas.length > 0 && (
+          <Card style={{ borderLeft: '4px solid #ef4444', gridColumn: '1/-1' }}>
+            <h3 style={{ fontWeight: 700, marginBottom: 14, color: '#ef4444' }}>Alerta — OS paradas ha 14+ dias</h3>
+            {osParadas.map(o => {
+              const cli = clientes.find(c => c.id === o.cliente_id);
+              const dias = Math.floor((hoje - new Date(o.ultima_atualizacao)) / (1000 * 60 * 60 * 24));
+              return (
+                <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #fef2f2' }}>
+                  <div>
+                    <span style={{ fontWeight: 600 }}>{o.numero}</span> — {cli?.nome}
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <StatusBadge statusIdx={o.status_idx} />
+                    <Badge label={`${dias} dias`} color="#ef4444" />
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
+        )}
+
+        <Card>
+          <h3 style={{ fontWeight: 700, marginBottom: 14 }}>Contas a pagar este mes</h3>
+          {contasPend.slice(0, 5).map(c => (
+            <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
+              <div style={{ fontSize: 14 }}>{c.descricao}</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: '#6b7280' }}>{fmtDate(c.vencimento)}</span>
+                <span style={{ fontWeight: 700, color: '#ef4444' }}>{fmt(c.valor)}</span>
+              </div>
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>
+  );
+}
+

@@ -1,0 +1,470 @@
+﻿// ── MÓDULO: ORÇAMENTOS ────────────────────────────────────
+function Orcamentos({ os, clientes, pedidos }) {
+  const [sel, setSel] = useState(null);
+  const [editando, setEditando] = useState(false);
+  const statusCores = { rascunho: '#6b7280', enviado: '#3b82f6', aprovado: '#22c55e', negado: '#ef4444', em_negociacao: '#f59e0b' };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Orcamentos</h1>
+        <BtnPrimary>Novo orcamento</BtnPrimary>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {pedidos.map(p => {
+          const cli = clientes.find(c => c.id === p.cliente_id);
+          const osp = os.find(o => o.id === p.os_id);
+          const recebido = p.parcelas.filter(x => x.status === 'recebido').reduce((a, x) => a + x.valor, 0);
+          const pendente = p.parcelas.filter(x => x.status === 'pendente').reduce((a, x) => a + x.valor, 0);
+          return (
+            <Card key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>{p.numero}</div>
+                <div style={{ color: '#6b7280', fontSize: 14 }}>{cli?.nome} · {osp?.numero}</div>
+                <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
+                  <span style={{ fontSize: 13 }}>Total: <b>{fmt(p.valor_total)}</b></span>
+                  <span style={{ fontSize: 13, color: '#22c55e' }}>Recebido: {fmt(recebido)}</span>
+                  {pendente > 0 && <span style={{ fontSize: 13, color: '#f59e0b' }}>Pendente: {fmt(pendente)}</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <Badge label={p.status === 'parcial' ? 'Parcial' : p.status} color={p.status === 'parcial' ? '#f59e0b' : p.status === 'pago' ? '#22c55e' : '#6b7280'} />
+                <BtnSecondary small onClick={() => setSel(p)}>Ver detalhes</BtnSecondary>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel?.numero || ''} width={540}>
+        {sel && (() => {
+          const cli = clientes.find(c => c.id === sel.cliente_id);
+          return (
+            <div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, fontSize: 18 }}>{cli?.nome}</div>
+                <div style={{ color: '#6b7280', fontSize: 14 }}>{sel.numero}</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                <div style={{ background: '#f9fafb', borderRadius: 8, padding: 12, textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase' }}>Total</div>
+                  <div style={{ fontWeight: 700, fontSize: 20 }}>{fmt(sel.valor_total)}</div>
+                </div>
+                <div style={{ background: '#f0fdf4', borderRadius: 8, padding: 12, textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase' }}>Recebido</div>
+                  <div style={{ fontWeight: 700, fontSize: 20, color: '#22c55e' }}>{fmt(sel.parcelas.filter(x => x.status === 'recebido').reduce((a, x) => a + x.valor, 0))}</div>
+                </div>
+              </div>
+              <div style={{ fontWeight: 700, marginBottom: 12 }}>Parcelas</div>
+              {sel.parcelas.map((p, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{p.descricao}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>{p.forma} · Venc: {fmtDate(p.vencimento)}</div>
+                    {p.recebido_em && <div style={{ fontSize: 12, color: '#22c55e' }}>Recebido em {fmtDate(p.recebido_em)}</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700 }}>{fmt(p.valor)}</span>
+                    <Badge label={p.status} color={p.status === 'recebido' ? '#22c55e' : '#f59e0b'} />
+                    {p.status === 'pendente' && <BtnPrimary small>Dar baixa</BtnPrimary>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </Drawer>
+    </div>
+  );
+}
+
+// ── MÓDULO: PROVAS ────────────────────────────────────────
+function Provas({ os, clientes, provas }) {
+  const [osSel, setOsSel] = useState(os[0]?.id || '');
+  const [sel, setSel] = useState(null);
+
+  const provasDaOS = provas.filter(p => p.os_id === osSel);
+  const osAtual = os.find(o => o.id === osSel);
+  const cli = osAtual ? clientes.find(c => c.id === osAtual.cliente_id) : null;
+
+  const tipoLabel = { prova1: '1a Prova', prova2: '2a Prova', prova_final: 'Prova Final' };
+  const statusCor = { realizada: '#22c55e', agendada: '#f59e0b', pendente: '#6b7280' };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Provas</h1>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <select value={osSel} onChange={e => setOsSel(e.target.value)} style={{ padding: '8px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }}>
+            {os.map(o => { const c = clientes.find(cl => cl.id === o.cliente_id); return <option key={o.id} value={o.id}>{o.numero} — {c?.nome}</option>; })}
+          </select>
+          <BtnPrimary small>Agendar prova</BtnPrimary>
+        </div>
+      </div>
+
+      {provasDaOS.length === 0 ? (
+        <Card style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>
+          <div>Nenhuma prova registrada para esta OS</div>
+        </Card>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {provasDaOS.map(p => (
+            <Card key={p.id}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>{tipoLabel[p.tipo] || p.tipo}</div>
+                  <div style={{ color: '#6b7280', fontSize: 14 }}>{fmtDateTime(p.data)}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <Badge label={p.status} color={statusCor[p.status] || '#6b7280'} />
+                  <Badge label={p.aprovado === 'sim' ? 'Aprovado' : p.aprovado === 'parcial' ? 'Aprovado parcial' : 'Reprovado'} color={p.aprovado === 'sim' ? '#22c55e' : p.aprovado === 'parcial' ? '#f59e0b' : '#ef4444'} />
+                  <BtnSecondary small onClick={() => setSel(p)}>Detalhes</BtnSecondary>
+                </div>
+              </div>
+              {p.ajustes && (
+                <div style={{ background: '#f9fafb', borderRadius: 6, padding: 10, fontSize: 13 }}>
+                  <b>Ajustes:</b> {p.ajustes}
+                </div>
+              )}
+              {p.notas_costureira && (
+                <div style={{ background: '#fef9f0', borderRadius: 6, padding: 10, fontSize: 13, marginTop: 8 }}>
+                  <b>Nota p/ costureira:</b> {p.notas_costureira}
+                </div>
+              )}
+              {p.data_proxima_prova && (
+                <div style={{ fontSize: 13, color: '#6b7280', marginTop: 8 }}>Proxima prova: {fmtDate(p.data_proxima_prova)}</div>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel ? tipoLabel[sel.tipo] || sel.tipo : ''} width={480}>
+        {sel && (
+          <div>
+            <Campo label="Data" value={fmtDateTime(sel.data)} readonly />
+            <Campo label="Status" value={sel.status} readonly />
+            <Campo label="Ajustes realizados" value={sel.ajustes} readonly type="textarea" />
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Checklist de medidas</div>
+              {sel.checklist && Object.entries(sel.checklist).map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0' }}>
+                  <span style={{ color: v ? '#22c55e' : '#ef4444', fontSize: 18 }}>{v ? '✓' : '✗'}</span>
+                  <span style={{ fontSize: 14, textTransform: 'capitalize' }}>{k}</span>
+                </div>
+              ))}
+            </div>
+            <Campo label="Nota para costureira" value={sel.notas_costureira} readonly type="textarea" />
+            <Campo label="Aprovado pela cliente?" value={sel.aprovado} readonly />
+            {sel.data_proxima_prova && <Campo label="Data proxima prova" value={fmtDate(sel.data_proxima_prova)} readonly />}
+          </div>
+        )}
+      </Drawer>
+    </div>
+  );
+}
+
+// ── MÓDULO: FINANCEIRO ────────────────────────────────────
+function Financeiro({ pedidos, clientes, os, contasPagar }) {
+  const [aba, setAba] = useState('receber');
+
+  const totalReceber = pedidos.reduce((acc, p) => acc + p.parcelas.filter(x => x.status === 'pendente').reduce((a, x) => a + x.valor, 0), 0);
+  const totalPagar = contasPagar.filter(c => c.status === 'pendente').reduce((a, c) => a + c.valor, 0);
+  const totalRecebido = pedidos.reduce((acc, p) => acc + p.parcelas.filter(x => x.status === 'recebido').reduce((a, x) => a + x.valor, 0), 0);
+
+  return (
+    <div>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Financeiro</h1>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+        <Card style={{ borderTop: '4px solid #22c55e' }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#22c55e' }}>{fmt(totalRecebido)}</div>
+          <div style={{ fontSize: 13, color: '#6b7280' }}>Total recebido</div>
+        </Card>
+        <Card style={{ borderTop: '4px solid #f59e0b' }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#f59e0b' }}>{fmt(totalReceber)}</div>
+          <div style={{ fontSize: 13, color: '#6b7280' }}>A receber</div>
+        </Card>
+        <Card style={{ borderTop: '4px solid #ef4444' }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#ef4444' }}>{fmt(totalPagar)}</div>
+          <div style={{ fontSize: 13, color: '#6b7280' }}>A pagar</div>
+        </Card>
+      </div>
+
+      <TabBar tabs={[{ id: 'receber', label: 'Contas a receber' }, { id: 'pagar', label: 'Contas a pagar' }, { id: 'fluxo', label: 'Fluxo de caixa' }]} active={aba} onChange={setAba} />
+
+      {aba === 'receber' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+            <BtnPrimary small>Nova conta</BtnPrimary>
+          </div>
+          {pedidos.flatMap(p => {
+            const cli = clientes.find(c => c.id === p.cliente_id);
+            return p.parcelas.map((parc, i) => ({
+              ...parc, pedido_num: p.numero, cliente_nome: cli?.nome, key: `${p.id}-${i}`,
+            }));
+          }).map(item => (
+            <Card key={item.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{item.cliente_nome}</div>
+                <div style={{ fontSize: 13, color: '#6b7280' }}>{item.pedido_num} · {item.descricao} · {item.forma}</div>
+                <div style={{ fontSize: 12, color: '#9ca3af' }}>Venc: {fmtDate(item.vencimento)}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <span style={{ fontWeight: 700, fontSize: 16 }}>{fmt(item.valor)}</span>
+                <Badge label={item.status === 'recebido' ? 'Recebido' : 'Pendente'} color={item.status === 'recebido' ? '#22c55e' : '#f59e0b'} />
+                {item.status === 'pendente' && <BtnPrimary small>Dar baixa</BtnPrimary>}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {aba === 'pagar' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+            <BtnPrimary small>Nova conta</BtnPrimary>
+          </div>
+          {contasPagar.map(c => (
+            <Card key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{c.descricao}</div>
+                <div style={{ fontSize: 13, color: '#6b7280' }}>{c.fornecedor} · {c.forma}</div>
+                <div style={{ fontSize: 12, color: '#9ca3af' }}>Venc: {fmtDate(c.vencimento)} · {c.categoria} {c.recorrente && <span style={{ color: '#6366f1' }}> · Recorrente</span>}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <span style={{ fontWeight: 700, fontSize: 16, color: '#ef4444' }}>{fmt(c.valor)}</span>
+                <Badge label={c.status} color={c.status === 'pago' ? '#22c55e' : '#ef4444'} />
+                {c.status === 'pendente' && <BtnPrimary small>Marcar pago</BtnPrimary>}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {aba === 'fluxo' && (
+        <Card>
+          <h3 style={{ fontWeight: 700, marginBottom: 20 }}>Fluxo de Caixa — Novembro 2024</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
+            <div style={{ background: '#f0fdf4', borderRadius: 8, padding: 16, textAlign: 'center' }}>
+              <div style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>Entradas</div>
+              <div style={{ fontWeight: 700, fontSize: 22, color: '#22c55e' }}>{fmt(totalRecebido)}</div>
+            </div>
+            <div style={{ background: '#fef2f2', borderRadius: 8, padding: 16, textAlign: 'center' }}>
+              <div style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>Saidas</div>
+              <div style={{ fontWeight: 700, fontSize: 22, color: '#ef4444' }}>{fmt(contasPagar.filter(c => c.status === 'pago').reduce((a, c) => a + c.valor, 0))}</div>
+            </div>
+            <div style={{ background: '#f0f9ff', borderRadius: 8, padding: 16, textAlign: 'center' }}>
+              <div style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>Saldo</div>
+              <div style={{ fontWeight: 700, fontSize: 22, color: '#3b82f6' }}>{fmt(totalRecebido - contasPagar.filter(c => c.status === 'pago').reduce((a, c) => a + c.valor, 0))}</div>
+            </div>
+          </div>
+          <div style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center' }}>
+            Graficos e projecoes disponiveis apos integracao com Supabase
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ── MÓDULO: CENTRAL DE COMPRAS ────────────────────────────
+function CentralCompras({ listas, clientes, os }) {
+  const [filtroStatus, setFiltroStatus] = useState('todos');
+  const [filtroOS, setFiltroOS] = useState('todos');
+
+  const todosItens = listas.flatMap(l => {
+    const o = os.find(x => x.id === l.os_id);
+    const c = clientes.find(x => x.id === l.cliente_id);
+    return l.itens.map(it => ({ ...it, os_num: o?.numero, cliente: c?.nome, lista_id: l.id }));
+  });
+
+  const filtrados = todosItens.filter(it => {
+    const okStatus = filtroStatus === 'todos' || it.status === filtroStatus;
+    const okOS = filtroOS === 'todos' || it.os_num === filtroOS;
+    return okStatus && okOS;
+  });
+
+  const totalPendente = filtrados.filter(it => it.status === 'pendente').reduce((a, it) => a + (it.qtd * (it.valor_unit || 0)), 0);
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700 }}>Central de Compras</h1>
+          <p style={{ color: '#6b7280', marginTop: 4 }}>Consolidacao de todos os materiais necessarios</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Badge label={`${filtrados.filter(it => it.status === 'pendente').length} pendentes`} color="#f59e0b" size="lg" />
+          <span style={{ fontWeight: 700, color: '#ef4444' }}>{fmt(totalPendente)}</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        {['todos', 'pendente', 'comprado'].map(f => (
+          <button key={f} onClick={() => setFiltroStatus(f)} style={{ padding: '6px 14px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: filtroStatus === f ? '#111' : '#f3f4f6', color: filtroStatus === f ? '#fff' : '#374151' }}>
+            {f === 'todos' ? 'Todos' : f === 'pendente' ? 'Pendentes' : 'Comprados'}
+          </button>
+        ))}
+        <select value={filtroOS} onChange={e => setFiltroOS(e.target.value)} style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: 20, fontSize: 13 }}>
+          <option value="todos">Todas as OS</option>
+          {os.map(o => <option key={o.id} value={o.numero}>{o.numero}</option>)}
+        </select>
+      </div>
+
+      <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#111' }}>
+              {['Item', 'Qtd', 'Fornecedor', 'OS / Cliente', 'Valor', 'Status', 'Acao'].map(h => (
+                <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#c4a45a', fontWeight: 600, fontSize: 12 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtrados.map((it, i) => (
+              <tr key={it.id} style={{ borderBottom: '1px solid #f3f4f6', background: it.status === 'comprado' ? '#f0fdf4' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <td style={{ padding: '10px 14px' }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{it.item}</div>
+                  {it.obs && <div style={{ fontSize: 11, color: '#9ca3af' }}>{it.obs}</div>}
+                </td>
+                <td style={{ padding: '10px 14px', fontSize: 14 }}>{it.qtd} {it.unidade}</td>
+                <td style={{ padding: '10px 14px', fontSize: 14, color: '#6b7280' }}>{it.fornecedor}</td>
+                <td style={{ padding: '10px 14px', fontSize: 13, color: '#6b7280' }}>
+                  <div>{it.os_num}</div>
+                  <div style={{ fontSize: 11 }}>{it.cliente}</div>
+                </td>
+                <td style={{ padding: '10px 14px', fontWeight: 600 }}>
+                  {it.valor_unit ? fmt(it.qtd * it.valor_unit) : '—'}
+                </td>
+                <td style={{ padding: '10px 14px' }}>
+                  <Badge label={it.status === 'comprado' ? 'Comprado' : 'Pendente'} color={it.status === 'comprado' ? '#22c55e' : '#f59e0b'} />
+                </td>
+                <td style={{ padding: '10px 14px' }}>
+                  {it.status === 'pendente' && (
+                    <button style={{ padding: '4px 10px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 4, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Comprado</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtrados.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af' }}>Nenhum item encontrado</div>}
+      </div>
+    </div>
+  );
+}
+
+// ── MÓDULO: MARKETING ─────────────────────────────────────
+function Marketing() {
+  return (
+    <div>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Marketing</h1>
+      <p style={{ color: '#6b7280', marginBottom: 24 }}>Registro de conteudo, depoimentos e calendario editorial</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+        {[['Posts este mes', '12', '#6366f1'], ['Depoimentos', '5', '#22c55e'], ['Alcance estimado', '4.200', '#f59e0b']].map(([l, v, c]) => (
+          <Card key={l} style={{ borderTop: `4px solid ${c}` }}>
+            <div style={{ fontSize: 24, fontWeight: 700, color: c }}>{v}</div>
+            <div style={{ fontSize: 13, color: '#6b7280' }}>{l}</div>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Calendario editorial</h3>
+        <div style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', padding: 40 }}>
+          Calendario de conteudo disponivel em breve. Conecte com Google Agenda para sincronizar.
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ── MÓDULO: FEEDBACK ──────────────────────────────────────
+function FeedbackMod({ feedbacks, clientes, os }) {
+  const nps = feedbacks.length > 0 ? Math.round(feedbacks.reduce((a, f) => a + (f.indicaria ? 1 : 0), 0) / feedbacks.length * 100) : 0;
+  const notaMedia = feedbacks.length > 0 ? (feedbacks.reduce((a, f) => a + f.nota_geral, 0) / feedbacks.length).toFixed(1) : 0;
+
+  return (
+    <div>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Feedback</h1>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+        <Card style={{ borderTop: '4px solid #6366f1' }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: '#6366f1' }}>{nps}%</div>
+          <div style={{ fontSize: 13, color: '#6b7280' }}>NPS — Indicariam</div>
+        </Card>
+        <Card style={{ borderTop: '4px solid #c4a45a' }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: '#c4a45a' }}>{notaMedia} / 5</div>
+          <div style={{ fontSize: 13, color: '#6b7280' }}>Nota media geral</div>
+        </Card>
+        <Card style={{ borderTop: '4px solid #22c55e' }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: '#22c55e' }}>{feedbacks.length}</div>
+          <div style={{ fontSize: 13, color: '#6b7280' }}>Avaliacoes recebidas</div>
+        </Card>
+      </div>
+
+      {feedbacks.map(f => {
+        const cli = clientes.find(c => c.id === f.cliente_id);
+        return (
+          <Card key={f.id} style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div>
+                <div style={{ fontWeight: 700 }}>{cli?.nome}</div>
+                <div style={{ fontSize: 13, color: '#6b7280' }}>{fmtDate(f.data_resposta)}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <span key={n} style={{ color: n <= f.nota_geral ? '#c4a45a' : '#d1d5db', fontSize: 20 }}>★</span>
+                ))}
+              </div>
+            </div>
+            {f.mais_gostou && (
+              <div style={{ background: '#f0fdf4', borderRadius: 6, padding: 10, fontSize: 13, marginBottom: 8 }}>
+                <b style={{ color: '#16a34a' }}>O que mais gostou:</b> {f.mais_gostou}
+              </div>
+            )}
+            {f.melhorar && (
+              <div style={{ background: '#f9fafb', borderRadius: 6, padding: 10, fontSize: 13 }}>
+                <b style={{ color: '#6b7280' }}>O que melhorar:</b> {f.melhorar}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <Badge label={`Atendimento: ${f.nota_atendimento}`} color="#6366f1" />
+              <Badge label={`Vestido: ${f.nota_vestido}`} color="#c4a45a" />
+              <Badge label={`Prazo: ${f.nota_prazo}`} color="#f59e0b" />
+              {f.indicaria && <Badge label="Indicaria" color="#22c55e" />}
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── MÓDULO: RELATÓRIOS ────────────────────────────────────
+function Relatorios({ pedidos, os, clientes, feedbacks }) {
+  const totalFaturado = pedidos.reduce((a, p) => a + p.valor_total, 0);
+  const totalRecebido = pedidos.reduce((acc, p) => acc + p.parcelas.filter(x => x.status === 'recebido').reduce((a, x) => a + x.valor, 0), 0);
+  const ticketMedio = pedidos.length ? totalFaturado / pedidos.length : 0;
+
+  return (
+    <div>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Relatorios</h1>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+        <Card><div style={{ fontSize: 22, fontWeight: 700, color: '#22c55e' }}>{fmt(totalFaturado)}</div><div style={{ fontSize: 13, color: '#6b7280' }}>Faturamento total</div></Card>
+        <Card><div style={{ fontSize: 22, fontWeight: 700, color: '#c4a45a' }}>{fmt(ticketMedio)}</div><div style={{ fontSize: 13, color: '#6b7280' }}>Ticket medio</div></Card>
+        <Card><div style={{ fontSize: 22, fontWeight: 700, color: '#6366f1' }}>{clientes.length}</div><div style={{ fontSize: 13, color: '#6b7280' }}>Clientes atendidas</div></Card>
+      </div>
+      <Card>
+        <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Faturamento por canal</h3>
+        {[['Atelie / Costura', fmt(totalFaturado * 0.7), '#c4a45a'], ['Consultoria Online', fmt(totalFaturado * 0.2), '#6366f1'], ['Loja Fisica', fmt(totalFaturado * 0.1), '#22c55e']].map(([label, val, cor]) => (
+          <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
+            <span style={{ fontSize: 14 }}>{label}</span>
+            <span style={{ fontWeight: 700, color: cor }}>{val}</span>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+

@@ -1,0 +1,323 @@
+﻿// ── MÓDULO: AGENDA + TAREFAS ─────────────────────────────
+function AgendaTarefas({ agenda, tarefas, clientes, os }) {
+  const [view, setView] = useState('semana');
+  const [aba, setAba] = useState('agenda');
+  const [mesAtual, setMesAtual] = useState(new Date(2024, 10, 1)); // Nov 2024
+
+  const tipoLabel = { consultoria_express: 'Consultoria Express', personal_stylist: 'Personal Stylist', prova1: 'Prova 1', prova2: 'Prova 2', prova_final: 'Prova Final', entrega: 'Entrega', orcamento: 'Atend. Orçamento', reuniao: 'Reunião interna' };
+
+  const diasSemana = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mesAtual);
+    d.setDate(d.getDate() - d.getDay() + i);
+    return d;
+  });
+
+  const agendaDia = (d) => agenda.filter(a => new Date(a.data).toDateString() === d.toDateString());
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700 }}>Agenda e Tarefas</h1>
+          <p style={{ color: '#6b7280', marginTop: 4 }}>Organize seus compromissos e pendências</p>
+        </div>
+        <BtnPrimary>Novo evento</BtnPrimary>
+      </div>
+
+      <TabBar tabs={[{ id: 'agenda', label: 'Agenda' }, { id: 'tarefas', label: 'Tarefas' }]} active={aba} onChange={setAba} />
+
+      {aba === 'agenda' && (
+        <div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {['dia', 'semana', 'mes'].map(v => (
+              <button key={v} onClick={() => setView(v)} style={{ padding: '6px 16px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: view === v ? '#111' : '#f3f4f6', color: view === v ? '#fff' : '#374151' }}>{v.charAt(0).toUpperCase() + v.slice(1)}</button>
+            ))}
+          </div>
+
+          {view === 'semana' && (
+            <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: '#111' }}>
+                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((d, i) => (
+                  <div key={d} style={{ padding: '10px 8px', textAlign: 'center', color: '#c4a45a', fontWeight: 600, fontSize: 13, borderRight: i < 6 ? '1px solid #222' : 'none' }}>
+                    <div>{d}</div>
+                    <div style={{ color: '#fff', fontSize: 16, fontWeight: 700 }}>{diasSemana[i].getDate()}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: 300 }}>
+                {diasSemana.map((d, i) => (
+                  <div key={i} style={{ padding: 8, borderRight: i < 6 ? '1px solid #e5e7eb' : 'none', borderTop: '1px solid #e5e7eb', minHeight: 120 }}>
+                    {agendaDia(d).map(a => (
+                      <div key={a.id} style={{ background: a.cor + '22', border: `1px solid ${a.cor}`, borderRadius: 4, padding: '3px 6px', marginBottom: 4, fontSize: 11 }}>
+                        <div style={{ fontWeight: 700, color: a.cor }}>{new Date(a.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+                        <div style={{ color: '#374151', fontSize: 10 }}>{a.cliente}</div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {view !== 'semana' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {agenda.map(a => (
+                <Card key={a.id} style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                  <div style={{ width: 4, height: 60, borderRadius: 2, background: a.cor, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700 }}>{a.cliente}</div>
+                    <div style={{ fontSize: 13, color: '#6b7280' }}>{tipoLabel[a.tipo] || a.tipo} · {fmtDateTime(a.data)}</div>
+                    {a.local && <div style={{ fontSize: 12, color: '#9ca3af' }}>{a.local}</div>}
+                  </div>
+                  <Badge label={a.status} color={a.status === 'confirmado' ? '#22c55e' : '#f59e0b'} />
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {aba === 'tarefas' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {['alta', 'normal', 'baixa'].map(p => (
+                <Badge key={p} label={p.charAt(0).toUpperCase() + p.slice(1)} color={p === 'alta' ? '#ef4444' : p === 'normal' ? '#f59e0b' : '#6b7280'} />
+              ))}
+            </div>
+            <BtnPrimary small>Nova tarefa</BtnPrimary>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {tarefas.map(t => {
+              const cli = clientes.find(c => c.id === t.cliente_id);
+              return (
+                <Card key={t.id} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <input type="checkbox" checked={t.status === 'concluida'} onChange={() => {}} style={{ width: 18, height: 18, cursor: 'pointer' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, textDecoration: t.status === 'concluida' ? 'line-through' : 'none', color: t.status === 'concluida' ? '#9ca3af' : '#111' }}>{t.titulo}</div>
+                    {cli && <div style={{ fontSize: 12, color: '#6b7280' }}>{cli.nome}</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <Badge label={t.prioridade} color={t.prioridade === 'alta' ? '#ef4444' : t.prioridade === 'normal' ? '#f59e0b' : '#6b7280'} />
+                    <span style={{ fontSize: 12, color: '#9ca3af' }}>{fmtDate(t.prazo)}</span>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── MÓDULO: FLUXO DE ATENDIMENTO (KANBAN) ─────────────────
+function FluxoAtendimento({ os, clientes, onAvancar, onVoltar }) {
+  const [selecionada, setSelecionada] = useState(null);
+  const fases = ['CAPTAÇÃO', 'VENDA', 'FINANCEIRO', 'CRIAÇÃO', 'PROVAS', 'FINALIZAÇÃO', 'PÓS'];
+  const hoje = new Date();
+
+  const osPorFase = (fase) => {
+    const idsStatus = STATUS_OS.filter(s => s.fase === fase).map(s => s.id);
+    return os.filter(o => idsStatus.includes(o.status_idx));
+  };
+
+  return (
+    <div>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Fluxo de Atendimento</h1>
+      <p style={{ color: '#6b7280', marginBottom: 24 }}>Kanban com as 23 etapas do atendimento</p>
+
+      <div style={{ overflowX: 'auto', paddingBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 12, minWidth: 900 }}>
+          {fases.map(fase => {
+            const osFase = osPorFase(fase);
+            return (
+              <div key={fase} style={{ minWidth: 200, flex: '0 0 200px' }}>
+                <div style={{ background: '#111', color: '#c4a45a', padding: '8px 12px', borderRadius: '8px 8px 0 0', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  {fase} <span style={{ background: '#c4a45a', color: '#111', borderRadius: 10, padding: '1px 7px', marginLeft: 6 }}>{osFase.length}</span>
+                </div>
+                <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: 8, minHeight: 120 }}>
+                  {osFase.map(o => {
+                    const cli = clientes.find(c => c.id === o.cliente_id);
+                    const dias = Math.floor((hoje - new Date(o.ultima_atualizacao)) / (1000 * 60 * 60 * 24));
+                    const parado = dias >= 14;
+                    return (
+                      <div key={o.id} onClick={() => setSelecionada(o)} style={{ background: '#fff', border: `1px solid ${parado ? '#fca5a5' : '#e5e7eb'}`, borderRadius: 8, padding: 12, marginBottom: 8, cursor: 'pointer', borderLeft: parado ? '3px solid #ef4444' : '3px solid #c4a45a' }}>
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>{o.numero}</div>
+                        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>{cli?.nome}</div>
+                        <StatusBadge statusIdx={o.status_idx} />
+                        {parado && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4, fontWeight: 600 }}>{dias} dias parado</div>}
+                        <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                          <button onClick={e => { e.stopPropagation(); onVoltar(o.id); }} style={{ flex: 1, padding: '3px 0', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 11, cursor: 'pointer', background: '#fff' }}>Voltar</button>
+                          <button onClick={e => { e.stopPropagation(); onAvancar(o.id); }} style={{ flex: 1, padding: '3px 0', border: 'none', borderRadius: 4, fontSize: 11, cursor: 'pointer', background: '#c4a45a', color: '#fff', fontWeight: 600 }}>Avancar</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {selecionada && (
+        <Drawer open={!!selecionada} onClose={() => setSelecionada(null)} title={selecionada.numero} width={520}>
+          {(() => {
+            const cli = clientes.find(c => c.id === selecionada.cliente_id);
+            return (
+              <div>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{cli?.nome}</div>
+                  <StatusBadge statusIdx={selecionada.status_idx} />
+                </div>
+                <Campo label="Numero OS" value={selecionada.numero} readonly />
+                <Campo label="Cliente" value={cli?.nome} readonly />
+                <Campo label="Ocasiao" value={selecionada.ocasiao} readonly />
+                <Campo label="Data do evento" value={fmtDate(selecionada.data_evento)} readonly />
+                <Campo label="Valor total" value={fmt(selecionada.valor_total)} readonly />
+                <Campo label="Descricao" value={selecionada.descricao} readonly />
+                <Campo label="Ultima atualizacao" value={fmtDate(selecionada.ultima_atualizacao)} readonly />
+                <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                  <BtnSecondary onClick={() => onVoltar(selecionada.id)}>Voltar etapa</BtnSecondary>
+                  <BtnPrimary onClick={() => onAvancar(selecionada.id)}>Avancar etapa</BtnPrimary>
+                </div>
+              </div>
+            );
+          })()}
+        </Drawer>
+      )}
+    </div>
+  );
+}
+
+// ── MÓDULO: CLIENTES ──────────────────────────────────────
+function Clientes({ clientes, os }) {
+  const [busca, setBusca] = useState('');
+  const [sel, setSel] = useState(null);
+  const [editando, setEditando] = useState(false);
+  const [form, setForm] = useState({});
+  const [abaDrawer, setAbaDrawer] = useState('dados');
+
+  const filtrados = clientes.filter(c => c.nome.toLowerCase().includes(busca.toLowerCase()) || c.telefone.includes(busca));
+
+  const abrirCliente = (c) => { setSel(c); setForm({ ...c }); setEditando(false); setAbaDrawer('dados'); };
+
+  const statusCores = { dados: '#6366f1', medidas: '#0ea5e9', fotos: '#f59e0b', historico: '#22c55e' };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700 }}>Clientes</h1>
+          <p style={{ color: '#6b7280', marginTop: 4 }}>{clientes.length} clientes cadastradas</p>
+        </div>
+        <BtnPrimary>Nova cliente</BtnPrimary>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por nome ou telefone..." style={{ width: '100%', maxWidth: 400, padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }} />
+      </div>
+
+      <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#111' }}>
+              {['Nome', 'Telefone', 'Biotipo', 'Colorimetria', 'OS ativas', 'Acoes'].map(h => (
+                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#c4a45a', fontWeight: 600, fontSize: 13 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtrados.map((c, i) => {
+              const osAtivas = os.filter(o => o.cliente_id === c.id && o.status_idx < 23);
+              return (
+                <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{c.nome}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 14, color: '#6b7280' }}>{c.telefone}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 14 }}>{c.biotipo}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 14 }}>{c.colorimetria}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {osAtivas.length > 0 ? <Badge label={`${osAtivas.length} OS`} color="#c4a45a" /> : <span style={{ color: '#9ca3af', fontSize: 13 }}>—</span>}
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <button onClick={() => abrirCliente(c)} style={{ padding: '5px 14px', background: '#111', color: '#c4a45a', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Ver ficha</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel?.nome || ''} width={560}>
+        {sel && (
+          <div>
+            <TabBar tabs={[{ id: 'dados', label: 'Dados' }, { id: 'medidas', label: 'Medidas' }, { id: 'fotos', label: 'Fotos' }, { id: 'historico', label: 'Historico' }]} active={abaDrawer} onChange={setAbaDrawer} />
+            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              {editando ? (
+                <>
+                  <BtnSecondary small onClick={() => { setForm({ ...sel }); setEditando(false); }}>Cancelar</BtnSecondary>
+                  <BtnPrimary small onClick={() => setEditando(false)}>Salvar</BtnPrimary>
+                </>
+              ) : (
+                <BtnSecondary small onClick={() => setEditando(true)}>Editar</BtnSecondary>
+              )}
+            </div>
+
+            {abaDrawer === 'dados' && (
+              <div>
+                <Campo label="Nome completo" value={editando ? form.nome : sel.nome} onChange={v => setForm(p => ({ ...p, nome: v }))} readonly={!editando} />
+                <Campo label="Apelido / Como chamar" value={editando ? form.apelido : sel.apelido} onChange={v => setForm(p => ({ ...p, apelido: v }))} readonly={!editando} />
+                <Campo label="CPF / CNPJ" value={editando ? form.cpf : sel.cpf} onChange={v => setForm(p => ({ ...p, cpf: v }))} readonly={!editando} />
+                <Campo label="Data de nascimento" value={editando ? form.nascimento : fmtDate(sel.nascimento)} onChange={v => setForm(p => ({ ...p, nascimento: v }))} readonly={!editando} type="date" />
+                <Campo label="Telefone (WhatsApp)" value={editando ? form.telefone : sel.telefone} onChange={v => setForm(p => ({ ...p, telefone: v }))} readonly={!editando} />
+                <Campo label="E-mail" value={editando ? form.email : sel.email} onChange={v => setForm(p => ({ ...p, email: v }))} readonly={!editando} />
+                <Campo label="Instagram" value={editando ? form.instagram : sel.instagram} onChange={v => setForm(p => ({ ...p, instagram: v }))} readonly={!editando} />
+                <Campo label="Como chegou ate nos" value={editando ? form.origem : sel.origem} onChange={v => setForm(p => ({ ...p, origem: v }))} readonly={!editando} />
+                <Campo label="Biotipo" value={editando ? form.biotipo : sel.biotipo} onChange={v => setForm(p => ({ ...p, biotipo: v }))} readonly={!editando} options={[{ value: 'ampulheta', label: 'Ampulheta' }, { value: 'triangulo', label: 'Triangulo' }, { value: 'triangulo_invertido', label: 'Triangulo invertido' }, { value: 'retangulo', label: 'Retangulo' }, { value: 'oval', label: 'Oval' }]} />
+                <Campo label="Colorimetria" value={editando ? form.colorimetria : sel.colorimetria} onChange={v => setForm(p => ({ ...p, colorimetria: v }))} readonly={!editando} options={[{ value: 'primavera', label: 'Primavera' }, { value: 'verao', label: 'Verao' }, { value: 'outono', label: 'Outono' }, { value: 'inverno', label: 'Inverno' }]} />
+                <Campo label="Estilo predominante" value={editando ? form.estilo : sel.estilo} onChange={v => setForm(p => ({ ...p, estilo: v }))} readonly={!editando} options={[{ value: 'classico', label: 'Classico' }, { value: 'romantico', label: 'Romantico' }, { value: 'dramatico', label: 'Dramatico' }, { value: 'esportivo', label: 'Esportivo' }, { value: 'criativo', label: 'Criativo' }, { value: 'natural', label: 'Natural' }]} />
+                <Campo label="Restricoes de modelagem" value={editando ? form.restricoes_modelagem : sel.restricoes_modelagem} onChange={v => setForm(p => ({ ...p, restricoes_modelagem: v }))} readonly={!editando} type="textarea" />
+                <Campo label="Preferencias de tecidos" value={editando ? form.preferencias_tecidos : sel.preferencias_tecidos} onChange={v => setForm(p => ({ ...p, preferencias_tecidos: v }))} readonly={!editando} type="textarea" />
+                <Campo label="Observacoes gerais" value={editando ? form.obs : sel.obs} onChange={v => setForm(p => ({ ...p, obs: v }))} readonly={!editando} type="textarea" />
+              </div>
+            )}
+
+            {abaDrawer === 'medidas' && (
+              <div>
+                {[['busto', 'Busto (cm)'], ['cintura', 'Cintura (cm)'], ['quadril', 'Quadril (cm)'], ['altura', 'Altura (cm)'], ['peso', 'Peso (kg)'], ['ombro_joelho', 'Ombro ao joelho (cm)'], ['ombro_chao', 'Ombro ao chao (cm)'], ['manga', 'Manga (cm)'], ['cava', 'Cava (cm)'], ['entrepernas', 'Entrepernas (cm)']].map(([key, lbl]) => (
+                  <Campo key={key} label={lbl} value={editando ? form[key] : sel[key]} onChange={v => setForm(p => ({ ...p, [key]: v }))} readonly={!editando} type="number" />
+                ))}
+                <Campo label="Observacoes de medidas" value={editando ? form.obs_medidas : sel.obs_medidas} onChange={v => setForm(p => ({ ...p, obs_medidas: v }))} readonly={!editando} type="textarea" />
+              </div>
+            )}
+
+            {abaDrawer === 'fotos' && (
+              <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📷</div>
+                <div>Upload de fotos disponivel apos integracao com Supabase Storage</div>
+              </div>
+            )}
+
+            {abaDrawer === 'historico' && (
+              <div>
+                {os.filter(o => o.cliente_id === sel.id).map(o => (
+                  <Card key={o.id} style={{ marginBottom: 10 }}>
+                    <div style={{ fontWeight: 700 }}>{o.numero}</div>
+                    <div style={{ fontSize: 13, color: '#6b7280' }}>{o.descricao}</div>
+                    <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                      <StatusBadge statusIdx={o.status_idx} />
+                      <span style={{ fontSize: 12, color: '#9ca3af' }}>Evento: {fmtDate(o.data_evento)}</span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Drawer>
+    </div>
+  );
+}
+

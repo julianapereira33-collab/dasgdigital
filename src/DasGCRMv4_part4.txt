@@ -1,0 +1,282 @@
+﻿// ── MÓDULO: CONSULTORIA EXPRESS ───────────────────────────
+function ConsultoriaExpress({ clientes, os, briefings }) {
+  const [osSel, setOsSel] = useState(os[0] || null);
+  const [mostrarF, setMostrarF] = useState(false);
+  const [mostrarQ, setMostrarQ] = useState(false);
+  const [mostrarE, setMostrarE] = useState(false);
+  const [notas, setNotas] = useState('');
+  const [anotacoes, setAnotacoes] = useState({ estilo: '', referencias: '', tecidos_cores: '', silhueta: '', detalhes: '', restricoes: '', orcamento_disc: '', proximos_passos: '' });
+  const [timer, setTimer] = useState(0);
+  const [rodando, setRodando] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (rodando) { timerRef.current = setInterval(() => setTimer(t => t + 1), 1000); }
+    else clearInterval(timerRef.current);
+    return () => clearInterval(timerRef.current);
+  }, [rodando]);
+
+  const cli = osSel ? clientes.find(c => c.id === osSel.cliente_id) : null;
+  const br = osSel ? briefings.find(b => b.os_id === osSel.id) : null;
+
+  const fmtTimer = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+  return (
+    <div>
+      {/* Barra superior */}
+      <div style={{ background: '#111', padding: '12px 20px', borderRadius: 10, marginBottom: 20, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select value={osSel?.id || ''} onChange={e => setOsSel(os.find(o => o.id === e.target.value) || null)} style={{ padding: '6px 10px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 600 }}>
+          <option value="">Selecionar OS...</option>
+          {os.map(o => { const c = clientes.find(cl => cl.id === o.cliente_id); return <option key={o.id} value={o.id}>{o.numero} — {c?.nome}</option>; })}
+        </select>
+        {osSel?.link_meet && (
+          <a href={osSel.link_meet} target="_blank" rel="noreferrer" style={{ background: '#1a73e8', color: '#fff', padding: '6px 14px', borderRadius: 6, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>Abrir Meet</a>
+        )}
+        {cli?.telefone && (
+          <a href={`https://wa.me/55${cli.telefone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ background: '#25D366', color: '#fff', padding: '6px 14px', borderRadius: 6, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>WhatsApp</a>
+        )}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span style={{ color: '#c4a45a', fontWeight: 700, fontSize: 18, fontFamily: 'monospace' }}>{fmtTimer(timer)}</span>
+          <button onClick={() => setRodando(r => !r)} style={{ padding: '6px 14px', background: rodando ? '#ef4444' : '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>{rodando ? 'Pausar' : 'Iniciar'}</button>
+          <BtnPrimary small>Finalizar consultoria</BtnPrimary>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 20 }}>
+        {/* Coluna esq — A cliente */}
+        <div>
+          <Card style={{ marginBottom: 14 }}>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#f3f4f6', margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: '#9ca3af' }}>👤</div>
+              <div style={{ fontWeight: 700, fontSize: 18 }}>{cli?.nome || '—'}</div>
+              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{cli?.apelido && `"${cli.apelido}"`}</div>
+            </div>
+            {cli && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                {[['Biotipo', cli.biotipo], ['Colorimetria', cli.colorimetria], ['Estilo', cli.estilo], ['Busto', cli.busto + 'cm'], ['Cintura', cli.cintura + 'cm'], ['Quadril', cli.quadril + 'cm']].map(([k, v]) => (
+                  <div key={k} style={{ background: '#f9fafb', borderRadius: 6, padding: '6px 10px' }}>
+                    <div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>{k}</div>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {br && (
+              <div style={{ background: '#fef9f0', borderRadius: 6, padding: 10, fontSize: 12, color: '#374151' }}>
+                <div style={{ fontWeight: 700, marginBottom: 4, color: '#c4a45a' }}>Raio-X</div>
+                <div><b>Estilo:</b> {br.raio_x?.estilo_desejado}</div>
+                <div><b>Cores:</b> {br.raio_x?.cores_preferidas}</div>
+                <div><b>Evitar:</b> {br.raio_x?.evitar}</div>
+              </div>
+            )}
+          </Card>
+          <Card>
+            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Notas livres</div>
+            <textarea value={notas} onChange={e => setNotas(e.target.value)} placeholder="Anotar observacoes durante a sessao..." rows={6} style={{ width: '100%', padding: 8, border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, resize: 'vertical' }} />
+          </Card>
+        </div>
+
+        {/* Coluna dir — Anotações ao vivo */}
+        <div>
+          <Card>
+            <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Anotacoes ao vivo</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Campo label="Estilo identificado na sessao" value={anotacoes.estilo} onChange={v => setAnotacoes(p => ({ ...p, estilo: v }))} type="textarea" />
+              <Campo label="Referencias discutidas" value={anotacoes.referencias} onChange={v => setAnotacoes(p => ({ ...p, referencias: v }))} type="textarea" />
+              <Campo label="Tecidos e cores aprovados" value={anotacoes.tecidos_cores} onChange={v => setAnotacoes(p => ({ ...p, tecidos_cores: v }))} type="textarea" />
+              <Campo label="Silhueta ideal" value={anotacoes.silhueta} onChange={v => setAnotacoes(p => ({ ...p, silhueta: v }))} type="textarea" />
+              <Campo label="Detalhes desejados" value={anotacoes.detalhes} onChange={v => setAnotacoes(p => ({ ...p, detalhes: v }))} type="textarea" />
+              <Campo label="Restricoes identificadas" value={anotacoes.restricoes} onChange={v => setAnotacoes(p => ({ ...p, restricoes: v }))} type="textarea" />
+              <Campo label="Orcamento estimado discutido" value={anotacoes.orcamento_disc} onChange={v => setAnotacoes(p => ({ ...p, orcamento_disc: v }))} />
+              <Campo label="Proximos passos" value={anotacoes.proximos_passos} onChange={v => setAnotacoes(p => ({ ...p, proximos_passos: v }))} type="textarea" />
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Painéis flutuantes */}
+      {mostrarF && (
+        <div style={{ position: 'fixed', bottom: 80, right: 20, width: 360, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)', zIndex: 50, padding: 16 }}>
+          <div style={{ fontWeight: 700, marginBottom: 12 }}>Fotos da cliente</div>
+          <div style={{ color: '#9ca3af', fontSize: 13 }}>Fotos disponiveis apos integracao com Supabase Storage</div>
+        </div>
+      )}
+      {mostrarQ && (
+        <div style={{ position: 'fixed', bottom: 80, right: 20, width: 420, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)', zIndex: 50, padding: 16, maxHeight: '70vh', overflowY: 'auto' }}>
+          <div style={{ fontWeight: 700, marginBottom: 12 }}>Questionario Raio-X completo</div>
+          {br ? Object.entries(br.raio_x || {}).map(([k, v]) => (
+            <div key={k} style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.replace(/_/g, ' ')}</div>
+              <div style={{ fontSize: 13 }}>{v}</div>
+            </div>
+          )) : <div style={{ color: '#9ca3af', fontSize: 13 }}>Sem questionario disponivel</div>}
+        </div>
+      )}
+
+      {/* Botões flutuantes */}
+      <div style={{ position: 'fixed', bottom: 24, right: 24, display: 'flex', gap: 10 }}>
+        {[['F', '#c4a45a', () => setMostrarF(m => !m)], ['Q', '#3b82f6', () => setMostrarQ(m => !m)], ['E', '#8b5cf6', () => setMostrarE(m => !m)]].map(([l, c, fn]) => (
+          <button key={l} onClick={fn} style={{ width: 44, height: 44, borderRadius: '50%', background: c, color: '#fff', border: 'none', fontWeight: 700, fontSize: 16, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>{l}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── MÓDULO: CRIAÇÃO (Briefing + Dossiê + Ficha Técnica) ───
+function Criacao({ os, clientes, briefings, dossies, fichas, onGerarIA }) {
+  const [osSel, setOsSel] = useState(os[0]?.id || '');
+  const [aba, setAba] = useState('briefing');
+  const [gerandoIA, setGerandoIA] = useState(false);
+
+  const osAtual = os.find(o => o.id === osSel);
+  const cli = osAtual ? clientes.find(c => c.id === osAtual.cliente_id) : null;
+  const br = briefings.find(b => b.os_id === osSel);
+  const do_ = dossies.find(d => d.os_id === osSel);
+  const ft = fichas.find(f => f.os_id === osSel);
+
+  const simularIA = async (tipo) => {
+    setGerandoIA(true);
+    await new Promise(r => setTimeout(r, 1500));
+    setGerandoIA(false);
+    alert(`IA geraria o ${tipo} baseado no briefing e dados da cliente. Conecte Claude API para ativar.`);
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700 }}>Criacao</h1>
+          <p style={{ color: '#6b7280', marginTop: 4 }}>Briefing, Dossie e Ficha Tecnica</p>
+        </div>
+        <select value={osSel} onChange={e => setOsSel(e.target.value)} style={{ padding: '8px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, fontWeight: 600 }}>
+          {os.map(o => { const c = clientes.find(cl => cl.id === o.cliente_id); return <option key={o.id} value={o.id}>{o.numero} — {c?.nome}</option>; })}
+        </select>
+      </div>
+
+      <TabBar tabs={[{ id: 'briefing', label: 'Briefing' }, { id: 'dossie', label: 'Dossie' }, { id: 'ficha_tecnica', label: 'Ficha Tecnica' }, { id: 'lista_materiais', label: 'Lista de Materiais' }]} active={aba} onChange={setAba} />
+
+      {aba === 'briefing' && (
+        <div>
+          {br ? (
+            <Card>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div>
+                  <h3 style={{ fontWeight: 700 }}>Briefing — {cli?.nome}</h3>
+                  <Badge label={br.status} color="#22c55e" />
+                </div>
+                <BtnPrimary onClick={() => simularIA('dossie')} disabled={gerandoIA}>{gerandoIA ? 'Gerando...' : 'Gerar Dossie com IA'}</BtnPrimary>
+              </div>
+              {br.raio_x && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                  {Object.entries(br.raio_x).map(([k, v]) => (
+                    <div key={k} style={{ background: '#f9fafb', borderRadius: 8, padding: 12 }}>
+                      <div style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{k.replace(/_/g, ' ')}</div>
+                      <div style={{ fontSize: 13 }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div>
+                <div style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Notas da sessao</div>
+                <div style={{ background: '#f9fafb', borderRadius: 8, padding: 14, fontSize: 14, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{br.notas_sessao}</div>
+              </div>
+            </Card>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>
+              <div>Nenhum briefing encontrado para esta OS</div>
+              <BtnPrimary style={{ marginTop: 16 }} onClick={() => simularIA('briefing')}>Gerar briefing com IA</BtnPrimary>
+            </div>
+          )}
+        </div>
+      )}
+
+      {aba === 'dossie' && (
+        <div>
+          {do_ ? (
+            <Card>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div>
+                  <h3 style={{ fontWeight: 700, fontSize: 18 }}>{do_.titulo}</h3>
+                  <Badge label={do_.status === 'aguardando_aprovacao' ? 'Aguardando aprovacao' : do_.status} color={do_.status === 'aprovado' ? '#22c55e' : '#f59e0b'} />
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <BtnSecondary small>Editar</BtnSecondary>
+                  <BtnPrimary small>Aprovar e liberar</BtnPrimary>
+                </div>
+              </div>
+              {[
+                ['Introducao', do_.introducao], ['Analise de biotipo', do_.analise_biotipo],
+                ['Analise de colorimetria', do_.analise_colorimetria], ['Analise de estilo', do_.analise_estilo],
+                ['Harmonizacao corporal', do_.harmonizacao], ['Nome da peca', do_.nome_peca],
+                ['Descricao da peca', do_.descricao_peca], ['Tecido principal', do_.tecido_principal],
+                ['Tecido secundario', do_.tecido_secundario], ['Acabamentos', do_.acabamentos],
+                ['Acessorios sugeridos', do_.acessorios_sugeridos], ['Cuidados com o tecido', do_.cuidados_tecido],
+                ['Proximos passos', do_.proximos_passos],
+              ].map(([label, val]) => val ? (
+                <div key={label} style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#c4a45a', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 14, lineHeight: 1.7, color: '#374151' }}>{val}</div>
+                </div>
+              ) : null)}
+              {do_.obs_internas && (
+                <div style={{ background: '#fef9f0', borderRadius: 8, padding: 14, border: '1px solid #fde68a', marginTop: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Obs. internas (nao enviar a cliente)</div>
+                  <div style={{ fontSize: 14 }}>{do_.obs_internas}</div>
+                </div>
+              )}
+            </Card>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>
+              <div>Nenhum dossie encontrado. Gere a partir do briefing.</div>
+              <div style={{ marginTop: 16 }}>
+                <BtnPrimary onClick={() => simularIA('dossie')} disabled={gerandoIA}>{gerandoIA ? 'Gerando...' : 'Gerar Dossie com IA'}</BtnPrimary>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {aba === 'ficha_tecnica' && (
+        <div>
+          {ft ? (
+            <Card>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                <h3 style={{ fontWeight: 700 }}>{ft.nome_peca}</h3>
+                <BtnPrimary small onClick={() => simularIA('ficha tecnica')}>Regenerar com IA</BtnPrimary>
+              </div>
+              <Campo label="Descricao tecnica" value={ft.descricao_tecnica} readonly type="textarea" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Campo label="Tecido principal" value={`${ft.tecido_principal.nome} — ${ft.tecido_principal.metros}m`} readonly />
+                <Campo label="Forro" value={`${ft.forro.nome} — ${ft.forro.metros}m`} readonly />
+                <Campo label="Horas estimadas" value={ft.horas_estimadas} readonly />
+                <Campo label="Custo estimado material" value={fmt(ft.custo_material_estimado)} readonly />
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', marginBottom: 8 }}>Aviamentos</div>
+                {ft.aviamentos.map((a, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+                    <div style={{ flex: 1, fontSize: 14 }}>{a.item}</div>
+                    <div style={{ fontSize: 14, color: '#6b7280' }}>{a.qtd} {a.unidade}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>
+              <div>Nenhuma ficha tecnica. Gere apos aprovacao do dossie.</div>
+              <div style={{ marginTop: 16 }}>
+                <BtnPrimary onClick={() => simularIA('ficha tecnica')} disabled={gerandoIA}>{gerandoIA ? 'Gerando...' : 'Gerar Ficha Tecnica com IA'}</BtnPrimary>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {aba === 'lista_materiais' && (
+        <div style={{ color: '#9ca3af', textAlign: 'center', padding: 60 }}>Lista de materiais vinculada a Central de Compras — selecione acima apos gerar ficha tecnica.</div>
+      )}
+    </div>
+  );
+}
+

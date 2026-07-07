@@ -1,0 +1,102 @@
+﻿// ── APP SHELL ─────────────────────────────────────────────
+export default function DasGCRM() {
+  const [pagina, setPagina] = useState('central');
+  const [clientes, setClientes] = useState(MOCK_CLIENTES);
+  const [os, setOs] = useState(MOCK_OS);
+  const [leads, setLeads] = useState(MOCK_LEADS);
+  const [agenda] = useState(MOCK_AGENDA);
+  const [tarefas] = useState(MOCK_TAREFAS);
+  const [pedidos] = useState(MOCK_PEDIDOS);
+  const [contasPagar] = useState(MOCK_CONTAS_PAGAR);
+  const [briefings] = useState(MOCK_BRIEFINGS);
+  const [dossies] = useState(MOCK_DOSSIES);
+  const [fichas] = useState(MOCK_FICHAS_TECNICAS);
+  const [listas] = useState(MOCK_LISTAS_MATERIAIS);
+  const [provas] = useState(MOCK_PROVAS);
+  const [feedbacks] = useState(MOCK_FEEDBACK);
+  const [conversas] = useState(MOCK_CONVERSAS);
+
+  const avancarOS = (id) => setOs(prev => prev.map(o => o.id === id && o.status_idx < 23 ? { ...o, status_idx: o.status_idx + 1, ultima_atualizacao: new Date().toISOString().split('T')[0] } : o));
+  const voltarOS = (id) => setOs(prev => prev.map(o => o.id === id && o.status_idx > 1 ? { ...o, status_idx: o.status_idx - 1, ultima_atualizacao: new Date().toISOString().split('T')[0] } : o));
+  const novoCadastro = (lead) => setLeads(prev => [...prev, { ...lead, id: `l${Date.now()}`, status: 'novo', criado_em: new Date().toISOString().split('T')[0] }]);
+
+  const nav = [
+    { id: 'central', label: 'Central de Atendimento', dot: conversas.filter(c => c.nao_lidas > 0).length },
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'agenda', label: 'Agenda e Tarefas' },
+    { id: 'fluxo', label: 'Fluxo de Atendimento' },
+    { id: 'clientes', label: 'Clientes' },
+    { id: 'consultoria', label: 'Consultoria Express' },
+    { id: 'criacao', label: 'Criacao' },
+    { id: 'orcamentos', label: 'Orcamentos' },
+    { id: 'provas', label: 'Provas' },
+    { id: 'financeiro', label: 'Financeiro' },
+    { id: 'compras', label: 'Central de Compras' },
+    { id: 'marketing', label: 'Marketing' },
+    { id: 'feedback', label: 'Feedback' },
+    { id: 'relatorios', label: 'Relatorios' },
+  ];
+
+  const renderPagina = () => {
+    switch (pagina) {
+      case 'central': return <CentralAtendimento conversas={conversas} leads={leads} onNovoCad={novoCadastro} />;
+      case 'dashboard': return <Dashboard clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
+      case 'agenda': return <AgendaTarefas agenda={agenda} tarefas={tarefas} clientes={clientes} os={os} />;
+      case 'fluxo': return <FluxoAtendimento os={os} clientes={clientes} onAvancar={avancarOS} onVoltar={voltarOS} />;
+      case 'clientes': return <Clientes clientes={clientes} os={os} />;
+      case 'consultoria': return <ConsultoriaExpress clientes={clientes} os={os} briefings={briefings} />;
+      case 'criacao': return <Criacao os={os} clientes={clientes} briefings={briefings} dossies={dossies} fichas={fichas} />;
+      case 'orcamentos': return <Orcamentos os={os} clientes={clientes} pedidos={pedidos} />;
+      case 'provas': return <Provas os={os} clientes={clientes} provas={provas} />;
+      case 'financeiro': return <Financeiro pedidos={pedidos} clientes={clientes} os={os} contasPagar={contasPagar} />;
+      case 'compras': return <CentralCompras listas={listas} clientes={clientes} os={os} />;
+      case 'marketing': return <Marketing />;
+      case 'feedback': return <FeedbackMod feedbacks={feedbacks} clientes={clientes} os={os} />;
+      case 'relatorios': return <Relatorios pedidos={pedidos} os={os} clientes={clientes} feedbacks={feedbacks} />;
+      default: return <Dashboard clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
+    }
+  };
+
+  return (
+    <>
+      <style>{css}</style>
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        {/* Sidebar */}
+        <div style={{ width: 240, background: '#111', flexShrink: 0, display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100vh', overflowY: 'auto', zIndex: 10 }}>
+          {/* Logo */}
+          <div style={{ padding: '20px 16px', borderBottom: '1px solid #222', textAlign: 'center' }}>
+            <img src={`data:image/jpeg;base64,${LOGO_B64}`} alt="Das G Logo" style={{ maxWidth: 160, maxHeight: 80, objectFit: 'contain' }} />
+          </div>
+
+          {/* Nav */}
+          <nav style={{ flex: 1, padding: '12px 0' }}>
+            {nav.map(n => (
+              <button key={n.id} onClick={() => setPagina(n.id)} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                width: '100%', padding: '10px 20px', border: 'none', background: pagina === n.id ? '#1a1a1a' : 'none',
+                color: pagina === n.id ? '#c4a45a' : '#9ca3af', textAlign: 'left', fontSize: 13, fontWeight: pagina === n.id ? 700 : 400, cursor: 'pointer',
+                borderLeft: pagina === n.id ? '3px solid #c4a45a' : '3px solid transparent',
+                transition: 'all 0.15s',
+              }}>
+                {n.label}
+                {n.dot > 0 && <span style={{ background: '#c4a45a', color: '#111', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{n.dot}</span>}
+              </button>
+            ))}
+          </nav>
+
+          {/* Footer */}
+          <div style={{ padding: '16px 20px', borderTop: '1px solid #222', fontSize: 11, color: '#4b5563' }}>
+            Das G Digital v4 · 2024
+          </div>
+        </div>
+
+        {/* Main */}
+        <div style={{ marginLeft: 240, flex: 1, minHeight: '100vh', background: '#f9fafb' }}>
+          <div style={{ padding: '32px 32px' }}>
+            {renderPagina()}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
