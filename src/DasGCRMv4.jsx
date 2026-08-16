@@ -46,6 +46,15 @@ const STATUS_OS = [
   { id: 23, label: 'Feedback pós-evento', fase: 'PÓS', cor: '#78716c' },
 ];
 
+// Ordem exata dos slugs de status no banco (check constraint de ordens_servico.status),
+// index+1 corresponde ao STATUS_OS.id / status_idx usado na UI.
+const DB_STATUS_SLUGS = [
+  'lead', 'qualificacao', 'agendado', 'consultoria', 'orcamento_enviado', 'aprovado',
+  'entrada', 'os_aberta', 'briefing', 'dossie', 'criacao', 'modelagem', 'corte', 'costura',
+  'acabamento', 'prova1', 'ajustes1', 'prova2', 'prova_final', 'finalizacao', 'pgto_final',
+  'entrega', 'feedback',
+];
+
 // ── MOCK DATA ─────────────────────────────────────────────
 const MOCK_CLIENTES = [
   {
@@ -960,14 +969,14 @@ function FluxoAtendimento({ os, clientes, onAvancar, onVoltar }) {
 }
 
 // ── MÓDULO: CLIENTES ──────────────────────────────────────
-function Clientes({ clientes, os }) {
+function Clientes({ clientes, os, onSalvar }) {
   const [busca, setBusca] = useState('');
   const [sel, setSel] = useState(null);
   const [editando, setEditando] = useState(false);
   const [form, setForm] = useState({});
   const [abaDrawer, setAbaDrawer] = useState('dados');
 
-  const filtrados = clientes.filter(c => c.nome.toLowerCase().includes(busca.toLowerCase()) || c.telefone.includes(busca));
+  const filtrados = clientes.filter(c => (c.nome || '').toLowerCase().includes(busca.toLowerCase()) || (c.telefone || '').includes(busca));
 
   const abrirCliente = (c) => { setSel(c); setForm({ ...c }); setEditando(false); setAbaDrawer('dados'); };
 
@@ -1026,7 +1035,7 @@ function Clientes({ clientes, os }) {
               {editando ? (
                 <>
                   <BtnSecondary small onClick={() => { setForm({ ...sel }); setEditando(false); }}>Cancelar</BtnSecondary>
-                  <BtnPrimary small onClick={() => setEditando(false)}>Salvar</BtnPrimary>
+                  <BtnPrimary small onClick={async () => { await onSalvar(form); setSel(prev => ({ ...prev, ...form })); setEditando(false); }}>Salvar</BtnPrimary>
                 </>
               ) : (
                 <BtnSecondary small onClick={() => setEditando(true)}>Editar</BtnSecondary>
@@ -1844,13 +1853,57 @@ function Relatorios({ pedidos, os, clientes, feedbacks }) {
 }
 
 
+// ── LOGIN ─────────────────────────────────────────────────
+function Login() {
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [erro, setErro] = useState('');
+  const [carregando, setCarregando] = useState(false);
+
+  const entrar = async (e) => {
+    e.preventDefault();
+    setErro('');
+    setCarregando(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    if (error) setErro('E-mail ou senha incorretos.');
+    setCarregando(false);
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb' }}>
+      <form onSubmit={entrar} style={{ background: '#fff', padding: 40, borderRadius: 12, width: 360, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+        <img src={`data:image/jpeg;base64,${LOGO_B64}`} alt="Das G Logo" style={{ maxWidth: 140, display: 'block', margin: '0 auto 24px' }} />
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>E-mail</label>
+          <input type="email" required value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Senha</label>
+          <input type="password" required value={senha} onChange={e => setSenha(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }} />
+        </div>
+        {erro && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 14 }}>{erro}</div>}
+        <button type="submit" disabled={carregando} style={{ width: '100%', padding: '10px 0', background: '#111', color: '#c4a45a', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+          {carregando ? 'Entrando...' : 'Entrar'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 // ── APP SHELL ─────────────────────────────────────────────
 export default function DasGCRM() {
+  const [session, setSession] = useState(undefined);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
   const [pagina, setPagina] = useState('central');
-  const [clientes, setClientes] = useState(MOCK_CLIENTES);
-  const [os, setOs] = useState(MOCK_OS);
-  const [leads, setLeads] = useState(MOCK_LEADS);
-  const [agenda] = useState(MOCK_AGENDA);
+  const [clientes, setClientes] = useState([]);
+  const [os, setOs] = useState([]);
+  const [leads, setLeads] = useState([]);
+  const [agenda, setAgenda] = useState([]);
   const [tarefas] = useState(MOCK_TAREFAS);
   const [pedidos] = useState(MOCK_PEDIDOS);
   const [contasPagar] = useState(MOCK_CONTAS_PAGAR);
@@ -1858,9 +1911,29 @@ export default function DasGCRM() {
   const [dossies] = useState(MOCK_DOSSIES);
   const [fichas] = useState(MOCK_FICHAS_TECNICAS);
   const [listas] = useState(MOCK_LISTAS_MATERIAIS);
-  const [provas] = useState(MOCK_PROVAS);
+  const [provas, setProvas] = useState([]);
   const [feedbacks] = useState(MOCK_FEEDBACK);
   const [conversas, setConversas] = useState([]);
+
+  useEffect(() => {
+    if (!session) return;
+    async function carregarDadosReais() {
+      const [{ data: leadsData }, { data: clientesData }, { data: osData }, { data: agendaData }, { data: provasData }] = await Promise.all([
+        supabase.from('leads').select('*').order('created_at', { ascending: false }),
+        supabase.from('clientes').select('*').order('created_at', { ascending: false }),
+        supabase.from('ordens_servico').select('*').order('created_at', { ascending: false }),
+        supabase.from('agenda').select('*').order('data_hora', { ascending: true }),
+        supabase.from('provas').select('*').order('data_agendada', { ascending: true }),
+      ]);
+      setLeads((leadsData || []).map(l => ({ ...l, criado_em: l.created_at })));
+      setClientes(clientesData || []);
+      setOs((osData || []).map(o => ({ ...o, status_idx: DB_STATUS_SLUGS.indexOf(o.status) + 1, ultima_atualizacao: o.updated_at, criado_em: o.created_at })));
+      setAgenda((agendaData || []).map(a => ({ ...a, data: a.data_hora })));
+      setProvas((provasData || []).map(p => ({ ...p, os_id: p.ordem_servico_id, data: p.data_agendada })));
+    }
+    carregarDadosReais();
+  }, [session]);
+
   useEffect(() => {
     let mounted = true;
     async function carregarConversas() {
@@ -1896,9 +1969,33 @@ export default function DasGCRM() {
     return () => { mounted = false; supabase.removeChannel(canal); };
   }, []);
 
-  const avancarOS = (id) => setOs(prev => prev.map(o => o.id === id && o.status_idx < 23 ? { ...o, status_idx: o.status_idx + 1, ultima_atualizacao: new Date().toISOString().split('T')[0] } : o));
-  const voltarOS = (id) => setOs(prev => prev.map(o => o.id === id && o.status_idx > 1 ? { ...o, status_idx: o.status_idx - 1, ultima_atualizacao: new Date().toISOString().split('T')[0] } : o));
-  const novoCadastro = (lead) => setLeads(prev => [...prev, { ...lead, id: `l${Date.now()}`, status: 'novo', criado_em: new Date().toISOString().split('T')[0] }]);
+  const avancarOS = async (id) => {
+    const atual = os.find(o => o.id === id);
+    if (!atual || atual.status_idx >= 23) return;
+    const novoIdx = atual.status_idx + 1;
+    setOs(prev => prev.map(o => o.id === id ? { ...o, status_idx: novoIdx, ultima_atualizacao: new Date().toISOString() } : o));
+    await supabase.from('ordens_servico').update({ status: DB_STATUS_SLUGS[novoIdx - 1] }).eq('id', id);
+  };
+  const voltarOS = async (id) => {
+    const atual = os.find(o => o.id === id);
+    if (!atual || atual.status_idx <= 1) return;
+    const novoIdx = atual.status_idx - 1;
+    setOs(prev => prev.map(o => o.id === id ? { ...o, status_idx: novoIdx, ultima_atualizacao: new Date().toISOString() } : o));
+    await supabase.from('ordens_servico').update({ status: DB_STATUS_SLUGS[novoIdx - 1] }).eq('id', id);
+  };
+  const novoCadastro = async (lead) => {
+    const { data, error } = await supabase.from('leads').insert({
+      nome: lead.nome, telefone: lead.telefone, instagram: lead.instagram,
+      procura: lead.procura, ocasiao: lead.ocasiao, data_evento: lead.data_evento || null,
+      origem: lead.como_chegou, servico_interesse: lead.servico_interesse, status: 'novo',
+    }).select().single();
+    if (!error && data) setLeads(prev => [{ ...data, criado_em: data.created_at }, ...prev]);
+  };
+  const salvarCliente = async (form) => {
+    const { id, os_ids, ...campos } = form;
+    const { error } = await supabase.from('clientes').update(campos).eq('id', id);
+    if (!error) setClientes(prev => prev.map(c => c.id === id ? { ...c, ...campos } : c));
+  };
 
   const nav = [
     { id: 'central', label: 'Central de Atendimento', dot: conversas.filter(c => c.nao_lidas > 0).length },
@@ -1923,7 +2020,7 @@ export default function DasGCRM() {
       case 'dashboard': return <Dashboard clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
       case 'agenda': return <AgendaTarefas agenda={agenda} tarefas={tarefas} clientes={clientes} os={os} />;
       case 'fluxo': return <FluxoAtendimento os={os} clientes={clientes} onAvancar={avancarOS} onVoltar={voltarOS} />;
-      case 'clientes': return <Clientes clientes={clientes} os={os} />;
+      case 'clientes': return <Clientes clientes={clientes} os={os} onSalvar={salvarCliente} />;
       case 'consultoria': return <ConsultoriaExpress clientes={clientes} os={os} briefings={briefings} />;
       case 'criacao': return <Criacao os={os} clientes={clientes} briefings={briefings} dossies={dossies} fichas={fichas} />;
       case 'orcamentos': return <Orcamentos os={os} clientes={clientes} pedidos={pedidos} />;
@@ -1936,6 +2033,13 @@ export default function DasGCRM() {
       default: return <Dashboard clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
     }
   };
+
+  if (session === undefined) {
+    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>Carregando...</div>;
+  }
+  if (!session) {
+    return <Login />;
+  }
 
   return (
     <>
@@ -1967,6 +2071,10 @@ export default function DasGCRM() {
           {/* Footer */}
           <div style={{ padding: '16px 20px', borderTop: '1px solid #222', fontSize: 11, color: '#4b5563' }}>
             Das G Digital v4 · 2024
+            <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{session.user.email}</span>
+              <button onClick={() => supabase.auth.signOut()} style={{ background: 'none', border: 'none', color: '#c4a45a', cursor: 'pointer', fontSize: 11, textDecoration: 'underline', flexShrink: 0 }}>Sair</button>
+            </div>
           </div>
         </div>
 
