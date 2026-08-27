@@ -183,7 +183,7 @@ export default function CadastroProduto({
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 20 }}>
             {fotosDoProduto(form.id).filter(f => !f.is_mosaico_bruto).map(f => (
-              <img key={f.id} src={`https://gfmvyujaxlwizmvwmcfm.supabase.co/storage/v1/object/public/dasg-fotos/${f.storage_path}`}
+              <img key={f.id} src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/dasg-fotos/${f.storage_path}`}
                 alt={f.panel_name} title={f.panel_name}
                 style={{ width: '100%', aspectRatio: '9 / 16', objectFit: 'cover', borderRadius: 6, border: f.aprovada ? '2px solid #22c55e' : '1px solid #e5e7eb' }} />
             ))}

@@ -112,11 +112,15 @@ comment on column public.produto_variantes.sku is
 comment on column public.produto_variantes.preco_venda is
   'Override do preco do produto pai quando a variante custa diferente. Nulo = usa produtos.preco_venda.';
 
+drop policy if exists authenticated_full_access on public.produtos;
 create policy authenticated_full_access on public.produtos
   for all to authenticated using (true);
+drop policy if exists authenticated_full_access on public.produto_fotos;
 create policy authenticated_full_access on public.produto_fotos
   for all to authenticated using (true);
+drop policy if exists authenticated_full_access on public.variantes_sessao;
 create policy authenticated_full_access on public.variantes_sessao
   for all to authenticated using (true);
+drop policy if exists authenticated_full_access on public.produto_variantes;
 create policy authenticated_full_access on public.produto_variantes
   for all to authenticated using (true);
