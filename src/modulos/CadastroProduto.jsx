@@ -108,8 +108,10 @@ export default function CadastroProduto({
   const salvarCampos = async () => {
     const { id, tecido, composicao, cor, tamanhos, detalhes, preco_custo, preco_venda, ncm,
       ncm_confirmado, marca, cest, gtin, categoria_produto, descricao_curta, descricao_completa } = form;
+    const numOuNull = (v) => (v === '' || v === null || v === undefined) ? null : Number(v);
     await onSalvarProduto(id, {
-      tecido, composicao, cor, tamanhos, detalhes, preco_custo, preco_venda, ncm,
+      tecido, composicao, cor, tamanhos, detalhes,
+      preco_custo: numOuNull(preco_custo), preco_venda: numOuNull(preco_venda), ncm,
       ncm_confirmado, marca, cest, gtin, categoria_produto, descricao_curta, descricao_completa,
     });
   };
@@ -195,7 +197,7 @@ export default function CadastroProduto({
           </div>
 
           <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-            <BtnPrimary onClick={() => onAprovar(form.id)} disabled={form.status_geral === 'aprovado'}>
+            <BtnPrimary onClick={() => { setForm({ ...form, status_geral: 'aprovado' }); onAprovar(form.id); }} disabled={form.status_geral === 'aprovado'}>
               {form.status_geral === 'aprovado' ? 'Já aprovado' : 'Aprovar'}
             </BtnPrimary>
           </div>

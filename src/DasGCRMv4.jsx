@@ -2037,31 +2037,53 @@ export default function DasGCRM() {
   };
   const aprovarProduto = async (id) => {
     const atual = produtos.find(p => p.id === id);
+    if (!atual || atual.status_geral === 'aprovado') return;
     setProdutos(prev => prev.map(p => p.id === id ? { ...p, status_geral: 'aprovado' } : p));
-    await supabase.from('produtos').update({ status_geral: 'aprovado' }).eq('id', id);
-    if (atual) await chamarWebhookCadastro('aprovar_fotos', atual.codigo, atual.phone);
+    const { error } = await supabase.from('produtos').update({ status_geral: 'aprovado' }).eq('id', id);
+    if (error) {
+      setProdutos(prev => prev.map(p => p.id === id ? { ...p, status_geral: atual.status_geral } : p));
+      alert('Não consegui aprovar: ' + error.message);
+      return;
+    }
+    await chamarWebhookCadastro('aprovar_fotos', atual.codigo, atual.phone);
   };
   const refazerFotosProduto = async (codigo, phone, obs) => {
     await chamarWebhookCadastro('refazer_fotos', codigo, phone, obs);
   };
   const salvarProduto = async (id, campos) => {
+    const anterior = produtos.find(p => p.id === id);
     setProdutos(prev => prev.map(p => p.id === id ? { ...p, ...campos } : p));
-    await supabase.from('produtos').update(campos).eq('id', id);
+    const { error } = await supabase.from('produtos').update(campos).eq('id', id);
+    if (error) {
+      if (anterior) setProdutos(prev => prev.map(p => p.id === id ? anterior : p));
+      alert('Não consegui salvar: ' + error.message);
+    }
   };
   const salvarVariante = async (produtoId, variante) => {
     if (variante.id) {
       const { id, ...campos } = variante;
+      const anterior = produtoVariantes.find(v => v.id === id);
       setProdutoVariantes(prev => prev.map(v => v.id === id ? { ...v, ...campos } : v));
-      await supabase.from('produto_variantes').update(campos).eq('id', id);
+      const { error } = await supabase.from('produto_variantes').update(campos).eq('id', id);
+      if (error) {
+        if (anterior) setProdutoVariantes(prev => prev.map(v => v.id === id ? anterior : v));
+        alert('Não consegui salvar a variante: ' + error.message);
+      }
     } else {
       const { data, error } = await supabase.from('produto_variantes')
         .insert({ produto_id: produtoId, ...variante }).select().single();
       if (!error && data) setProdutoVariantes(prev => [...prev, data]);
+      else if (error) alert('Não consegui adicionar a variante: ' + error.message);
     }
   };
   const removerVariante = async (id) => {
+    const anterior = produtoVariantes.find(v => v.id === id);
     setProdutoVariantes(prev => prev.filter(v => v.id !== id));
-    await supabase.from('produto_variantes').delete().eq('id', id);
+    const { error } = await supabase.from('produto_variantes').delete().eq('id', id);
+    if (error) {
+      if (anterior) setProdutoVariantes(prev => [...prev, anterior]);
+      alert('Não consegui remover a variante: ' + error.message);
+    }
   };
 
   const nav = [

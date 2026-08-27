@@ -124,3 +124,8 @@ create policy authenticated_full_access on public.variantes_sessao
 drop policy if exists authenticated_full_access on public.produto_variantes;
 create policy authenticated_full_access on public.produto_variantes
   for all to authenticated using (true);
+
+-- Sem isso o Realtime não entrega mudanças pro CRM (aba Cadastro fica sem atualizar sozinha,
+-- precisa F5) -- achado pelo @qa em 27/08/2026.
+alter publication supabase_realtime add table public.produtos;
+alter publication supabase_realtime add table public.produto_fotos;
