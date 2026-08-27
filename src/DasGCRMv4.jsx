@@ -1,5 +1,8 @@
 ﻿import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient.js';
+import CadastroProduto from './modulos/CadastroProduto.jsx';
+
+const N8N_WEBHOOK_CADASTRO_URL = import.meta.env.VITE_N8N_WEBHOOK_CADASTRO_URL;
 
 function tempoRelativo(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -1914,6 +1917,9 @@ export default function DasGCRM() {
   const [provas, setProvas] = useState([]);
   const [feedbacks] = useState(MOCK_FEEDBACK);
   const [conversas, setConversas] = useState([]);
+  const [produtos, setProdutos] = useState([]);
+  const [produtoFotos, setProdutoFotos] = useState([]);
+  const [produtoVariantes, setProdutoVariantes] = useState([]);
 
   useEffect(() => {
     if (!session) return;
@@ -1932,6 +1938,27 @@ export default function DasGCRM() {
       setProvas((provasData || []).map(p => ({ ...p, os_id: p.ordem_servico_id, data: p.data_agendada })));
     }
     carregarDadosReais();
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) return;
+    async function carregarProdutos() {
+      const [{ data: produtosData }, { data: fotosData }, { data: variantesData }] = await Promise.all([
+        supabase.from('produtos').select('*').order('criado_em', { ascending: false }),
+        supabase.from('produto_fotos').select('*'),
+        supabase.from('produto_variantes').select('*'),
+      ]);
+      setProdutos(produtosData || []);
+      setProdutoFotos(fotosData || []);
+      setProdutoVariantes(variantesData || []);
+    }
+    carregarProdutos();
+    const canal = supabase
+      .channel('cadastro_produto_lista')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, carregarProdutos)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'produto_fotos' }, carregarProdutos)
+      .subscribe();
+    return () => { supabase.removeChannel(canal); };
   }, [session]);
 
   useEffect(() => {
@@ -1997,8 +2024,49 @@ export default function DasGCRM() {
     if (!error) setClientes(prev => prev.map(c => c.id === id ? { ...c, ...campos } : c));
   };
 
+  const chamarWebhookCadastro = async (comando, codigo, phone, obs = '') => {
+    if (!N8N_WEBHOOK_CADASTRO_URL) {
+      console.error('VITE_N8N_WEBHOOK_CADASTRO_URL não configurada');
+      return;
+    }
+    await fetch(N8N_WEBHOOK_CADASTRO_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comando, codigo, phone, obs }),
+    });
+  };
+  const aprovarProduto = async (id) => {
+    const atual = produtos.find(p => p.id === id);
+    setProdutos(prev => prev.map(p => p.id === id ? { ...p, status_geral: 'aprovado' } : p));
+    await supabase.from('produtos').update({ status_geral: 'aprovado' }).eq('id', id);
+    if (atual) await chamarWebhookCadastro('aprovar_fotos', atual.codigo, atual.phone);
+  };
+  const refazerFotosProduto = async (codigo, phone, obs) => {
+    await chamarWebhookCadastro('refazer_fotos', codigo, phone, obs);
+  };
+  const salvarProduto = async (id, campos) => {
+    setProdutos(prev => prev.map(p => p.id === id ? { ...p, ...campos } : p));
+    await supabase.from('produtos').update(campos).eq('id', id);
+  };
+  const salvarVariante = async (produtoId, variante) => {
+    if (variante.id) {
+      const { id, ...campos } = variante;
+      setProdutoVariantes(prev => prev.map(v => v.id === id ? { ...v, ...campos } : v));
+      await supabase.from('produto_variantes').update(campos).eq('id', id);
+    } else {
+      const { data, error } = await supabase.from('produto_variantes')
+        .insert({ produto_id: produtoId, ...variante }).select().single();
+      if (!error && data) setProdutoVariantes(prev => [...prev, data]);
+    }
+  };
+  const removerVariante = async (id) => {
+    setProdutoVariantes(prev => prev.filter(v => v.id !== id));
+    await supabase.from('produto_variantes').delete().eq('id', id);
+  };
+
   const nav = [
     { id: 'central', label: 'Central de Atendimento', dot: conversas.filter(c => c.nao_lidas > 0).length },
+    { id: 'produtos', label: 'Cadastro de Produto', dot: produtos.filter(p => (p.status_geral || 'em_aprovacao') === 'em_aprovacao').length },
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'agenda', label: 'Agenda e Tarefas' },
     { id: 'fluxo', label: 'Fluxo de Atendimento' },
@@ -2017,6 +2085,9 @@ export default function DasGCRM() {
   const renderPagina = () => {
     switch (pagina) {
       case 'central': return <CentralAtendimento conversas={conversas} leads={leads} onNovoCad={novoCadastro} />;
+      case 'produtos': return <CadastroProduto produtos={produtos} produtoFotos={produtoFotos} produtoVariantes={produtoVariantes}
+        onAprovar={aprovarProduto} onRefazerFotos={refazerFotosProduto} onSalvarProduto={salvarProduto}
+        onSalvarVariante={salvarVariante} onRemoverVariante={removerVariante} />;
       case 'dashboard': return <Dashboard clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
       case 'agenda': return <AgendaTarefas agenda={agenda} tarefas={tarefas} clientes={clientes} os={os} />;
       case 'fluxo': return <FluxoAtendimento os={os} clientes={clientes} onAvancar={avancarOS} onVoltar={voltarOS} />;
