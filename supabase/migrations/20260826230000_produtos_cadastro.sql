@@ -126,6 +126,26 @@ create policy authenticated_full_access on public.produto_variantes
   for all to authenticated using (true);
 
 -- Sem isso o Realtime não entrega mudanças pro CRM (aba Cadastro fica sem atualizar sozinha,
--- precisa F5) -- achado pelo @qa em 27/08/2026.
-alter publication supabase_realtime add table public.produtos;
-alter publication supabase_realtime add table public.produto_fotos;
+-- precisa F5) -- achado pelo @qa em 27/08/2026. Bloco DO pra ficar idempotente (ao contrário de
+-- "create policy if not exists", não existe "alter publication add table if not exists").
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'produtos'
+  ) then
+    alter publication supabase_realtime add table public.produtos;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'produto_fotos'
+  ) then
+    alter publication supabase_realtime add table public.produto_fotos;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'produto_variantes'
+  ) then
+    alter publication supabase_realtime add table public.produto_variantes;
+  end if;
+end $$;
