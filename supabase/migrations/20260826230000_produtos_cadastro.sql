@@ -112,6 +112,10 @@ comment on column public.produto_variantes.sku is
 comment on column public.produto_variantes.preco_venda is
   'Override do preco do produto pai quando a variante custa diferente. Nulo = usa produtos.preco_venda.';
 
+alter table public.produto_variantes add column if not exists sob_demanda boolean not null default false;
+comment on column public.produto_variantes.sob_demanda is
+  'true = disponivel por encomenda mesmo sem estoque fisico (mostrar no site dasgcouture.com.br como sob demanda). Nao exclui ter quantidade_estoque > 0 tambem.';
+
 drop policy if exists authenticated_full_access on public.produtos;
 create policy authenticated_full_access on public.produtos
   for all to authenticated using (true);

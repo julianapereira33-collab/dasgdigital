@@ -5,6 +5,8 @@ import { useState } from 'react';
 const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 const fmtDateTime = (d) => d ? new Date(d).toLocaleString('pt-BR') : '—';
 
+const GRADE_TAMANHOS = ['34', '36', '38', '40', '42', '44', '46', '48', '50', '52', '54'];
+
 const STATUS_PRODUTO = [
   { id: 'em_aprovacao', label: 'Aguardando aprovação', cor: '#f59e0b' },
   { id: 'aprovado', label: 'Aprovado', cor: '#22c55e' },
@@ -133,6 +135,18 @@ export default function CadastroProduto({
     setNovaVariante({ tamanho: '', cor: '', quantidade_estoque: 0 });
   };
 
+  const gerarGradeSobDemanda = async () => {
+    const jaTem = new Set(variantesDoProduto(form.id).map(v => v.tamanho));
+    for (const tam of GRADE_TAMANHOS) {
+      if (jaTem.has(tam)) continue;
+      await onSalvarVariante(selecionado.id, {
+        tamanho: tam, cor: novaVariante.cor || form.cor || '',
+        sku: `${selecionado.codigo}-${tam}-${(novaVariante.cor || form.cor || '').toUpperCase().replace(/\s+/g, '')}`,
+        quantidade_estoque: 0, sob_demanda: true,
+      });
+    }
+  };
+
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Cadastro de Produto</h1>
@@ -248,6 +262,11 @@ export default function CadastroProduto({
                 <input type="number" defaultValue={v.quantidade_estoque}
                   onBlur={e => onSalvarVariante(form.id, { id: v.id, quantidade_estoque: Number(e.target.value) || 0 })}
                   style={{ width: 60, padding: '4px 6px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 12 }} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#6b7280', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!v.sob_demanda}
+                    onChange={e => onSalvarVariante(form.id, { id: v.id, sob_demanda: e.target.checked })} />
+                  sob demanda
+                </label>
                 <button onClick={() => onRemoverVariante(v.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}>Remover</button>
               </div>
             ))}
@@ -259,6 +278,15 @@ export default function CadastroProduto({
               <input placeholder="Qtd" type="number" value={novaVariante.quantidade_estoque} onChange={e => setNovaVariante({ ...novaVariante, quantidade_estoque: e.target.value })}
                 style={{ width: 60, padding: '6px 8px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: 12 }} />
               <BtnSecondary onClick={adicionarVariante} small>+ Variante</BtnSecondary>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <BtnSecondary onClick={gerarGradeSobDemanda} small>
+                Gerar grade 34–54 (sob demanda, cor: {novaVariante.cor || form.cor || '—'})
+              </BtnSecondary>
+              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+                Cria os tamanhos que ainda não existem com estoque 0 e marcados "sob demanda". Digite a
+                cor no campo acima antes de clicar, se for diferente da cor principal da peça.
+              </div>
             </div>
           </div>
         </Drawer>
