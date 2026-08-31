@@ -94,11 +94,15 @@ export default function CadastroProduto({
   const [obsRefazer, setObsRefazer] = useState('');
   const [enviandoRefazer, setEnviandoRefazer] = useState(false);
   const [novaVariante, setNovaVariante] = useState({ tamanho: '', cor: '', quantidade_estoque: 0 });
+  const [produtosSelecionados, setProdutosSelecionados] = useState(() => new Set());
+  const [fotosSelecionadas, setFotosSelecionadas] = useState(() => new Set());
+  const [baixandoFotos, setBaixandoFotos] = useState(false);
 
   const abrirProduto = (p) => {
     setSelecionado(p);
     setForm({ ...p });
     setObsRefazer('');
+    setFotosSelecionadas(new Set());
   };
 
   const fotosDoProduto = (produtoId) =>
@@ -123,6 +127,78 @@ export default function CadastroProduto({
     await onRefazerFotos(selecionado.codigo, selecionado.phone, obsRefazer);
     setEnviandoRefazer(false);
     setObsRefazer('');
+  };
+
+  const toggleProdutoSelecionado = (id, e) => {
+    e.stopPropagation();
+    setProdutosSelecionados(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const csvEscape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+
+  const exportarProdutosCSV = () => {
+    const colunas = ['codigo', 'nome', 'descricao_curta', 'descricao_completa', 'ncm', 'cest', 'gtin',
+      'unidade', 'situacao', 'marca', 'categoria_produto', 'preco_custo', 'preco_venda',
+      'peso_liquido', 'peso_bruto', 'tecido', 'composicao', 'cor', 'tamanhos'];
+    const linhas = (produtos || [])
+      .filter(p => produtosSelecionados.has(p.id))
+      .map(p => colunas.map(c => csvEscape(p[c])).join(';'));
+    const csv = '﻿' + colunas.join(';') + '\n' + linhas.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `produtos-bling-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const toggleFotoSelecionada = (id) => {
+    setFotosSelecionadas(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const urlDaFoto = (storagePath) => `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/dasg-fotos/${storagePath}`;
+
+  const baixarFotosSelecionadas = async () => {
+    const fotos = fotosDoProduto(form.id).filter(f => fotosSelecionadas.has(f.id));
+    if (!fotos.length) return;
+    setBaixandoFotos(true);
+    for (const f of fotos) {
+      try {
+        const resp = await fetch(urlDaFoto(f.storage_path));
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = f.storage_path.split('/').pop();
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e) { /* segue pra próxima */ }
+    }
+    setBaixandoFotos(false);
+  };
+
+  const copiarLinksSelecionados = async () => {
+    const fotos = fotosDoProduto(form.id).filter(f => fotosSelecionadas.has(f.id));
+    const links = fotos.map(f => urlDaFoto(f.storage_path)).join('\n');
+    try {
+      await navigator.clipboard.writeText(links);
+      alert(`${fotos.length} link(s) copiado(s)!`);
+    } catch (e) {
+      alert('Não consegui copiar automaticamente. Links:\n\n' + links);
+    }
   };
 
   const adicionarVariante = async () => {
@@ -152,6 +228,14 @@ export default function CadastroProduto({
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Cadastro de Produto</h1>
       <p style={{ color: '#6b7280', marginBottom: 24 }}>Fluxo Vitrine IA — cadastro por WhatsApp com aprovação aqui</p>
 
+      {produtosSelecionados.size > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: 10, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8 }}>
+          <span style={{ fontSize: 13 }}>{produtosSelecionados.size} produto(s) selecionado(s)</span>
+          <BtnPrimary onClick={exportarProdutosCSV} small>⬇ Exportar planilha (CSV/Excel)</BtnPrimary>
+          <BtnSecondary onClick={() => setProdutosSelecionados(new Set())} small>Limpar seleção</BtnSecondary>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 16 }}>
         {STATUS_PRODUTO.map(s => {
           const doStatus = (produtos || []).filter(p => (p.status_geral || 'em_aprovacao') === s.id);
@@ -163,6 +247,8 @@ export default function CadastroProduto({
               <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: 8, minHeight: 160 }}>
                 {doStatus.map(p => (
                   <div key={p.id} onClick={() => abrirProduto(p)} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 10, marginBottom: 8, cursor: 'pointer', borderLeft: `3px solid ${s.cor}`, display: 'flex', gap: 10 }}>
+                    <input type="checkbox" checked={produtosSelecionados.has(p.id)} onClick={e => toggleProdutoSelecionado(p.id, e)} onChange={() => {}}
+                      style={{ flexShrink: 0, marginTop: 4 }} />
                     {p.mosaico_url && (
                       <img src={p.mosaico_url} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
                     )}
@@ -197,11 +283,15 @@ export default function CadastroProduto({
             <img src={form.mosaico_url} alt="Mosaico" style={{ width: '100%', borderRadius: 8, marginBottom: 12 }} />
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
             {fotosDoProduto(form.id).filter(f => !f.is_mosaico_bruto).map(f => (
-              <img key={f.id} src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/dasg-fotos/${f.storage_path}`}
-                alt={f.panel_name} title={f.panel_name}
-                style={{ width: '100%', aspectRatio: '9 / 16', objectFit: 'cover', borderRadius: 6, border: f.aprovada ? '2px solid #22c55e' : '1px solid #e5e7eb' }} />
+              <label key={f.id} style={{ position: 'relative', display: 'block', cursor: 'pointer' }}>
+                <img src={urlDaFoto(f.storage_path)}
+                  alt={f.panel_name} title={f.panel_name}
+                  style={{ width: '100%', aspectRatio: '9 / 16', objectFit: 'cover', borderRadius: 6, border: f.aprovada ? '2px solid #22c55e' : '1px solid #e5e7eb' }} />
+                <input type="checkbox" checked={fotosSelecionadas.has(f.id)} onChange={() => toggleFotoSelecionada(f.id)}
+                  style={{ position: 'absolute', top: 4, left: 4, width: 16, height: 16 }} />
+              </label>
             ))}
             {fotosDoProduto(form.id).filter(f => !f.is_mosaico_bruto).length === 0 && (
               <div style={{ gridColumn: '1 / -1', color: '#9ca3af', fontSize: 12, textAlign: 'center', padding: 12 }}>
@@ -209,6 +299,15 @@ export default function CadastroProduto({
               </div>
             )}
           </div>
+          {fotosSelecionadas.size > 0 && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              <BtnSecondary onClick={baixarFotosSelecionadas} disabled={baixandoFotos} small>
+                {baixandoFotos ? 'Baixando...' : `⬇ Baixar (${fotosSelecionadas.size})`}
+              </BtnSecondary>
+              <BtnSecondary onClick={copiarLinksSelecionados} small>🔗 Copiar link(s)</BtnSecondary>
+              <BtnSecondary onClick={() => setFotosSelecionadas(new Set())} small>Limpar</BtnSecondary>
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
             <BtnPrimary onClick={() => { setForm({ ...form, status_geral: 'aprovado' }); onAprovar(form.id); }} disabled={form.status_geral === 'aprovado'}>
