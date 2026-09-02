@@ -250,7 +250,7 @@ export default function CadastroProduto({
                     <input type="checkbox" checked={produtosSelecionados.has(p.id)} onClick={e => toggleProdutoSelecionado(p.id, e)} onChange={() => {}}
                       style={{ flexShrink: 0, marginTop: 4 }} />
                     {p.mosaico_url && (
-                      <img src={p.mosaico_url} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+                      <img src={p.mosaico_url} alt="" loading="lazy" decoding="async" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
                     )}
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome || p.codigo || 'Sem nome'}</div>
@@ -280,14 +280,14 @@ export default function CadastroProduto({
           </div>
 
           {form.mosaico_url && (
-            <img src={form.mosaico_url} alt="Mosaico" style={{ width: '100%', borderRadius: 8, marginBottom: 12 }} />
+            <img src={form.mosaico_url} alt="Mosaico" decoding="async" style={{ width: '100%', borderRadius: 8, marginBottom: 12 }} />
           )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
             {fotosDoProduto(form.id).filter(f => !f.is_mosaico_bruto).map(f => (
               <label key={f.id} style={{ position: 'relative', display: 'block', cursor: 'pointer' }}>
                 <img src={urlDaFoto(f.storage_path)}
-                  alt={f.panel_name} title={f.panel_name}
+                  alt={f.panel_name} title={f.panel_name} loading="lazy" decoding="async"
                   style={{ width: '100%', aspectRatio: '9 / 16', objectFit: 'cover', borderRadius: 6, border: f.aprovada ? '2px solid #22c55e' : '1px solid #e5e7eb' }} />
                 <input type="checkbox" checked={fotosSelecionadas.has(f.id)} onChange={() => toggleFotoSelecionada(f.id)}
                   style={{ position: 'absolute', top: 4, left: 4, width: 16, height: 16 }} />
