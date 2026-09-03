@@ -288,6 +288,23 @@ export default function CadastroProduto({
             )}
           </div>
 
+          {form.foto_original_url ? (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Foto original enviada pela cliente
+              </div>
+              <img src={form.foto_original_url} alt="Foto original" loading="lazy" decoding="async"
+                style={{ width: 160, borderRadius: 8, border: '1px solid #e5e7eb' }} />
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 12 }}>
+              Foto original não disponível (peça cadastrada antes de passarmos a guardá-la — peças novas já guardam).
+            </div>
+          )}
+
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Mosaico gerado {mosaicosDoProduto(form.id).length > 1 ? '— versão em uso' : ''}
+          </div>
           {form.mosaico_url && (
             <img src={form.mosaico_url} alt="Mosaico" decoding="async" style={{ width: '100%', borderRadius: 8, marginBottom: 8 }} />
           )}
@@ -295,21 +312,24 @@ export default function CadastroProduto({
           {mosaicosDoProduto(form.id).length > 1 && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                Histórico de mosaicos (todas as tentativas ficam salvas — clique pra escolher qual vale)
+                Todas as versões geradas (refazer nunca apaga — clique pra escolher qual usar)
               </div>
               <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
                 {mosaicosDoProduto(form.id).map(f => (
-                  <div key={f.id} onClick={() => escolherMosaico(f)} title={f.selecionada ? 'Este é o escolhido (usado na planilha e no recorte)' : 'Clique pra usar este mosaico'}
+                  <div key={f.id} onClick={() => escolherMosaico(f)} title={f.selecionada ? 'Versão em uso — é esta que vai pra planilha e pro recorte de fotos ao aprovar' : 'Clique pra usar esta versão'}
                     style={{ position: 'relative', flexShrink: 0, width: 90, cursor: f.selecionada ? 'default' : 'pointer' }}>
                     <img src={urlDaFoto(f.storage_path)} alt="" loading="lazy" decoding="async"
                       style={{ width: 90, height: 60, objectFit: 'cover', borderRadius: 6, border: f.selecionada ? '2px solid #22c55e' : '1px solid #d1d5db', opacity: f.selecionada ? 1 : 0.75 }} />
                     {f.selecionada && (
                       <span style={{ position: 'absolute', top: 2, right: 2, background: '#22c55e', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 4, padding: '1px 4px' }}>
-                        USADO
+                        EM USO
                       </span>
                     )}
                   </div>
                 ))}
+              </div>
+              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
+                Escolha a versão acima e depois clique em "Aprovar" abaixo pra gerar as fotos individuais recortadas dessa versão.
               </div>
             </div>
           )}
