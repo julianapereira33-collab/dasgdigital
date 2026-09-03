@@ -302,11 +302,15 @@ export default function CadastroProduto({
             </div>
           )}
 
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Mosaico gerado {mosaicosDoProduto(form.id).length > 1 ? '— versão em uso' : ''}
-          </div>
-          {form.mosaico_url && (
-            <img src={form.mosaico_url} alt="Mosaico" decoding="async" style={{ width: '100%', borderRadius: 8, marginBottom: 8 }} />
+          {form.mosaico_url ? (
+            <>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Mosaico gerado {mosaicosDoProduto(form.id).length > 1 ? '— versão em uso' : ''}
+              </div>
+              <img src={form.mosaico_url} alt="Mosaico" decoding="async" style={{ width: '100%', borderRadius: 8, marginBottom: 8 }} />
+            </>
+          ) : (
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 12 }}>Mosaico ainda não gerado.</div>
           )}
 
           {mosaicosDoProduto(form.id).length > 1 && (
