@@ -2050,6 +2050,16 @@ export default function DasGCRM() {
   const refazerFotosProduto = async (codigo, phone, obs) => {
     await chamarWebhookCadastro('refazer_fotos', codigo, phone, obs);
   };
+  const escolherMosaico = async (produtoId, fotoId, storagePath) => {
+    const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/dasg-fotos/${storagePath}`;
+    setProdutoFotos(prev => prev.map(f => f.produto_id === produtoId ? { ...f, selecionada: f.id === fotoId } : f));
+    setProdutos(prev => prev.map(p => p.id === produtoId ? { ...p, mosaico_url: publicUrl } : p));
+    const { error: e1 } = await supabase.from('produto_fotos').update({ selecionada: false }).eq('produto_id', produtoId).eq('is_mosaico_bruto', true);
+    const { error: e2 } = await supabase.from('produto_fotos').update({ selecionada: true }).eq('id', fotoId);
+    const { error: e3 } = await supabase.from('produtos').update({ mosaico_url: publicUrl }).eq('id', produtoId);
+    const erro = e1 || e2 || e3;
+    if (erro) alert('Não consegui salvar a escolha do mosaico: ' + erro.message);
+  };
   const salvarProduto = async (id, campos) => {
     const anterior = produtos.find(p => p.id === id);
     setProdutos(prev => prev.map(p => p.id === id ? { ...p, ...campos } : p));
@@ -2109,7 +2119,7 @@ export default function DasGCRM() {
       case 'central': return <CentralAtendimento conversas={conversas} leads={leads} onNovoCad={novoCadastro} />;
       case 'produtos': return <CadastroProduto produtos={produtos} produtoFotos={produtoFotos} produtoVariantes={produtoVariantes}
         onAprovar={aprovarProduto} onRefazerFotos={refazerFotosProduto} onSalvarProduto={salvarProduto}
-        onSalvarVariante={salvarVariante} onRemoverVariante={removerVariante} />;
+        onSalvarVariante={salvarVariante} onRemoverVariante={removerVariante} onEscolherMosaico={escolherMosaico} />;
       case 'dashboard': return <Dashboard clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
       case 'agenda': return <AgendaTarefas agenda={agenda} tarefas={tarefas} clientes={clientes} os={os} />;
       case 'fluxo': return <FluxoAtendimento os={os} clientes={clientes} onAvancar={avancarOS} onVoltar={voltarOS} />;

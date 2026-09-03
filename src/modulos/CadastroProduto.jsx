@@ -87,7 +87,7 @@ function BtnSecondary({ children, onClick, small, disabled }) {
 export default function CadastroProduto({
   produtos, produtoFotos, produtoVariantes,
   onAprovar, onRefazerFotos, onSalvarProduto,
-  onSalvarVariante, onRemoverVariante,
+  onSalvarVariante, onRemoverVariante, onEscolherMosaico,
 }) {
   const [selecionado, setSelecionado] = useState(null);
   const [form, setForm] = useState(null);
@@ -107,6 +107,15 @@ export default function CadastroProduto({
 
   const fotosDoProduto = (produtoId) =>
     (produtoFotos || []).filter(f => f.produto_id === produtoId).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+
+  const mosaicosDoProduto = (produtoId) =>
+    (produtoFotos || []).filter(f => f.produto_id === produtoId && f.is_mosaico_bruto);
+
+  const escolherMosaico = (foto) => {
+    if (foto.selecionada) return;
+    setForm(prev => ({ ...prev, mosaico_url: urlDaFoto(foto.storage_path) }));
+    onEscolherMosaico(selecionado.id, foto.id, foto.storage_path);
+  };
 
   const variantesDoProduto = (produtoId) =>
     (produtoVariantes || []).filter(v => v.produto_id === produtoId);
@@ -280,7 +289,29 @@ export default function CadastroProduto({
           </div>
 
           {form.mosaico_url && (
-            <img src={form.mosaico_url} alt="Mosaico" decoding="async" style={{ width: '100%', borderRadius: 8, marginBottom: 12 }} />
+            <img src={form.mosaico_url} alt="Mosaico" decoding="async" style={{ width: '100%', borderRadius: 8, marginBottom: 8 }} />
+          )}
+
+          {mosaicosDoProduto(form.id).length > 1 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Histórico de mosaicos (todas as tentativas ficam salvas — clique pra escolher qual vale)
+              </div>
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                {mosaicosDoProduto(form.id).map(f => (
+                  <div key={f.id} onClick={() => escolherMosaico(f)} title={f.selecionada ? 'Este é o escolhido (usado na planilha e no recorte)' : 'Clique pra usar este mosaico'}
+                    style={{ position: 'relative', flexShrink: 0, width: 90, cursor: f.selecionada ? 'default' : 'pointer' }}>
+                    <img src={urlDaFoto(f.storage_path)} alt="" loading="lazy" decoding="async"
+                      style={{ width: 90, height: 60, objectFit: 'cover', borderRadius: 6, border: f.selecionada ? '2px solid #22c55e' : '1px solid #d1d5db', opacity: f.selecionada ? 1 : 0.75 }} />
+                    {f.selecionada && (
+                      <span style={{ position: 'absolute', top: 2, right: 2, background: '#22c55e', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 4, padding: '1px 4px' }}>
+                        USADO
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
