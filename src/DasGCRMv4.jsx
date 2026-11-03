@@ -1,6 +1,11 @@
 ﻿import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient.js';
 import CadastroProduto from './modulos/CadastroProduto.jsx';
+import Central from './modulos/Central.jsx';
+import AgendaTarefas from './modulos/AgendaTarefas.jsx';
+import Clientes from './modulos/Clientes.jsx';
+import Consultoria from './modulos/Consultoria.jsx';
+import { criarAtividadeDaEtapa } from './lib/api.js';
 
 const N8N_WEBHOOK_CADASTRO_URL = import.meta.env.VITE_N8N_WEBHOOK_CADASTRO_URL;
 
@@ -465,220 +470,6 @@ function StatusBadge({ statusIdx }) {
   return <Badge label={s.label} color={s.cor} />;
 }
 
-// ── MÓDULO: CENTRAL DE ATENDIMENTO ───────────────────────
-function CentralAtendimento({ conversas, leads, onNovoCad }) {
-  const [aba, setAba] = useState('whatsapp');
-  const [convSel, setConvSel] = useState(null);
-  const [filtro, setFiltro] = useState('todos');
-  const [showFormLead, setShowFormLead] = useState(false);
-  const [novoLead, setNovoLead] = useState({
-    nome: '', telefone: '', instagram: '', procura: '',
-    ocasiao: '', data_evento: '', como_chegou: '', servico_interesse: ''
-  });
-  const [servicoSel, setServicoSel] = useState(null);
-  const [mensagens, setMensagens] = useState([]);
-  const [juliaAtiva, setJuliaAtiva] = useState(true);
-
-  useEffect(() => {
-    if (!convSel?.telefone) { setMensagens([]); return; }
-    let mounted = true;
-    async function carregarConversa() {
-      const { data: msgs } = await supabase
-        .from('conversas_whatsapp')
-        .select('*')
-        .eq('phone', convSel.telefone)
-        .order('created_at', { ascending: true });
-      if (mounted) setMensagens(msgs || []);
-      await supabase.from('conversas_whatsapp').update({ lida: true })
-        .eq('phone', convSel.telefone).eq('direcao', 'in').eq('lida', false);
-      const { data: st } = await supabase
-        .from('atendimento_whatsapp')
-        .select('julia_ativa')
-        .eq('phone', convSel.telefone)
-        .maybeSingle();
-      if (mounted) setJuliaAtiva(st ? st.julia_ativa !== false : true);
-    }
-    carregarConversa();
-    const canal = supabase
-      .channel(`conversa_${convSel.telefone}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversas_whatsapp', filter: `phone=eq.${convSel.telefone}` }, carregarConversa)
-      .subscribe();
-    return () => { mounted = false; supabase.removeChannel(canal); };
-  }, [convSel?.telefone]);
-
-  async function alternarJulia() {
-    if (!convSel?.telefone) return;
-    const novoValor = !juliaAtiva;
-    setJuliaAtiva(novoValor);
-    await supabase.from('atendimento_whatsapp')
-      .upsert({ phone: convSel.telefone, nome: convSel.nome, julia_ativa: novoValor }, { onConflict: 'phone' });
-  }
-
-  const statusMap = { lead_novo: { label: 'Lead novo', cor: '#f59e0b' }, qualificando: { label: 'Qualificando', cor: '#6366f1' }, agendando: { label: 'Agendando', cor: '#3b82f6' }, em_negociacao: { label: 'Em negociação', cor: '#f97316' }, convertido: { label: 'Convertido', cor: '#22c55e' }, cliente: { label: 'Cliente', cor: '#16a34a' } };
-
-  const convsFiltradas = conversas.filter(c => {
-    if (filtro === 'todos') return true;
-    if (filtro === 'leads') return ['lead_novo', 'qualificando'].includes(c.status);
-    if (filtro === 'clientes') return c.status === 'cliente';
-    if (filtro === 'sem_resposta') return c.nao_lidas > 0;
-    return true;
-  }).filter(c => aba === 'instagram' ? c.canal === 'instagram' : c.canal === 'whatsapp' || c.canal === undefined);
-
-  return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111' }}>Central de Atendimento</h1>
-        <p style={{ color: '#6b7280', marginTop: 4 }}>Monitor de conversas, leads e redes sociais</p>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-        <Card style={{ borderLeft: '4px solid #f59e0b' }}>
-          <div style={{ fontSize: 28, fontWeight: 700, color: '#f59e0b' }}>{conversas.filter(c => c.nao_lidas > 0).length}</div>
-          <div style={{ color: '#6b7280', fontSize: 14 }}>Conversas pendentes</div>
-        </Card>
-        <Card style={{ borderLeft: '4px solid #6366f1' }}>
-          <div style={{ fontSize: 28, fontWeight: 700, color: '#6366f1' }}>{leads.length}</div>
-          <div style={{ color: '#6b7280', fontSize: 14 }}>Leads ativos</div>
-        </Card>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 20 }}>
-        {/* Lista de conversas */}
-        <div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            {['todos', 'leads', 'clientes', 'sem_resposta'].map(f => (
-              <button key={f} onClick={() => setFiltro(f)} style={{
-                padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                background: filtro === f ? '#111' : '#f3f4f6', color: filtro === f ? '#fff' : '#374151', border: 'none',
-              }}>{f === 'todos' ? 'Todos' : f === 'leads' ? 'Leads' : f === 'clientes' ? 'Clientes' : 'Sem resposta'}</button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <button onClick={() => setAba('whatsapp')} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer', background: aba === 'whatsapp' ? '#25D366' : '#f3f4f6', color: aba === 'whatsapp' ? '#fff' : '#374151' }}>WhatsApp</button>
-            <button onClick={() => setAba('instagram')} style={{ flex: 1, padding: '8px', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer', background: aba === 'instagram' ? '#E1306C' : '#f3f4f6', color: aba === 'instagram' ? '#fff' : '#374151' }}>Instagram</button>
-          </div>
-          <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
-            {convsFiltradas.map((c, i) => (
-              <div key={c.id} onClick={() => setConvSel(c)} style={{ padding: '14px 16px', cursor: 'pointer', borderBottom: i < convsFiltradas.length - 1 ? '1px solid #f3f4f6' : 'none', background: convSel?.id === c.id ? '#fef9f0' : '#fff', transition: 'background 0.15s' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14 }}>{c.nome}</span>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <span style={{ fontSize: 11, color: '#9ca3af' }}>{c.tempo}</span>
-                    {c.nao_lidas > 0 && <span style={{ background: '#c4a45a', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{c.nao_lidas}</span>}
-                  </div>
-                </div>
-                <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.ultima_msg}</div>
-                <Badge label={(statusMap[c.status] || { label: c.status }).label} color={(statusMap[c.status] || { cor: '#6b7280' }).cor} />
-              </div>
-            ))}
-            {convsFiltradas.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af' }}>Nenhuma conversa</div>}
-          </div>
-        </div>
-
-        {/* Painel direito */}
-        <div>
-          {convSel ? (
-            <Card>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-                <div>
-                  <h3 style={{ fontSize: 18, fontWeight: 700 }}>{convSel.nome}</h3>
-                  {convSel.telefone && <div style={{ color: '#6b7280', fontSize: 13 }}>{convSel.telefone}</div>}
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  {convSel.telefone && (
-                    <button onClick={alternarJulia} title="Ligar/desligar o atendimento automático da Júlia para esta conversa" style={{
-                      padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                      background: juliaAtiva ? '#dcfce7' : '#fee2e2', color: juliaAtiva ? '#16a34a' : '#dc2626',
-                    }}>{juliaAtiva ? '🟢 Júlia ativa' : '🔴 Júlia pausada'}</button>
-                  )}
-                  {convSel.telefone && (
-                    <a href={`https://wa.me/${convSel.telefone}`} target="_blank" rel="noreferrer">
-                      <BtnPrimary small>Abrir WhatsApp</BtnPrimary>
-                    </a>
-                  )}
-                  <BtnSecondary small onClick={() => setShowFormLead(true)}>Pré-cadastrar</BtnSecondary>
-                </div>
-              </div>
-              <div style={{ background: '#f9fafb', borderRadius: 8, padding: 16, minHeight: 200, maxHeight: 360, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {mensagens.length === 0 && <div style={{ color: '#9ca3af', fontSize: 14 }}>Sem mensagens registradas ainda para este número.</div>}
-                {mensagens.map(m => (
-                  <div key={m.id} style={{
-                    alignSelf: m.direcao === 'in' ? 'flex-start' : 'flex-end',
-                    background: m.direcao === 'in' ? '#fff' : (m.direcao === 'out_humano' ? '#fef3c7' : '#dcfce7'),
-                    border: '1px solid #e5e7eb', borderRadius: 10, padding: '8px 12px', maxWidth: '80%', fontSize: 13,
-                  }}>
-                    {m.direcao !== 'in' && <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', marginBottom: 2 }}>{m.direcao === 'out_humano' ? 'Você' : 'Júlia (IA)'}</div>}
-                    {m.mensagem}
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                <input placeholder="Envio manual ainda não conectado — responda pelo WhatsApp por enquanto" disabled style={{ flex: 1, padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, background: '#f9fafb', color: '#9ca3af' }} />
-                <BtnPrimary small disabled>Enviar</BtnPrimary>
-              </div>
-            </Card>
-          ) : (
-            <div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: '#374151' }}>Cards de Serviços</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                {MOCK_SERVICOS.map(s => (
-                  <Card key={s.id} style={{ cursor: 'pointer', border: servicoSel?.id === s.id ? '2px solid #c4a45a' : '1px solid #e5e7eb' }} >
-                    <div style={{ fontWeight: 700, marginBottom: 6 }}>{s.nome}</div>
-                    <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 10 }}>{s.descricao}</div>
-                    <ul style={{ paddingLeft: 16, fontSize: 12, color: '#374151', marginBottom: 10 }}>
-                      {s.inclui.map((i, idx) => <li key={idx}>{i}</li>)}
-                    </ul>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#c4a45a', marginBottom: 10 }}>{s.faixa_preco}</div>
-                    <BtnPrimary small onClick={() => setServicoSel(s)}>Enviar informações</BtnPrimary>
-                  </Card>
-                ))}
-              </div>
-
-              <div style={{ marginTop: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, color: '#374151' }}>Pré-cadastro de Lead</h3>
-                  <BtnPrimary small onClick={() => setShowFormLead(!showFormLead)}>{showFormLead ? 'Fechar' : 'Novo lead'}</BtnPrimary>
-                </div>
-
-                {showFormLead && (
-                  <Card style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <Campo label="Nome completo" value={novoLead.nome} onChange={v => setNovoLead(p => ({ ...p, nome: v }))} />
-                      <Campo label="Telefone (WhatsApp)" value={novoLead.telefone} onChange={v => setNovoLead(p => ({ ...p, telefone: v }))} />
-                      <Campo label="Instagram / Rede social" value={novoLead.instagram} onChange={v => setNovoLead(p => ({ ...p, instagram: v }))} />
-                      <Campo label="O que procura" value={novoLead.procura} onChange={v => setNovoLead(p => ({ ...p, procura: v }))} />
-                      <Campo label="Ocasião" value={novoLead.ocasiao} onChange={v => setNovoLead(p => ({ ...p, ocasiao: v }))} options={[{ value: 'casamento', label: 'Casamento' }, { value: 'formatura', label: 'Formatura' }, { value: 'aniversario', label: 'Aniversário' }, { value: 'evento_corporativo', label: 'Evento corporativo' }, { value: 'dia_a_dia', label: 'Dia a dia' }, { value: 'outro', label: 'Outro' }]} />
-                      <Campo label="Data do evento" value={novoLead.data_evento} onChange={v => setNovoLead(p => ({ ...p, data_evento: v }))} type="date" />
-                      <Campo label="Como chegou até nós" value={novoLead.como_chegou} onChange={v => setNovoLead(p => ({ ...p, como_chegou: v }))} options={[{ value: 'instagram', label: 'Instagram' }, { value: 'indicacao', label: 'Indicação' }, { value: 'loja_fisica', label: 'Loja física' }, { value: 'google', label: 'Google' }, { value: 'outro', label: 'Outro' }]} />
-                      <Campo label="Serviço de interesse" value={novoLead.servico_interesse} onChange={v => setNovoLead(p => ({ ...p, servico_interesse: v }))} options={MOCK_SERVICOS.map(s => ({ value: s.slug, label: s.nome }))} />
-                    </div>
-                    <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                      <BtnPrimary onClick={() => { onNovoCad(novoLead); setShowFormLead(false); setNovoLead({ nome: '', telefone: '', instagram: '', procura: '', ocasiao: '', data_evento: '', como_chegou: '', servico_interesse: '' }); }}>Cadastrar lead</BtnPrimary>
-                      <BtnSecondary onClick={() => setShowFormLead(false)}>Cancelar</BtnSecondary>
-                    </div>
-                  </Card>
-                )}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {leads.map(l => (
-                    <Card key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{l.nome}</div>
-                        <div style={{ fontSize: 13, color: '#6b7280' }}>{l.telefone} · {l.ocasiao} · {fmtDate(l.data_evento)}</div>
-                      </div>
-                      <Badge label={l.status === 'novo' ? 'Novo' : 'Qualificando'} color={l.status === 'novo' ? '#f59e0b' : '#6366f1'} />
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── MÓDULO: DASHBOARD ─────────────────────────────────────
 function Dashboard({ clientes, os, agenda, tarefas, pedidos, contasPagar }) {
   const hoje = new Date();
@@ -778,119 +569,6 @@ function Dashboard({ clientes, os, agenda, tarefas, pedidos, contasPagar }) {
 }
 
 
-// ── MÓDULO: AGENDA + TAREFAS ─────────────────────────────
-function AgendaTarefas({ agenda, tarefas, clientes, os }) {
-  const [view, setView] = useState('semana');
-  const [aba, setAba] = useState('agenda');
-  const [mesAtual, setMesAtual] = useState(new Date(2024, 10, 1)); // Nov 2024
-
-  const tipoLabel = { consultoria_express: 'Consultoria Express', personal_stylist: 'Personal Stylist', prova1: 'Prova 1', prova2: 'Prova 2', prova_final: 'Prova Final', entrega: 'Entrega', orcamento: 'Atend. Orçamento', reuniao: 'Reunião interna' };
-
-  const diasSemana = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(mesAtual);
-    d.setDate(d.getDate() - d.getDay() + i);
-    return d;
-  });
-
-  const agendaDia = (d) => agenda.filter(a => new Date(a.data).toDateString() === d.toDateString());
-
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700 }}>Agenda e Tarefas</h1>
-          <p style={{ color: '#6b7280', marginTop: 4 }}>Organize seus compromissos e pendências</p>
-        </div>
-        <BtnPrimary>Novo evento</BtnPrimary>
-      </div>
-
-      <TabBar tabs={[{ id: 'agenda', label: 'Agenda' }, { id: 'tarefas', label: 'Tarefas' }]} active={aba} onChange={setAba} />
-
-      {aba === 'agenda' && (
-        <div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-            {['dia', 'semana', 'mes'].map(v => (
-              <button key={v} onClick={() => setView(v)} style={{ padding: '6px 16px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: view === v ? '#111' : '#f3f4f6', color: view === v ? '#fff' : '#374151' }}>{v.charAt(0).toUpperCase() + v.slice(1)}</button>
-            ))}
-          </div>
-
-          {view === 'semana' && (
-            <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: '#111' }}>
-                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((d, i) => (
-                  <div key={d} style={{ padding: '10px 8px', textAlign: 'center', color: '#c4a45a', fontWeight: 600, fontSize: 13, borderRight: i < 6 ? '1px solid #222' : 'none' }}>
-                    <div>{d}</div>
-                    <div style={{ color: '#fff', fontSize: 16, fontWeight: 700 }}>{diasSemana[i].getDate()}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: 300 }}>
-                {diasSemana.map((d, i) => (
-                  <div key={i} style={{ padding: 8, borderRight: i < 6 ? '1px solid #e5e7eb' : 'none', borderTop: '1px solid #e5e7eb', minHeight: 120 }}>
-                    {agendaDia(d).map(a => (
-                      <div key={a.id} style={{ background: a.cor + '22', border: `1px solid ${a.cor}`, borderRadius: 4, padding: '3px 6px', marginBottom: 4, fontSize: 11 }}>
-                        <div style={{ fontWeight: 700, color: a.cor }}>{new Date(a.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
-                        <div style={{ color: '#374151', fontSize: 10 }}>{a.cliente}</div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {view !== 'semana' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {agenda.map(a => (
-                <Card key={a.id} style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                  <div style={{ width: 4, height: 60, borderRadius: 2, background: a.cor, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700 }}>{a.cliente}</div>
-                    <div style={{ fontSize: 13, color: '#6b7280' }}>{tipoLabel[a.tipo] || a.tipo} · {fmtDateTime(a.data)}</div>
-                    {a.local && <div style={{ fontSize: 12, color: '#9ca3af' }}>{a.local}</div>}
-                  </div>
-                  <Badge label={a.status} color={a.status === 'confirmado' ? '#22c55e' : '#f59e0b'} />
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {aba === 'tarefas' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {['alta', 'normal', 'baixa'].map(p => (
-                <Badge key={p} label={p.charAt(0).toUpperCase() + p.slice(1)} color={p === 'alta' ? '#ef4444' : p === 'normal' ? '#f59e0b' : '#6b7280'} />
-              ))}
-            </div>
-            <BtnPrimary small>Nova tarefa</BtnPrimary>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {tarefas.map(t => {
-              const cli = clientes.find(c => c.id === t.cliente_id);
-              return (
-                <Card key={t.id} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <input type="checkbox" checked={t.status === 'concluida'} onChange={() => {}} style={{ width: 18, height: 18, cursor: 'pointer' }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, textDecoration: t.status === 'concluida' ? 'line-through' : 'none', color: t.status === 'concluida' ? '#9ca3af' : '#111' }}>{t.titulo}</div>
-                    {cli && <div style={{ fontSize: 12, color: '#6b7280' }}>{cli.nome}</div>}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <Badge label={t.prioridade} color={t.prioridade === 'alta' ? '#ef4444' : t.prioridade === 'normal' ? '#f59e0b' : '#6b7280'} />
-                    <span style={{ fontSize: 12, color: '#9ca3af' }}>{fmtDate(t.prazo)}</span>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── MÓDULO: FLUXO DE ATENDIMENTO (KANBAN) ─────────────────
 function FluxoAtendimento({ os, clientes, onAvancar, onVoltar }) {
   const [selecionada, setSelecionada] = useState(null);
@@ -967,262 +645,6 @@ function FluxoAtendimento({ os, clientes, onAvancar, onVoltar }) {
           })()}
         </Drawer>
       )}
-    </div>
-  );
-}
-
-// ── MÓDULO: CLIENTES ──────────────────────────────────────
-function Clientes({ clientes, os, onSalvar }) {
-  const [busca, setBusca] = useState('');
-  const [sel, setSel] = useState(null);
-  const [editando, setEditando] = useState(false);
-  const [form, setForm] = useState({});
-  const [abaDrawer, setAbaDrawer] = useState('dados');
-
-  const filtrados = clientes.filter(c => (c.nome || '').toLowerCase().includes(busca.toLowerCase()) || (c.telefone || '').includes(busca));
-
-  const abrirCliente = (c) => { setSel(c); setForm({ ...c }); setEditando(false); setAbaDrawer('dados'); };
-
-  const statusCores = { dados: '#6366f1', medidas: '#0ea5e9', fotos: '#f59e0b', historico: '#22c55e' };
-
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700 }}>Clientes</h1>
-          <p style={{ color: '#6b7280', marginTop: 4 }}>{clientes.length} clientes cadastradas</p>
-        </div>
-        <BtnPrimary>Nova cliente</BtnPrimary>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por nome ou telefone..." style={{ width: '100%', maxWidth: 400, padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }} />
-      </div>
-
-      <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#111' }}>
-              {['Nome', 'Telefone', 'Biotipo', 'Colorimetria', 'OS ativas', 'Acoes'].map(h => (
-                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#c4a45a', fontWeight: 600, fontSize: 13 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtrados.map((c, i) => {
-              const osAtivas = os.filter(o => o.cliente_id === c.id && o.status_idx < 23);
-              return (
-                <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{c.nome}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 14, color: '#6b7280' }}>{c.telefone}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 14 }}>{c.biotipo}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 14 }}>{c.colorimetria}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    {osAtivas.length > 0 ? <Badge label={`${osAtivas.length} OS`} color="#c4a45a" /> : <span style={{ color: '#9ca3af', fontSize: 13 }}>—</span>}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <button onClick={() => abrirCliente(c)} style={{ padding: '5px 14px', background: '#111', color: '#c4a45a', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Ver ficha</button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel?.nome || ''} width={560}>
-        {sel && (
-          <div>
-            <TabBar tabs={[{ id: 'dados', label: 'Dados' }, { id: 'medidas', label: 'Medidas' }, { id: 'fotos', label: 'Fotos' }, { id: 'historico', label: 'Historico' }]} active={abaDrawer} onChange={setAbaDrawer} />
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              {editando ? (
-                <>
-                  <BtnSecondary small onClick={() => { setForm({ ...sel }); setEditando(false); }}>Cancelar</BtnSecondary>
-                  <BtnPrimary small onClick={async () => { await onSalvar(form); setSel(prev => ({ ...prev, ...form })); setEditando(false); }}>Salvar</BtnPrimary>
-                </>
-              ) : (
-                <BtnSecondary small onClick={() => setEditando(true)}>Editar</BtnSecondary>
-              )}
-            </div>
-
-            {abaDrawer === 'dados' && (
-              <div>
-                <Campo label="Nome completo" value={editando ? form.nome : sel.nome} onChange={v => setForm(p => ({ ...p, nome: v }))} readonly={!editando} />
-                <Campo label="Apelido / Como chamar" value={editando ? form.apelido : sel.apelido} onChange={v => setForm(p => ({ ...p, apelido: v }))} readonly={!editando} />
-                <Campo label="CPF / CNPJ" value={editando ? form.cpf : sel.cpf} onChange={v => setForm(p => ({ ...p, cpf: v }))} readonly={!editando} />
-                <Campo label="Data de nascimento" value={editando ? form.nascimento : fmtDate(sel.nascimento)} onChange={v => setForm(p => ({ ...p, nascimento: v }))} readonly={!editando} type="date" />
-                <Campo label="Telefone (WhatsApp)" value={editando ? form.telefone : sel.telefone} onChange={v => setForm(p => ({ ...p, telefone: v }))} readonly={!editando} />
-                <Campo label="E-mail" value={editando ? form.email : sel.email} onChange={v => setForm(p => ({ ...p, email: v }))} readonly={!editando} />
-                <Campo label="Instagram" value={editando ? form.instagram : sel.instagram} onChange={v => setForm(p => ({ ...p, instagram: v }))} readonly={!editando} />
-                <Campo label="Como chegou ate nos" value={editando ? form.origem : sel.origem} onChange={v => setForm(p => ({ ...p, origem: v }))} readonly={!editando} />
-                <Campo label="Biotipo" value={editando ? form.biotipo : sel.biotipo} onChange={v => setForm(p => ({ ...p, biotipo: v }))} readonly={!editando} options={[{ value: 'ampulheta', label: 'Ampulheta' }, { value: 'triangulo', label: 'Triangulo' }, { value: 'triangulo_invertido', label: 'Triangulo invertido' }, { value: 'retangulo', label: 'Retangulo' }, { value: 'oval', label: 'Oval' }]} />
-                <Campo label="Colorimetria" value={editando ? form.colorimetria : sel.colorimetria} onChange={v => setForm(p => ({ ...p, colorimetria: v }))} readonly={!editando} options={[{ value: 'primavera', label: 'Primavera' }, { value: 'verao', label: 'Verao' }, { value: 'outono', label: 'Outono' }, { value: 'inverno', label: 'Inverno' }]} />
-                <Campo label="Estilo predominante" value={editando ? form.estilo : sel.estilo} onChange={v => setForm(p => ({ ...p, estilo: v }))} readonly={!editando} options={[{ value: 'classico', label: 'Classico' }, { value: 'romantico', label: 'Romantico' }, { value: 'dramatico', label: 'Dramatico' }, { value: 'esportivo', label: 'Esportivo' }, { value: 'criativo', label: 'Criativo' }, { value: 'natural', label: 'Natural' }]} />
-                <Campo label="Restricoes de modelagem" value={editando ? form.restricoes_modelagem : sel.restricoes_modelagem} onChange={v => setForm(p => ({ ...p, restricoes_modelagem: v }))} readonly={!editando} type="textarea" />
-                <Campo label="Preferencias de tecidos" value={editando ? form.preferencias_tecidos : sel.preferencias_tecidos} onChange={v => setForm(p => ({ ...p, preferencias_tecidos: v }))} readonly={!editando} type="textarea" />
-                <Campo label="Observacoes gerais" value={editando ? form.obs : sel.obs} onChange={v => setForm(p => ({ ...p, obs: v }))} readonly={!editando} type="textarea" />
-              </div>
-            )}
-
-            {abaDrawer === 'medidas' && (
-              <div>
-                {[['busto', 'Busto (cm)'], ['cintura', 'Cintura (cm)'], ['quadril', 'Quadril (cm)'], ['altura', 'Altura (cm)'], ['peso', 'Peso (kg)'], ['ombro_joelho', 'Ombro ao joelho (cm)'], ['ombro_chao', 'Ombro ao chao (cm)'], ['manga', 'Manga (cm)'], ['cava', 'Cava (cm)'], ['entrepernas', 'Entrepernas (cm)']].map(([key, lbl]) => (
-                  <Campo key={key} label={lbl} value={editando ? form[key] : sel[key]} onChange={v => setForm(p => ({ ...p, [key]: v }))} readonly={!editando} type="number" />
-                ))}
-                <Campo label="Observacoes de medidas" value={editando ? form.obs_medidas : sel.obs_medidas} onChange={v => setForm(p => ({ ...p, obs_medidas: v }))} readonly={!editando} type="textarea" />
-              </div>
-            )}
-
-            {abaDrawer === 'fotos' && (
-              <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📷</div>
-                <div>Upload de fotos disponivel apos integracao com Supabase Storage</div>
-              </div>
-            )}
-
-            {abaDrawer === 'historico' && (
-              <div>
-                {os.filter(o => o.cliente_id === sel.id).map(o => (
-                  <Card key={o.id} style={{ marginBottom: 10 }}>
-                    <div style={{ fontWeight: 700 }}>{o.numero}</div>
-                    <div style={{ fontSize: 13, color: '#6b7280' }}>{o.descricao}</div>
-                    <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                      <StatusBadge statusIdx={o.status_idx} />
-                      <span style={{ fontSize: 12, color: '#9ca3af' }}>Evento: {fmtDate(o.data_evento)}</span>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </Drawer>
-    </div>
-  );
-}
-
-
-// ── MÓDULO: CONSULTORIA EXPRESS ───────────────────────────
-function ConsultoriaExpress({ clientes, os, briefings }) {
-  const [osSel, setOsSel] = useState(os[0] || null);
-  const [mostrarF, setMostrarF] = useState(false);
-  const [mostrarQ, setMostrarQ] = useState(false);
-  const [mostrarE, setMostrarE] = useState(false);
-  const [notas, setNotas] = useState('');
-  const [anotacoes, setAnotacoes] = useState({ estilo: '', referencias: '', tecidos_cores: '', silhueta: '', detalhes: '', restricoes: '', orcamento_disc: '', proximos_passos: '' });
-  const [timer, setTimer] = useState(0);
-  const [rodando, setRodando] = useState(false);
-  const timerRef = useRef(null);
-
-  useEffect(() => {
-    if (rodando) { timerRef.current = setInterval(() => setTimer(t => t + 1), 1000); }
-    else clearInterval(timerRef.current);
-    return () => clearInterval(timerRef.current);
-  }, [rodando]);
-
-  const cli = osSel ? clientes.find(c => c.id === osSel.cliente_id) : null;
-  const br = osSel ? briefings.find(b => b.os_id === osSel.id) : null;
-
-  const fmtTimer = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-
-  return (
-    <div>
-      {/* Barra superior */}
-      <div style={{ background: '#111', padding: '12px 20px', borderRadius: 10, marginBottom: 20, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <select value={osSel?.id || ''} onChange={e => setOsSel(os.find(o => o.id === e.target.value) || null)} style={{ padding: '6px 10px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 600 }}>
-          <option value="">Selecionar OS...</option>
-          {os.map(o => { const c = clientes.find(cl => cl.id === o.cliente_id); return <option key={o.id} value={o.id}>{o.numero} — {c?.nome}</option>; })}
-        </select>
-        {osSel?.link_meet && (
-          <a href={osSel.link_meet} target="_blank" rel="noreferrer" style={{ background: '#1a73e8', color: '#fff', padding: '6px 14px', borderRadius: 6, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>Abrir Meet</a>
-        )}
-        {cli?.telefone && (
-          <a href={`https://wa.me/55${cli.telefone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ background: '#25D366', color: '#fff', padding: '6px 14px', borderRadius: 6, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>WhatsApp</a>
-        )}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span style={{ color: '#c4a45a', fontWeight: 700, fontSize: 18, fontFamily: 'monospace' }}>{fmtTimer(timer)}</span>
-          <button onClick={() => setRodando(r => !r)} style={{ padding: '6px 14px', background: rodando ? '#ef4444' : '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>{rodando ? 'Pausar' : 'Iniciar'}</button>
-          <BtnPrimary small>Finalizar consultoria</BtnPrimary>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 20 }}>
-        {/* Coluna esq — A cliente */}
-        <div>
-          <Card style={{ marginBottom: 14 }}>
-            <div style={{ textAlign: 'center', marginBottom: 16 }}>
-              <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#f3f4f6', margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: '#9ca3af' }}>👤</div>
-              <div style={{ fontWeight: 700, fontSize: 18 }}>{cli?.nome || '—'}</div>
-              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{cli?.apelido && `"${cli.apelido}"`}</div>
-            </div>
-            {cli && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-                {[['Biotipo', cli.biotipo], ['Colorimetria', cli.colorimetria], ['Estilo', cli.estilo], ['Busto', cli.busto + 'cm'], ['Cintura', cli.cintura + 'cm'], ['Quadril', cli.quadril + 'cm']].map(([k, v]) => (
-                  <div key={k} style={{ background: '#f9fafb', borderRadius: 6, padding: '6px 10px' }}>
-                    <div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>{k}</div>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{v}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {br && (
-              <div style={{ background: '#fef9f0', borderRadius: 6, padding: 10, fontSize: 12, color: '#374151' }}>
-                <div style={{ fontWeight: 700, marginBottom: 4, color: '#c4a45a' }}>Raio-X</div>
-                <div><b>Estilo:</b> {br.raio_x?.estilo_desejado}</div>
-                <div><b>Cores:</b> {br.raio_x?.cores_preferidas}</div>
-                <div><b>Evitar:</b> {br.raio_x?.evitar}</div>
-              </div>
-            )}
-          </Card>
-          <Card>
-            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Notas livres</div>
-            <textarea value={notas} onChange={e => setNotas(e.target.value)} placeholder="Anotar observacoes durante a sessao..." rows={6} style={{ width: '100%', padding: 8, border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, resize: 'vertical' }} />
-          </Card>
-        </div>
-
-        {/* Coluna dir — Anotações ao vivo */}
-        <div>
-          <Card>
-            <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Anotacoes ao vivo</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Campo label="Estilo identificado na sessao" value={anotacoes.estilo} onChange={v => setAnotacoes(p => ({ ...p, estilo: v }))} type="textarea" />
-              <Campo label="Referencias discutidas" value={anotacoes.referencias} onChange={v => setAnotacoes(p => ({ ...p, referencias: v }))} type="textarea" />
-              <Campo label="Tecidos e cores aprovados" value={anotacoes.tecidos_cores} onChange={v => setAnotacoes(p => ({ ...p, tecidos_cores: v }))} type="textarea" />
-              <Campo label="Silhueta ideal" value={anotacoes.silhueta} onChange={v => setAnotacoes(p => ({ ...p, silhueta: v }))} type="textarea" />
-              <Campo label="Detalhes desejados" value={anotacoes.detalhes} onChange={v => setAnotacoes(p => ({ ...p, detalhes: v }))} type="textarea" />
-              <Campo label="Restricoes identificadas" value={anotacoes.restricoes} onChange={v => setAnotacoes(p => ({ ...p, restricoes: v }))} type="textarea" />
-              <Campo label="Orcamento estimado discutido" value={anotacoes.orcamento_disc} onChange={v => setAnotacoes(p => ({ ...p, orcamento_disc: v }))} />
-              <Campo label="Proximos passos" value={anotacoes.proximos_passos} onChange={v => setAnotacoes(p => ({ ...p, proximos_passos: v }))} type="textarea" />
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Painéis flutuantes */}
-      {mostrarF && (
-        <div style={{ position: 'fixed', bottom: 80, right: 20, width: 360, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)', zIndex: 50, padding: 16 }}>
-          <div style={{ fontWeight: 700, marginBottom: 12 }}>Fotos da cliente</div>
-          <div style={{ color: '#9ca3af', fontSize: 13 }}>Fotos disponiveis apos integracao com Supabase Storage</div>
-        </div>
-      )}
-      {mostrarQ && (
-        <div style={{ position: 'fixed', bottom: 80, right: 20, width: 420, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)', zIndex: 50, padding: 16, maxHeight: '70vh', overflowY: 'auto' }}>
-          <div style={{ fontWeight: 700, marginBottom: 12 }}>Questionario Raio-X completo</div>
-          {br ? Object.entries(br.raio_x || {}).map(([k, v]) => (
-            <div key={k} style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.replace(/_/g, ' ')}</div>
-              <div style={{ fontSize: 13 }}>{v}</div>
-            </div>
-          )) : <div style={{ color: '#9ca3af', fontSize: 13 }}>Sem questionario disponivel</div>}
-        </div>
-      )}
-
-      {/* Botões flutuantes */}
-      <div style={{ position: 'fixed', bottom: 24, right: 24, display: 'flex', gap: 10 }}>
-        {[['F', '#c4a45a', () => setMostrarF(m => !m)], ['Q', '#3b82f6', () => setMostrarQ(m => !m)], ['E', '#8b5cf6', () => setMostrarE(m => !m)]].map(([l, c, fn]) => (
-          <button key={l} onClick={fn} style={{ width: 44, height: 44, borderRadius: '50%', background: c, color: '#fff', border: 'none', fontWeight: 700, fontSize: 16, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>{l}</button>
-        ))}
-      </div>
     </div>
   );
 }
@@ -1907,7 +1329,7 @@ export default function DasGCRM() {
   const [os, setOs] = useState([]);
   const [leads, setLeads] = useState([]);
   const [agenda, setAgenda] = useState([]);
-  const [tarefas] = useState(MOCK_TAREFAS);
+  const [tarefas, setTarefas] = useState([]);
   const [pedidos] = useState(MOCK_PEDIDOS);
   const [contasPagar] = useState(MOCK_CONTAS_PAGAR);
   const [briefings] = useState(MOCK_BRIEFINGS);
@@ -1920,24 +1342,56 @@ export default function DasGCRM() {
   const [produtos, setProdutos] = useState([]);
   const [produtoFotos, setProdutoFotos] = useState([]);
   const [produtoVariantes, setProdutoVariantes] = useState([]);
+  const [respostas, setRespostas] = useState([]);
+  const [conhecimento, setConhecimento] = useState([]);
+  const [canais, setCanais] = useState([]);
+  const [promptPrincipal, setPromptPrincipal] = useState(null);
+  const [quizEnvios, setQuizEnvios] = useState([]);
+  const [bancoPendente, setBancoPendente] = useState(false);
+
+  // Recarrega tudo que as telas de Central/Clientes/Agenda/Consultoria usam. Os módulos chamam isto
+  // depois de cada gravação. Se a migração 20261102000000 ainda não foi aplicada, as tabelas novas
+  // devolvem erro -> bancoPendente liga o aviso na Central em vez de quebrar a tela.
+  const recarregar = async () => {
+    const [rLeads, rClientes, rOs, rAgenda, rProvas, rTarefas, rResp, rBase, rCanais, rPrompt, rQuiz] = await Promise.all([
+      supabase.from('leads').select('*').order('created_at', { ascending: false }),
+      supabase.from('clientes').select('*').order('created_at', { ascending: false }),
+      supabase.from('ordens_servico').select('*').order('created_at', { ascending: false }),
+      supabase.from('agenda').select('*').order('data_hora', { ascending: true }),
+      supabase.from('provas').select('*').order('data_agendada', { ascending: true }),
+      supabase.from('tarefas').select('*').order('created_at', { ascending: false }),
+      supabase.from('respostas_automaticas').select('*').order('ordem', { ascending: true }),
+      supabase.from('conhecimento_julia').select('*').order('ordem', { ascending: true }).order('created_at', { ascending: true }),
+      supabase.from('canais_conexao').select('*'),
+      supabase.from('prompts_ia').select('*').eq('nome', 'julia_instrucoes_principais').limit(1),
+      supabase.from('consultoria_quiz_envios').select('*').order('criado_em', { ascending: false }),
+    ]);
+    setLeads((rLeads.data || []).map(l => ({ ...l, criado_em: l.created_at })));
+    setClientes(rClientes.data || []);
+    setOs((rOs.data || []).map(o => ({ ...o, status_idx: DB_STATUS_SLUGS.indexOf(o.status) + 1, ultima_atualizacao: o.updated_at, criado_em: o.created_at })));
+    setAgenda(rAgenda.data || []);
+    setProvas((rProvas.data || []).map(p => ({ ...p, os_id: p.ordem_servico_id, data: p.data_agendada })));
+    setTarefas(rTarefas.data || []);
+    setRespostas(rResp.data || []);
+    setConhecimento(rBase.data || []);
+    setCanais(rCanais.data || []);
+    setPromptPrincipal((rPrompt.data || [])[0] || null);
+    setQuizEnvios(rQuiz.data || []);
+    const faltaTabela = [rResp, rBase, rCanais, rQuiz, rTarefas].some(r => r.error && ['42P01', 'PGRST205'].includes(r.error.code));
+    setBancoPendente(faltaTabela);
+  };
 
   useEffect(() => {
     if (!session) return;
-    async function carregarDadosReais() {
-      const [{ data: leadsData }, { data: clientesData }, { data: osData }, { data: agendaData }, { data: provasData }] = await Promise.all([
-        supabase.from('leads').select('*').order('created_at', { ascending: false }),
-        supabase.from('clientes').select('*').order('created_at', { ascending: false }),
-        supabase.from('ordens_servico').select('*').order('created_at', { ascending: false }),
-        supabase.from('agenda').select('*').order('data_hora', { ascending: true }),
-        supabase.from('provas').select('*').order('data_agendada', { ascending: true }),
-      ]);
-      setLeads((leadsData || []).map(l => ({ ...l, criado_em: l.created_at })));
-      setClientes(clientesData || []);
-      setOs((osData || []).map(o => ({ ...o, status_idx: DB_STATUS_SLUGS.indexOf(o.status) + 1, ultima_atualizacao: o.updated_at, criado_em: o.created_at })));
-      setAgenda((agendaData || []).map(a => ({ ...a, data: a.data_hora })));
-      setProvas((provasData || []).map(p => ({ ...p, os_id: p.ordem_servico_id, data: p.data_agendada })));
-    }
-    carregarDadosReais();
+    recarregar();
+    // agenda/tarefas/leads/quiz mudam por fora (n8n, quiz público): atualiza sozinho
+    const canal = supabase.channel('shell_dados')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agenda' }, recarregar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tarefas' }, recarregar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, recarregar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'consultoria_quiz_envios' }, recarregar)
+      .subscribe();
+    return () => { supabase.removeChannel(canal); };
   }, [session]);
 
   useEffect(() => {
@@ -1966,7 +1420,7 @@ export default function DasGCRM() {
     async function carregarConversas() {
       const { data: msgs } = await supabase
         .from('conversas_whatsapp')
-        .select('phone, nome, mensagem, direcao, lida, created_at')
+        .select('phone, nome, mensagem, direcao, lida, created_at, canal')
         .order('created_at', { ascending: false });
       const { data: status } = await supabase
         .from('atendimento_whatsapp')
@@ -1978,8 +1432,8 @@ export default function DasGCRM() {
         if (!porTelefone[m.phone]) {
           porTelefone[m.phone] = {
             id: m.phone, nome: m.nome || m.phone, telefone: m.phone,
-            ultima_msg: m.mensagem, tempo: tempoRelativo(m.created_at),
-            nao_lidas: 0, status: 'lead_novo', canal: 'whatsapp',
+            ultima_msg: m.mensagem, ultima_em: m.created_at, tempo: tempoRelativo(m.created_at),
+            nao_lidas: 0, status: 'lead_novo', canal: m.canal || 'whatsapp',
             julia_ativa: statusPorTelefone[m.phone] !== false,
           };
         }
@@ -1996,32 +1450,34 @@ export default function DasGCRM() {
     return () => { mounted = false; supabase.removeChannel(canal); };
   }, []);
 
+  // Avançar/voltar a OS no fluxo. Ao ENTRAR numa etapa nova, cria a atividade correspondente
+  // (ex.: chegou em "Prova 1" -> tarefa "Agendar e fazer a Prova 1 de ..."). Só ao avançar.
   const avancarOS = async (id) => {
     const atual = os.find(o => o.id === id);
     if (!atual || atual.status_idx >= 23) return;
     const novoIdx = atual.status_idx + 1;
     setOs(prev => prev.map(o => o.id === id ? { ...o, status_idx: novoIdx, ultima_atualizacao: new Date().toISOString() } : o));
-    await supabase.from('ordens_servico').update({ status: DB_STATUS_SLUGS[novoIdx - 1] }).eq('id', id);
+    const { error } = await supabase.from('ordens_servico').update({ status: DB_STATUS_SLUGS[novoIdx - 1] }).eq('id', id);
+    if (error) { alert('Não consegui avançar a OS: ' + error.message); recarregar(); return; }
+    await criarAtividadeDaEtapa({ os: atual, cliente: clientes.find(c => c.id === atual.cliente_id), slug: DB_STATUS_SLUGS[novoIdx - 1] });
+    recarregar();
   };
   const voltarOS = async (id) => {
     const atual = os.find(o => o.id === id);
     if (!atual || atual.status_idx <= 1) return;
     const novoIdx = atual.status_idx - 1;
     setOs(prev => prev.map(o => o.id === id ? { ...o, status_idx: novoIdx, ultima_atualizacao: new Date().toISOString() } : o));
-    await supabase.from('ordens_servico').update({ status: DB_STATUS_SLUGS[novoIdx - 1] }).eq('id', id);
+    const { error } = await supabase.from('ordens_servico').update({ status: DB_STATUS_SLUGS[novoIdx - 1] }).eq('id', id);
+    if (error) { alert('Não consegui voltar a OS: ' + error.message); recarregar(); }
   };
-  const novoCadastro = async (lead) => {
-    const { data, error } = await supabase.from('leads').insert({
-      nome: lead.nome, telefone: lead.telefone, instagram: lead.instagram,
-      procura: lead.procura, ocasiao: lead.ocasiao, data_evento: lead.data_evento || null,
-      origem: lead.como_chegou, servico_interesse: lead.servico_interesse, status: 'novo',
-    }).select().single();
-    if (!error && data) setLeads(prev => [{ ...data, criado_em: data.created_at }, ...prev]);
-  };
+  // Salva a ficha da cliente. Retorna o erro (ou null) pra tela mostrar.
   const salvarCliente = async (form) => {
-    const { id, os_ids, ...campos } = form;
-    const { error } = await supabase.from('clientes').update(campos).eq('id', id);
-    if (!error) setClientes(prev => prev.map(c => c.id === id ? { ...c, ...campos } : c));
+    const { id, os_ids, created_at, lead_id, ...campos } = form;
+    const limpos = Object.fromEntries(Object.entries(campos).map(([k, v]) => [k, v === '' ? null : v]));
+    const { error } = await supabase.from('clientes').update(limpos).eq('id', id);
+    if (error) return error;
+    setClientes(prev => prev.map(c => c.id === id ? { ...c, ...limpos } : c));
+    return null;
   };
 
   const chamarWebhookCadastro = async (comando, codigo, phone, obs = '') => {
@@ -2112,7 +1568,7 @@ export default function DasGCRM() {
     { id: 'agenda', label: 'Agenda e Tarefas' },
     { id: 'fluxo', label: 'Fluxo de Atendimento' },
     { id: 'clientes', label: 'Clientes' },
-    { id: 'consultoria', label: 'Consultoria Express' },
+    { id: 'consultoria', label: 'Consultoria Express', dot: quizEnvios.filter(q => q.status === 'respondido' && Date.now() - new Date(q.respondido_em).getTime() < 3 * 86400000).length },
     { id: 'criacao', label: 'Criacao' },
     { id: 'orcamentos', label: 'Orcamentos' },
     { id: 'provas', label: 'Provas' },
@@ -2123,17 +1579,22 @@ export default function DasGCRM() {
     { id: 'relatorios', label: 'Relatorios' },
   ];
 
+  const COR_TIPO_AGENDA = { consultoria_express: '#c4a45a', personal_stylist: '#8b5cf6', prova1: '#ec4899', prova2: '#db2777', prova_final: '#be185d', entrega: '#16a34a', orcamento: '#f97316', reuniao: '#6b7280' };
+  const agendaDashboard = agenda.map(a => ({ ...a, data: a.data_hora, cliente: clientes.find(c => c.id === a.cliente_id)?.nome || a.titulo || 'Compromisso', cor: COR_TIPO_AGENDA[a.tipo] || '#0ea5e9' }));
+
   const renderPagina = () => {
     switch (pagina) {
-      case 'central': return <CentralAtendimento conversas={conversas} leads={leads} onNovoCad={novoCadastro} />;
+      case 'central': return <Central conversas={conversas} leads={leads} agenda={agenda} tarefas={tarefas} clientes={clientes} os={os} quizEnvios={quizEnvios}
+        servicos={MOCK_SERVICOS} respostas={respostas} conhecimento={conhecimento} canais={canais} promptPrincipal={promptPrincipal}
+        bancoPendente={bancoPendente} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'produtos': return <CadastroProduto produtos={produtos} produtoFotos={produtoFotos} produtoVariantes={produtoVariantes}
         onAprovar={aprovarProduto} onRefazerFotos={refazerFotosProduto} onSalvarProduto={salvarProduto}
         onSalvarVariante={salvarVariante} onRemoverVariante={removerVariante} onEscolherMosaico={escolherMosaico} />;
-      case 'dashboard': return <Dashboard clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
-      case 'agenda': return <AgendaTarefas agenda={agenda} tarefas={tarefas} clientes={clientes} os={os} />;
+      case 'dashboard': return <Dashboard clientes={clientes} os={os} agenda={agendaDashboard} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
+      case 'agenda': return <AgendaTarefas agenda={agenda} tarefas={tarefas} clientes={clientes} os={os} onRecarregar={recarregar} />;
       case 'fluxo': return <FluxoAtendimento os={os} clientes={clientes} onAvancar={avancarOS} onVoltar={voltarOS} />;
-      case 'clientes': return <Clientes clientes={clientes} os={os} onSalvar={salvarCliente} />;
-      case 'consultoria': return <ConsultoriaExpress clientes={clientes} os={os} briefings={briefings} />;
+      case 'clientes': return <Clientes clientes={clientes} os={os} quizEnvios={quizEnvios} onRecarregar={recarregar} onSalvar={salvarCliente} onIrFluxo={() => setPagina('fluxo')} />;
+      case 'consultoria': return <Consultoria clientes={clientes} os={os} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'criacao': return <Criacao os={os} clientes={clientes} briefings={briefings} dossies={dossies} fichas={fichas} />;
       case 'orcamentos': return <Orcamentos os={os} clientes={clientes} pedidos={pedidos} />;
       case 'provas': return <Provas os={os} clientes={clientes} provas={provas} />;
@@ -2142,7 +1603,7 @@ export default function DasGCRM() {
       case 'marketing': return <Marketing />;
       case 'feedback': return <FeedbackMod feedbacks={feedbacks} clientes={clientes} os={os} />;
       case 'relatorios': return <Relatorios pedidos={pedidos} os={os} clientes={clientes} feedbacks={feedbacks} />;
-      default: return <Dashboard clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
+      default: return <Dashboard clientes={clientes} os={os} agenda={agendaDashboard} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
     }
   };
 
