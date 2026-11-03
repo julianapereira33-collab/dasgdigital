@@ -60,7 +60,15 @@ function NovaSenha({ onConcluido }) {
     setCarregando(true);
     const { error } = await supabase.auth.updateUser({ password: senha });
     setCarregando(false);
-    if (error) { setErro('Não foi possível salvar. Peça um novo link e tente de novo.'); return; }
+    if (error) {
+      const c = error.code || '';
+      const m = (error.message || '').toLowerCase();
+      if (c === 'same_password' || m.includes('different from the old')) setErro('Essa já é a sua senha atual. Volte para o login e entre com ela, ou escolha uma senha diferente.');
+      else if (c === 'weak_password' || m.includes('weak') || m.includes('characters')) setErro('Senha fraca. Use pelo menos 8 caracteres, misturando letras maiúsculas, minúsculas e números.');
+      else if (c === 'session_not_found' || c === 'session_expired' || m.includes('session')) setErro('O link expirou. Peça um novo link em "Esqueci minha senha".');
+      else setErro('Não foi possível salvar (' + (c || error.message) + '). Peça um novo link e tente de novo.');
+      return;
+    }
     onConcluido();
   };
 
@@ -79,6 +87,7 @@ function NovaSenha({ onConcluido }) {
         </div>
         {erro && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 14 }}>{erro}</div>}
         <button type="submit" disabled={carregando} style={botao}>{carregando ? 'Salvando...' : 'Salvar nova senha'}</button>
+        <button type="button" onClick={onConcluido} style={{ ...link, display: 'block', margin: '14px auto 0' }}>Pular e entrar no CRM</button>
       </form>
     </div>
   );
