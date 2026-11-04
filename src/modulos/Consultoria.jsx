@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabaseClient.js';
 import { enviarQuizPorWhatsApp, criarQuizEnvio, criarAtividadeDaEtapa, ROTULO_ETAPA } from '../lib/api.js';
 import { QUIZ_SECOES, respostaLegivel, linkDoQuiz } from './quizConsultoria.js';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Campo, Aviso, fmtDate, fmtDateTime, erroDeSchema } from './ui.jsx';
+import Arquivos from './Arquivos.jsx';
+import MateriaisOS from './MateriaisOS.jsx';
 
 const ANOTACOES_VAZIAS = { estilo: '', referencias: '', tecidos_cores: '', silhueta: '', detalhes: '', restricoes: '', orcamento_disc: '', proximos_passos: '' };
 const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261102000000 no Supabase. ' + e.message : (e.message || String(e));
@@ -31,6 +33,7 @@ export function BriefingQuiz({ respostas, compacto }) {
 
 export default function Consultoria({ clientes, os, quizEnvios, onRecarregar, onNavegar }) {
   const [aba, setAba] = useState('acompanhamento');
+  const [sub, setSub] = useState('anotacoes');
   const [osSel, setOsSel] = useState(null);
   const [verBriefing, setVerBriefing] = useState(null); // quiz selecionado na aba acompanhamento
   const [mostrarQ, setMostrarQ] = useState(false);
@@ -59,7 +62,7 @@ export default function Consultoria({ clientes, os, quizEnvios, onRecarregar, on
 
   // carrega anotações salvas (banco) ou rascunho (navegador) ao trocar de OS
   useEffect(() => {
-    setNotas(''); setAnotacoes(ANOTACOES_VAZIAS); setTimer(0); setRodando(false); setAviso(''); setErro('');
+    setSub('anotacoes'); setNotas(''); setAnotacoes(ANOTACOES_VAZIAS); setTimer(0); setRodando(false); setAviso(''); setErro('');
     if (!osSel) return;
     let vivo = true;
     (async () => {
@@ -190,6 +193,27 @@ export default function Consultoria({ clientes, os, quizEnvios, onRecarregar, on
           </div>
 
           {!osSel ? <Card style={{ textAlign: 'center', color: '#9ca3af', padding: 40 }}>Escolha uma OS acima (ou use "Abrir sessão" na aba Acompanhamento).</Card> : (
+            <>
+            <TabBar active={sub} onChange={setSub} tabs={[{ id: 'anotacoes', label: 'Anotações ao vivo' }, { id: 'fotos', label: 'Fotos e croqui' }, { id: 'materiais', label: 'Materiais e compras' }, { id: 'briefing', label: 'Briefing completo' }]} />
+            {sub === 'fotos' && <Arquivos osId={osSel.id} clienteId={osSel.cliente_id} categorias={['foto_cliente', 'croqui', 'referencia', 'tecido']} titulo="Fotos da cliente, croqui e referências" ajuda="Suba a foto da cliente, o croqui desenhado na consultoria e as referências. Tudo fica ligado a esta OS e à ficha da cliente." />}
+            {sub === 'materiais' && <MateriaisOS osId={osSel.id} />}
+            {sub === 'briefing' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+                <Card>
+                  <h3 style={{ fontWeight: 700, marginBottom: 12 }}>Respostas do quiz</h3>
+                  {quizSel?.status === 'respondido' ? <BriefingQuiz respostas={quizSel.respostas} /> : <div style={{ color: '#9ca3af', fontSize: 13 }}>A cliente ainda não respondeu o quiz.</div>}
+                </Card>
+                <Card>
+                  <h3 style={{ fontWeight: 700, marginBottom: 12 }}>Anotações da consultoria</h3>
+                  {[['estilo', 'Estilo identificado'], ['referencias', 'Referências'], ['tecidos_cores', 'Tecidos e cores'], ['silhueta', 'Silhueta ideal'], ['detalhes', 'Detalhes desejados'], ['restricoes', 'Restrições'], ['orcamento_disc', 'Orçamento discutido'], ['proximos_passos', 'Próximos passos']].map(([k, l]) => anotacoes[k] ? (
+                    <div key={k} style={{ marginBottom: 10 }}><div style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase' }}>{l}</div><div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{anotacoes[k]}</div></div>
+                  ) : null)}
+                  {notas && <div style={{ marginTop: 8 }}><div style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase' }}>Notas livres</div><div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{notas}</div></div>}
+                  {!Object.values(anotacoes).some(Boolean) && !notas && <div style={{ color: '#9ca3af', fontSize: 13 }}>Sem anotações ainda. Use a aba "Anotações ao vivo".</div>}
+                </Card>
+              </div>
+            )}
+            {sub === 'anotacoes' && (
             <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 20 }}>
               <div>
                 <Card style={{ marginBottom: 14 }}>
@@ -238,6 +262,8 @@ export default function Consultoria({ clientes, os, quizEnvios, onRecarregar, on
                 </div>
               </Card>
             </div>
+            )}
+            </>
           )}
 
           {mostrarQ && (

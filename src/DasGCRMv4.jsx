@@ -1,4 +1,5 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+﻿import CriacaoOS from './modulos/Criacao.jsx';
+import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient.js';
 import CadastroProduto from './modulos/CadastroProduto.jsx';
 import Central from './modulos/Central.jsx';
@@ -1325,6 +1326,7 @@ export default function DasGCRM() {
   }, []);
 
   const [pagina, setPagina] = useState('central');
+  const [gruposAbertos, setGruposAbertos] = useState({ 'Atendimento': true });
   const [clientes, setClientes] = useState([]);
   const [os, setOs] = useState([]);
   const [leads, setLeads] = useState([]);
@@ -1568,16 +1570,24 @@ export default function DasGCRM() {
     { id: 'fluxo', label: 'Fluxo de Atendimento' },
     { id: 'clientes', label: 'Clientes' },
     { id: 'consultoria', label: 'Consultoria Express', dot: quizEnvios.filter(q => q.status === 'respondido' && Date.now() - new Date(q.respondido_em).getTime() < 3 * 86400000).length },
-    { id: 'criacao', label: 'Criacao' },
-    { id: 'orcamentos', label: 'Orcamentos' },
+    { id: 'criacao', label: 'Criação' },
+    { id: 'orcamentos', label: 'Orçamentos' },
     { id: 'provas', label: 'Provas' },
     { id: 'financeiro', label: 'Financeiro' },
     { id: 'compras', label: 'Central de Compras' },
     { id: 'marketing', label: 'Marketing' },
     { id: 'feedback', label: 'Feedback' },
-    { id: 'relatorios', label: 'Relatorios' },
+    { id: 'relatorios', label: 'Relatórios' },
     { id: 'produtos', label: 'Cadastro de Produto', dot: produtos.filter(p => (p.status_geral || 'em_aprovacao') === 'em_aprovacao').length },
   ];
+  const GRUPOS = [
+    { titulo: 'Atendimento', ids: ['central', 'clientes', 'agenda', 'fluxo'] },
+    { titulo: 'Consultoria e Criação', ids: ['consultoria', 'criacao'] },
+    { titulo: 'Venda', ids: ['orcamentos'] },
+    { titulo: 'Produção', ids: ['provas', 'compras'] },
+    { titulo: 'Gestão', ids: ['dashboard', 'financeiro', 'marketing', 'feedback', 'relatorios'] },
+    { titulo: 'Catálogo', ids: ['produtos'] },
+  ].map(g => ({ ...g, itens: g.ids.map(id => nav.find(n => n.id === id)).filter(Boolean) }));
 
   const COR_TIPO_AGENDA = { consultoria_express: '#c4a45a', personal_stylist: '#8b5cf6', prova1: '#ec4899', prova2: '#db2777', prova_final: '#be185d', entrega: '#16a34a', orcamento: '#f97316', reuniao: '#6b7280' };
   const agendaDashboard = agenda.map(a => ({ ...a, data: a.data_hora, cliente: clientes.find(c => c.id === a.cliente_id)?.nome || a.titulo || 'Compromisso', cor: COR_TIPO_AGENDA[a.tipo] || '#0ea5e9' }));
@@ -1595,7 +1605,7 @@ export default function DasGCRM() {
       case 'fluxo': return <FluxoAtendimento os={os} clientes={clientes} onAvancar={avancarOS} onVoltar={voltarOS} />;
       case 'clientes': return <Clientes clientes={clientes} os={os} quizEnvios={quizEnvios} agenda={agenda} onRecarregar={recarregar} onSalvar={salvarCliente} onIrFluxo={() => setPagina('fluxo')} onNavegar={setPagina} />;
       case 'consultoria': return <Consultoria clientes={clientes} os={os} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
-      case 'criacao': return <Criacao os={os} clientes={clientes} briefings={briefings} dossies={dossies} fichas={fichas} />;
+      case 'criacao': return <CriacaoOS os={os} clientes={clientes} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'orcamentos': return <Orcamentos os={os} clientes={clientes} pedidos={pedidos} />;
       case 'provas': return <Provas os={os} clientes={clientes} provas={provas} />;
       case 'financeiro': return <Financeiro pedidos={pedidos} clientes={clientes} os={os} contasPagar={contasPagar} />;
@@ -1627,18 +1637,30 @@ export default function DasGCRM() {
 
           {/* Nav */}
           <nav style={{ flex: 1, padding: '12px 0' }}>
-            {nav.map(n => (
-              <button key={n.id} onClick={() => setPagina(n.id)} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                width: '100%', padding: '10px 20px', border: 'none', background: pagina === n.id ? '#1a1a1a' : 'none',
-                color: pagina === n.id ? '#c4a45a' : '#9ca3af', textAlign: 'left', fontSize: 13, fontWeight: pagina === n.id ? 700 : 400, cursor: 'pointer',
-                borderLeft: pagina === n.id ? '3px solid #c4a45a' : '3px solid transparent',
-                transition: 'all 0.15s',
-              }}>
-                {n.label}
-                {n.dot > 0 && <span style={{ background: '#c4a45a', color: '#111', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{n.dot}</span>}
-              </button>
-            ))}
+            {GRUPOS.map(g => {
+              const ativo = g.itens.some(n => n.id === pagina);
+              const aberto = ativo || gruposAbertos[g.titulo];
+              const total = g.itens.reduce((t, n) => t + (n.dot || 0), 0);
+              return (
+                <div key={g.titulo}>
+                  <button onClick={() => setGruposAbertos(o => ({ ...o, [g.titulo]: !aberto }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '10px 20px', border: 'none', background: 'none', color: ativo ? '#c4a45a' : '#d1d5db', fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer' }}>
+                    <span>{aberto ? '▾' : '▸'} {g.titulo}</span>
+                    {!aberto && total > 0 && <span style={{ background: '#c4a45a', color: '#111', borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>{total}</span>}
+                  </button>
+                  {aberto && g.itens.map(n => (
+                    <button key={n.id} onClick={() => setPagina(n.id)} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      width: '100%', padding: '8px 20px 8px 34px', border: 'none', background: pagina === n.id ? '#1a1a1a' : 'none',
+                      color: pagina === n.id ? '#c4a45a' : '#9ca3af', textAlign: 'left', fontSize: 13, fontWeight: pagina === n.id ? 700 : 400, cursor: 'pointer',
+                      borderLeft: pagina === n.id ? '3px solid #c4a45a' : '3px solid transparent',
+                    }}>
+                      {n.label}
+                      {n.dot > 0 && <span style={{ background: '#c4a45a', color: '#111', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{n.dot}</span>}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
           </nav>
 
           {/* Footer */}
