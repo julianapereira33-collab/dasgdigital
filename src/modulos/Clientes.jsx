@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Drawer, Campo, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
 import { criarCliente, criarOS, enviarQuizPorWhatsApp, ROTULO_ETAPA, SLUGS_ETAPA } from '../lib/api.js';
 import { linkDoQuiz } from './quizConsultoria.js';
+import ChecklistAtendimento from './ChecklistAtendimento.jsx';
 
 const OPCOES_ORIGEM = [['instagram', 'Instagram'], ['indicacao', 'Indicação'], ['loja_fisica', 'Loja física'], ['google', 'Google'], ['whatsapp', 'WhatsApp'], ['outro', 'Outro']].map(([value, label]) => ({ value, label }));
 const ETAPAS_INICIAIS = SLUGS_ETAPA.slice(0, 8).map(s => ({ value: s, label: ROTULO_ETAPA[s] }));
@@ -14,7 +15,8 @@ function msgErro(error) {
   return error.message || String(error);
 }
 
-export default function Clientes({ clientes, os, quizEnvios = [], onRecarregar, onSalvar, onIrFluxo }) {
+export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], onRecarregar, onSalvar, onIrFluxo, onNavegar }) {
+  const [checklistAberto, setChecklistAberto] = useState(null);
   const [busca, setBusca] = useState('');
   const [sel, setSel] = useState(null);
   const [editando, setEditando] = useState(false);
@@ -226,7 +228,9 @@ export default function Clientes({ clientes, os, quizEnvios = [], onRecarregar, 
                     <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
                       <Badge label={ROTULO_ETAPA[o.status] || o.status} color="#c4a45a" />
                       <span style={{ fontSize: 12, color: '#9ca3af' }}>Evento: {fmtDate(o.data_evento)}</span>
+                      <button onClick={() => setChecklistAberto(checklistAberto === o.id ? null : o.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#c4a45a', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{checklistAberto === o.id ? 'Fechar checklist' : 'Checklist do atendimento'}</button>
                     </div>
+                    {checklistAberto === o.id && <ChecklistAtendimento os={o} cliente={sel} agenda={agenda} quizEnvios={quizEnvios} onRecarregar={onRecarregar} onNavegar={onNavegar} />}
                   </Card>
                 ))}
 

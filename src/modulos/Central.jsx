@@ -10,11 +10,12 @@ const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261102000
 const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
 const CANAIS = [
-  { id: 'whatsapp', nome: 'WhatsApp', cor: '#25D366' },
-  { id: 'instagram', nome: 'Instagram', cor: '#E1306C' },
-  { id: 'facebook', nome: 'Facebook', cor: '#1877F2' },
-  { id: 'tiktok', nome: 'TikTok', cor: '#111111' },
+  { id: 'whatsapp', nome: 'WhatsApp', cor: '#25D366', icone: '💬' },
+  { id: 'instagram', nome: 'Instagram', cor: '#E1306C', icone: '📷' },
+  { id: 'facebook', nome: 'Facebook', cor: '#1877F2', icone: '👍' },
+  { id: 'tiktok', nome: 'TikTok', cor: '#111111', icone: '🎵' },
 ];
+const iconeCanal = (id) => (CANAIS.find(c => c.id === (id || 'whatsapp')) || CANAIS[0]);
 const STATUS_CONVERSA = { lead_novo: ['Lead novo', '#f59e0b'], cliente: ['Cliente', '#16a34a'], lead: ['Lead', '#6366f1'] };
 const STATUS_LEAD = { novo: ['Novo', '#f59e0b'], qualificando: ['Qualificando', '#6366f1'], convertido: ['Convertido', '#22c55e'], perdido: ['Perdido', '#6b7280'] };
 const CATEGORIAS_BASE = [
@@ -289,7 +290,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
             <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
               {CANAIS.map(c => {
                 const n = conversas.filter(x => (x.canal || 'whatsapp') === c.id).length;
-                return <button key={c.id} onClick={() => { setCanalSel(c.id); setConvSel(null); }} style={{ flex: '1 1 70px', padding: '7px 4px', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', background: canalSel === c.id ? c.cor : '#f3f4f6', color: canalSel === c.id ? '#fff' : '#374151' }}>{c.nome}{n > 0 ? ` (${n})` : ''}</button>;
+                return <button key={c.id} onClick={() => { setCanalSel(c.id); setConvSel(null); }} style={{ flex: '1 1 70px', padding: '7px 4px', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', background: canalSel === c.id ? c.cor : '#f3f4f6', color: canalSel === c.id ? '#fff' : '#374151' }}>{c.icone} {c.nome}{n > 0 ? ` (${n})` : ''}</button>;
               })}
             </div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -303,7 +304,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
                 return (
                   <div key={c.id} onClick={() => { setConvSel(c); setErro(''); setTexto(''); }} style={{ padding: '12px 14px', cursor: 'pointer', borderBottom: i < convsFiltradas.length - 1 ? '1px solid #f3f4f6' : 'none', background: convSel?.id === c.id ? '#fef9f0' : '#fff' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                      <span style={{ fontWeight: 700, fontSize: 14 }}>{c.nome}</span>
+                      <span style={{ fontWeight: 700, fontSize: 14 }}><span title={iconeCanal(c.canal).nome} style={{ marginRight: 6 }}>{iconeCanal(c.canal).icone}</span>{c.nome}</span>
                       <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <span style={{ fontSize: 11, color: '#9ca3af' }}>{c.tempo}</span>
                         {c.nao_lidas > 0 && <span style={{ background: '#c4a45a', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{c.nao_lidas}</span>}
@@ -329,7 +330,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
               <Card>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
                   <div>
-                    <h3 style={{ fontSize: 18, fontWeight: 700 }}>{convSel.nome}</h3>
+                    <h3 style={{ fontSize: 18, fontWeight: 700 }}><span title={iconeCanal(convSel.canal).nome} style={{ marginRight: 8 }}>{iconeCanal(convSel.canal).icone}</span>{convSel.nome}</h3>
                     <div style={{ color: '#6b7280', fontSize: 13 }}>{convSel.telefone}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

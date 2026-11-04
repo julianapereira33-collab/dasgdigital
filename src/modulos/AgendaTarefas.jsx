@@ -4,17 +4,30 @@ import { enviarWhatsApp, msgConfirmacaoEvento, msgAvisoTarefa, whatsappConfigura
 import { criarAtividadeDaEtapa } from '../lib/api.js';
 import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, TabBar, Drawer, Campo, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
 
+// dep = departamento padrão do tipo (a Juliana pode trocar ao criar o evento)
 const TIPOS = {
-  consultoria_express: { label: 'Consultoria Express', cor: '#c4a45a' },
-  personal_stylist: { label: 'Personal Stylist', cor: '#8b5cf6' },
-  prova1: { label: 'Prova 1', cor: '#ec4899' },
-  prova2: { label: 'Prova 2', cor: '#db2777' },
-  prova_final: { label: 'Prova final', cor: '#be185d' },
-  entrega: { label: 'Entrega', cor: '#16a34a' },
-  orcamento: { label: 'Atendimento de orçamento', cor: '#f97316' },
-  reuniao: { label: 'Reunião interna', cor: '#6b7280' },
-  outro: { label: 'Outro', cor: '#0ea5e9' },
+  consultoria_express: { label: 'Consultoria Express', cor: '#c4a45a', dep: 'atendimento' },
+  personal_stylist: { label: 'Personal Stylist', cor: '#8b5cf6', dep: 'atendimento' },
+  orcamento: { label: 'Atendimento de orçamento', cor: '#f97316', dep: 'atendimento' },
+  tecidos_medidas: { label: 'Ver tecidos e medidas', cor: '#0ea5e9', dep: 'atelie' },
+  prova1: { label: '1ª prova', cor: '#ec4899', dep: 'atelie' },
+  prova2: { label: '2ª prova', cor: '#db2777', dep: 'atelie' },
+  prova_final: { label: '3ª prova (final)', cor: '#be185d', dep: 'atelie' },
+  modelagem_corte: { label: 'Modelagem / corte', cor: '#0369a1', dep: 'atelie' },
+  costura: { label: 'Montagem / costura', cor: '#075985', dep: 'atelie' },
+  entrega: { label: 'Entrega', cor: '#16a34a', dep: 'recepcao' },
+  retirada_locacao: { label: 'Retirada de locação', cor: '#15803d', dep: 'recepcao' },
+  devolucao_locacao: { label: 'Devolução de locação', cor: '#65a30d', dep: 'recepcao' },
+  venda_loja: { label: 'Venda / atendimento na loja', cor: '#d97706', dep: 'recepcao' },
+  reuniao: { label: 'Reunião interna', cor: '#6b7280', dep: 'recepcao' },
+  outro: { label: 'Outro', cor: '#0ea5e9', dep: 'atendimento' },
 };
+const DEPARTAMENTOS = {
+  atendimento: { label: 'Atendimento de clientes', curto: 'Atendimento', cor: '#c4a45a' },
+  atelie: { label: 'Ateliê (oficina)', curto: 'Ateliê', cor: '#0ea5e9' },
+  recepcao: { label: 'Recepção', curto: 'Recepção', cor: '#16a34a' },
+};
+const depDe = (x) => DEPARTAMENTOS[x?.departamento] ? x.departamento : (TIPOS[x?.tipo]?.dep || 'atendimento');
 const STATUS_EVENTO = {
   agendado: { label: 'Agendado', cor: '#f59e0b' },
   aguardando_confirmacao: { label: 'Aguardando confirmação', cor: '#3b82f6' },
@@ -31,8 +44,8 @@ const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit
 const isoData = (d) => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
 const msgErro = (e) => erroDeSchema(e) ? 'O banco ainda não tem as colunas novas. Aplique a migração 20261102000000 no Supabase. (' + e.message + ')' : (e.message || String(e));
 
-const EVENTO_VAZIO = (dataBase) => ({ id: null, tipo: 'consultoria_express', cliente_id: '', ordem_servico_id: '', data: isoData(dataBase || new Date()), hora: '10:00', duracao_min: 60, local: '', link_meet: '', observacoes: '', status: 'agendado', enviarConfirmacao: true, mensagem: '', msgEditada: false });
-const TAREFA_VAZIA = { id: null, titulo: '', descricao: '', prioridade: 'normal', prazo: '', cliente_id: '', ordem_servico_id: '', responsavel: '', avisarCliente: false, mensagem: '', msgEditada: false };
+const EVENTO_VAZIO = (dataBase, dep) => ({ id: null, departamento: dep || 'atendimento', tipo: dep === 'atelie' ? 'prova1' : dep === 'recepcao' ? 'entrega' : 'consultoria_express', cliente_id: '', ordem_servico_id: '', data: isoData(dataBase || new Date()), hora: '10:00', duracao_min: 60, local: '', link_meet: '', observacoes: '', status: 'agendado', enviarConfirmacao: true, mensagem: '', msgEditada: false });
+const TAREFA_VAZIA = { id: null, departamento: 'atendimento', titulo: '', descricao: '', prioridade: 'normal', prazo: '', cliente_id: '', ordem_servico_id: '', responsavel: '', avisarCliente: false, mensagem: '', msgEditada: false };
 
 export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarregar }) {
   const [aba, setAba] = useState('agenda');
@@ -44,9 +57,11 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [filtroTarefa, setFiltroTarefa] = useState('pendentes');
+  const [dep, setDep] = useState('todos'); // 'todos' | 'atendimento' | 'atelie' | 'recepcao'
 
   const cli = (id) => clientes.find(c => c.id === id);
-  const eventos = useMemo(() => agenda.map(a => ({ ...a, dt: a.data_hora })).filter(a => a.dt).sort((x, y) => new Date(x.dt) - new Date(y.dt)), [agenda]);
+  const eventos = useMemo(() => agenda.map(a => ({ ...a, dt: a.data_hora, dep: depDe(a) })).filter(a => a.dt && (dep === 'todos' || a.dep === dep)).sort((x, y) => new Date(x.dt) - new Date(y.dt)), [agenda, dep]);
+  const contaDep = (d) => agenda.filter(a => a.data_hora && depDe(a) === d && a.status !== 'cancelado' && new Date(a.data_hora) >= inicioDia(new Date())).length;
   const doDia = (d) => eventos.filter(e => mesmoDia(e.dt, d));
 
   const semana = Array.from({ length: 7 }, (_, i) => { const d = new Date(cursor); d.setDate(d.getDate() - d.getDay() + i); return d; });
@@ -72,15 +87,16 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
   function editarEvento(patch) {
     setEvento(prev => {
       const novo = { ...prev, ...patch };
+      if (patch.tipo && TIPOS[patch.tipo]) novo.departamento = TIPOS[patch.tipo].dep;
       if (!novo.msgEditada) novo.mensagem = montarMensagem(novo);
       return novo;
     });
   }
-  function novoEvento(dataBase) { setErro(''); setAviso(''); const e = EVENTO_VAZIO(dataBase); e.mensagem = montarMensagem(e); setEvento(e); }
+  function novoEvento(dataBase) { setErro(''); setAviso(''); const e = EVENTO_VAZIO(dataBase, dep === 'todos' ? null : dep); e.mensagem = montarMensagem(e); setEvento(e); }
   function abrirEvento(a) {
     setErro(''); setAviso('');
     const d = new Date(a.dt);
-    setEvento({ id: a.id, tipo: a.tipo || 'outro', cliente_id: a.cliente_id || '', ordem_servico_id: a.ordem_servico_id || '', data: isoData(d), hora: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, duracao_min: a.duracao_min || 60, local: a.local || '', link_meet: a.link_meet || '', observacoes: a.observacoes || '', status: a.status || 'agendado', enviarConfirmacao: false, mensagem: a.confirmacao_mensagem || '', msgEditada: !!a.confirmacao_mensagem, confirmacao_enviada_em: a.confirmacao_enviada_em });
+    setEvento({ id: a.id, departamento: depDe(a), tipo: a.tipo || 'outro', cliente_id: a.cliente_id || '', ordem_servico_id: a.ordem_servico_id || '', data: isoData(d), hora: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, duracao_min: a.duracao_min || 60, local: a.local || '', link_meet: a.link_meet || '', observacoes: a.observacoes || '', status: a.status || 'agendado', enviarConfirmacao: false, mensagem: a.confirmacao_mensagem || '', msgEditada: !!a.confirmacao_mensagem, confirmacao_enviada_em: a.confirmacao_enviada_em });
   }
 
   async function enviarConfirmacao(ev, eventoId) {
@@ -98,7 +114,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
     setSalvando(true); setErro(''); setAviso('');
     const dataHora = new Date(`${evento.data}T${evento.hora}`).toISOString();
     const linha = {
-      tipo: evento.tipo, titulo: TIPOS[evento.tipo]?.label || evento.tipo, cliente_id: evento.cliente_id || null,
+      tipo: evento.tipo, departamento: evento.departamento || 'atendimento', titulo: TIPOS[evento.tipo]?.label || evento.tipo, cliente_id: evento.cliente_id || null,
       ordem_servico_id: evento.ordem_servico_id || null, data_hora: dataHora, duracao_min: Number(evento.duracao_min) || 60,
       local: evento.local || null, link_meet: evento.link_meet || null, observacoes: evento.observacoes || null, status: evento.status || 'agendado',
     };
@@ -156,15 +172,15 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
   function editarTarefa(patch) {
     setTarefa(prev => { const n = { ...prev, ...patch }; if (!n.msgEditada) n.mensagem = montarMsgTarefa(n); return n; });
   }
-  function novaTarefa() { setErro(''); setAviso(''); setTarefa({ ...TAREFA_VAZIA }); }
+  function novaTarefa() { setErro(''); setAviso(''); setTarefa({ ...TAREFA_VAZIA, departamento: dep === 'todos' ? 'atendimento' : dep }); }
   function abrirTarefa(t) {
     setErro(''); setAviso('');
-    setTarefa({ id: t.id, titulo: t.titulo || '', descricao: t.descricao || '', prioridade: t.prioridade || 'normal', prazo: t.prazo || '', cliente_id: t.cliente_id || '', ordem_servico_id: t.ordem_servico_id || '', responsavel: t.responsavel || '', avisarCliente: false, mensagem: '', msgEditada: false });
+    setTarefa({ id: t.id, departamento: DEPARTAMENTOS[t.departamento] ? t.departamento : 'atendimento', titulo: t.titulo || '', descricao: t.descricao || '', prioridade: t.prioridade || 'normal', prazo: t.prazo || '', cliente_id: t.cliente_id || '', ordem_servico_id: t.ordem_servico_id || '', responsavel: t.responsavel || '', avisarCliente: false, mensagem: '', msgEditada: false });
   }
   async function salvarTarefa() {
     if (!tarefa.titulo.trim()) { setErro('Dê um título para a tarefa.'); return; }
     setSalvando(true); setErro(''); setAviso('');
-    const linha = { titulo: tarefa.titulo.trim(), descricao: tarefa.descricao || null, prioridade: tarefa.prioridade, prazo: tarefa.prazo || null, cliente_id: tarefa.cliente_id || null, ordem_servico_id: tarefa.ordem_servico_id || null, responsavel: tarefa.responsavel || null };
+    const linha = { departamento: tarefa.departamento || 'atendimento', titulo: tarefa.titulo.trim(), descricao: tarefa.descricao || null, prioridade: tarefa.prioridade, prazo: tarefa.prazo || null, cliente_id: tarefa.cliente_id || null, ordem_servico_id: tarefa.ordem_servico_id || null, responsavel: tarefa.responsavel || null };
     let id = tarefa.id; let error;
     if (id) ({ error } = await supabase.from('tarefas').update(linha).eq('id', id));
     else { const r = await supabase.from('tarefas').insert({ ...linha, status: 'pendente', origem: 'manual' }).select().single(); error = r.error; id = r.data?.id; }
@@ -192,7 +208,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
   }
 
   const hoje = inicioDia(new Date());
-  const tarefasVisiveis = tarefas.filter(t => filtroTarefa === 'todas' ? true : filtroTarefa === 'concluidas' ? t.status === 'concluida' : t.status !== 'concluida')
+  const tarefasVisiveis = tarefas.filter(t => dep === 'todos' || (DEPARTAMENTOS[t.departamento] ? t.departamento : 'atendimento') === dep).filter(t => filtroTarefa === 'todas' ? true : filtroTarefa === 'concluidas' ? t.status === 'concluida' : t.status !== 'concluida')
     .sort((a, b) => (a.prazo || '9999').localeCompare(b.prazo || '9999'));
   const osDaCliente = (cid) => os.filter(o => o.cliente_id === cid);
   const chipEvento = (a, compacto) => {
@@ -217,6 +233,14 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
       {aviso && <Aviso tipo="ok">{aviso}</Aviso>}
       {erro && !evento && !tarefa && <Aviso tipo="erro">{erro}</Aviso>}
       {!whatsappConfigurado() && <Aviso tipo="atencao">O envio por WhatsApp ainda não está ligado neste ambiente (falta <b>VITE_N8N_ENVIAR_URL</b> na Vercel). Eventos e tarefas salvam normalmente; só o envio da mensagem fica indisponível.</Aviso>}
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {[['todos', 'Todas as agendas', '#111'], ...Object.entries(DEPARTAMENTOS).map(([id, d]) => [id, d.label, d.cor])].map(([id, l, cor]) => (
+          <button key={id} onClick={() => setDep(id)} style={{ padding: '8px 16px', borderRadius: 8, border: `2px solid ${dep === id ? cor : '#e5e7eb'}`, background: dep === id ? cor : '#fff', color: dep === id ? '#fff' : '#374151', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            {l}{id !== 'todos' && contaDep(id) > 0 && <span style={{ marginLeft: 8, background: dep === id ? 'rgba(255,255,255,.25)' : cor + '22', color: dep === id ? '#fff' : cor, borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>{contaDep(id)}</span>}
+          </button>
+        ))}
+      </div>
 
       <TabBar tabs={[{ id: 'agenda', label: 'Agenda' }, { id: 'tarefas', label: 'Tarefas', count: tarefas.filter(t => t.status !== 'concluida').length }]} active={aba} onChange={setAba} />
 
@@ -313,7 +337,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
                   <input type="checkbox" checked={t.status === 'concluida'} onChange={() => alternarTarefa(t)} style={{ width: 18, height: 18, cursor: 'pointer' }} />
                   <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => abrirTarefa(t)}>
                     <div style={{ fontWeight: 600, fontSize: 14, textDecoration: t.status === 'concluida' ? 'line-through' : 'none', color: t.status === 'concluida' ? '#9ca3af' : '#111' }}>{t.titulo}</div>
-                    <div style={{ fontSize: 12, color: '#6b7280' }}>{[c?.nome, t.origem === 'fluxo' ? 'criada pelo fluxo' : null].filter(Boolean).join(' · ')}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>{[c?.nome, (DEPARTAMENTOS[t.departamento] || DEPARTAMENTOS.atendimento).curto, t.origem === 'fluxo' ? 'criada pelo fluxo' : null].filter(Boolean).join(' · ')}</div>
                   </div>
                   <Badge label={t.prioridade || 'normal'} color={PRIORIDADE_COR[t.prioridade] || '#f59e0b'} />
                   <span style={{ fontSize: 12, color: atrasada ? '#ef4444' : '#9ca3af', minWidth: 74, textAlign: 'right' }}>{atrasada ? 'Atrasada ' : ''}{fmtDate(t.prazo)}</span>
@@ -331,7 +355,10 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
             {erro && <Aviso tipo="erro">{erro}</Aviso>}
             {aviso && <Aviso tipo="ok">{aviso}</Aviso>}
             {evento.id && <div style={{ marginBottom: 14 }}><Badge label={(STATUS_EVENTO[evento.status] || STATUS_EVENTO.agendado).label} color={(STATUS_EVENTO[evento.status] || STATUS_EVENTO.agendado).cor} />{evento.confirmacao_enviada_em && <span style={{ fontSize: 12, color: '#9ca3af', marginLeft: 8 }}>confirmação enviada em {new Date(evento.confirmacao_enviada_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>}</div>}
-            <Campo label="Tipo" value={evento.tipo} onChange={v => editarEvento({ tipo: v })} options={Object.entries(TIPOS).map(([value, t]) => ({ value, label: t.label }))} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <Campo label="Tipo" value={evento.tipo} onChange={v => editarEvento({ tipo: v })} options={Object.entries(TIPOS).map(([value, t]) => ({ value, label: t.label }))} />
+              <Campo label="Agenda (departamento)" value={evento.departamento} onChange={v => setEvento(p => ({ ...p, departamento: v }))} options={Object.entries(DEPARTAMENTOS).map(([value, d]) => ({ value, label: d.label }))} />
+            </div>
             <Campo label="Cliente" value={evento.cliente_id} onChange={v => editarEvento({ cliente_id: v, ordem_servico_id: '' })} options={clientes.map(c => ({ value: c.id, label: c.nome }))} />
             {evento.cliente_id && osDaCliente(evento.cliente_id).length > 0 && <Campo label="Ordem de serviço (opcional)" value={evento.ordem_servico_id} onChange={v => editarEvento({ ordem_servico_id: v })} options={osDaCliente(evento.cliente_id).map(o => ({ value: o.id, label: `${o.numero || 'OS'} — ${o.descricao || ''}` }))} />}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
@@ -377,6 +404,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
           <div>
             {erro && <Aviso tipo="erro">{erro}</Aviso>}
             <Campo label="Título *" value={tarefa.titulo} onChange={v => editarTarefa({ titulo: v })} />
+            <Campo label="Departamento" value={tarefa.departamento} onChange={v => setTarefa(p => ({ ...p, departamento: v }))} options={Object.entries(DEPARTAMENTOS).map(([value, d]) => ({ value, label: d.label }))} />
             <Campo label="Detalhes" type="textarea" value={tarefa.descricao} onChange={v => setTarefa(p => ({ ...p, descricao: v }))} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Campo label="Prioridade" value={tarefa.prioridade} onChange={v => setTarefa(p => ({ ...p, prioridade: v }))} options={[{ value: 'alta', label: 'Alta' }, { value: 'normal', label: 'Normal' }, { value: 'baixa', label: 'Baixa' }]} />

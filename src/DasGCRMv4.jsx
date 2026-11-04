@@ -1563,7 +1563,6 @@ export default function DasGCRM() {
 
   const nav = [
     { id: 'central', label: 'Central de Atendimento', dot: conversas.filter(c => c.nao_lidas > 0).length },
-    { id: 'produtos', label: 'Cadastro de Produto', dot: produtos.filter(p => (p.status_geral || 'em_aprovacao') === 'em_aprovacao').length },
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'agenda', label: 'Agenda e Tarefas' },
     { id: 'fluxo', label: 'Fluxo de Atendimento' },
@@ -1577,6 +1576,7 @@ export default function DasGCRM() {
     { id: 'marketing', label: 'Marketing' },
     { id: 'feedback', label: 'Feedback' },
     { id: 'relatorios', label: 'Relatorios' },
+    { id: 'produtos', label: 'Cadastro de Produto', dot: produtos.filter(p => (p.status_geral || 'em_aprovacao') === 'em_aprovacao').length },
   ];
 
   const COR_TIPO_AGENDA = { consultoria_express: '#c4a45a', personal_stylist: '#8b5cf6', prova1: '#ec4899', prova2: '#db2777', prova_final: '#be185d', entrega: '#16a34a', orcamento: '#f97316', reuniao: '#6b7280' };
@@ -1593,7 +1593,7 @@ export default function DasGCRM() {
       case 'dashboard': return <Dashboard clientes={clientes} os={os} agenda={agendaDashboard} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
       case 'agenda': return <AgendaTarefas agenda={agenda} tarefas={tarefas} clientes={clientes} os={os} onRecarregar={recarregar} />;
       case 'fluxo': return <FluxoAtendimento os={os} clientes={clientes} onAvancar={avancarOS} onVoltar={voltarOS} />;
-      case 'clientes': return <Clientes clientes={clientes} os={os} quizEnvios={quizEnvios} onRecarregar={recarregar} onSalvar={salvarCliente} onIrFluxo={() => setPagina('fluxo')} />;
+      case 'clientes': return <Clientes clientes={clientes} os={os} quizEnvios={quizEnvios} agenda={agenda} onRecarregar={recarregar} onSalvar={salvarCliente} onIrFluxo={() => setPagina('fluxo')} onNavegar={setPagina} />;
       case 'consultoria': return <Consultoria clientes={clientes} os={os} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'criacao': return <Criacao os={os} clientes={clientes} briefings={briefings} dossies={dossies} fichas={fichas} />;
       case 'orcamentos': return <Orcamentos os={os} clientes={clientes} pedidos={pedidos} />;
