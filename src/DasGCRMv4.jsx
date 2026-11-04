@@ -1,4 +1,8 @@
-﻿import CriacaoOS from './modulos/Criacao.jsx';
+﻿import OrcamentosOS from './modulos/Orcamentos.jsx';
+import ProvasOS from './modulos/Provas.jsx';
+import PedidosVenda from './modulos/PedidosVenda.jsx';
+import Processos from './modulos/Processos.jsx';
+import CriacaoOS from './modulos/Criacao.jsx';
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient.js';
 import CadastroProduto from './modulos/CadastroProduto.jsx';
@@ -1572,7 +1576,9 @@ export default function DasGCRM() {
     { id: 'consultoria', label: 'Consultoria Express', dot: quizEnvios.filter(q => q.status === 'respondido' && Date.now() - new Date(q.respondido_em).getTime() < 3 * 86400000).length },
     { id: 'criacao', label: 'Criação' },
     { id: 'orcamentos', label: 'Orçamentos' },
-    { id: 'provas', label: 'Provas' },
+    { id: 'pedidosvenda', label: 'Pedidos de Venda' },
+    { id: 'processos', label: 'Processos (OS abertas)' },
+    { id: 'provas', label: 'Provas e Entrega' },
     { id: 'financeiro', label: 'Financeiro' },
     { id: 'compras', label: 'Central de Compras' },
     { id: 'marketing', label: 'Marketing' },
@@ -1583,9 +1589,9 @@ export default function DasGCRM() {
   const GRUPOS = [
     { titulo: 'Atendimento', ids: ['central', 'clientes', 'agenda', 'fluxo'] },
     { titulo: 'Consultoria e Criação', ids: ['consultoria', 'criacao'] },
-    { titulo: 'Venda', ids: ['orcamentos'] },
+    { titulo: 'Venda', ids: ['orcamentos', 'pedidosvenda'] },
     { titulo: 'Produção', ids: ['provas', 'compras'] },
-    { titulo: 'Gestão', ids: ['dashboard', 'financeiro', 'marketing', 'feedback', 'relatorios'] },
+    { titulo: 'Gestão', ids: ['dashboard', 'processos', 'financeiro', 'marketing', 'feedback', 'relatorios'] },
     { titulo: 'Catálogo', ids: ['produtos'] },
   ].map(g => ({ ...g, itens: g.ids.map(id => nav.find(n => n.id === id)).filter(Boolean) }));
 
@@ -1606,8 +1612,10 @@ export default function DasGCRM() {
       case 'clientes': return <Clientes clientes={clientes} os={os} quizEnvios={quizEnvios} agenda={agenda} onRecarregar={recarregar} onSalvar={salvarCliente} onIrFluxo={() => setPagina('fluxo')} onNavegar={setPagina} />;
       case 'consultoria': return <Consultoria clientes={clientes} os={os} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'criacao': return <CriacaoOS os={os} clientes={clientes} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
-      case 'orcamentos': return <Orcamentos os={os} clientes={clientes} pedidos={pedidos} />;
-      case 'provas': return <Provas os={os} clientes={clientes} provas={provas} />;
+      case 'orcamentos': return <OrcamentosOS os={os} clientes={clientes} onRecarregar={recarregar} />;
+      case 'pedidosvenda': return <PedidosVenda clientes={clientes} os={os} onRecarregar={recarregar} />;
+      case 'processos': return <Processos os={os} clientes={clientes} onAbrirCliente={() => setPagina('clientes')} />;
+      case 'provas': return <ProvasOS os={os} clientes={clientes} onRecarregar={recarregar} />;
       case 'financeiro': return <Financeiro pedidos={pedidos} clientes={clientes} os={os} contasPagar={contasPagar} />;
       case 'compras': return <CentralCompras listas={listas} clientes={clientes} os={os} />;
       case 'marketing': return <Marketing />;

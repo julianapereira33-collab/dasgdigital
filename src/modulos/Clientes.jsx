@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import ArquivosCliente from './ArquivosCliente.jsx';
+import PedidosVenda from './PedidosVenda.jsx';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Drawer, Campo, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
 import { criarCliente, criarOS, enviarQuizPorWhatsApp, ROTULO_ETAPA, SLUGS_ETAPA } from '../lib/api.js';
 import { linkDoQuiz } from './quizConsultoria.js';
@@ -153,7 +155,7 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], o
       <Drawer open={!!sel} onClose={fecharFicha} title={sel?.nome || ''} width={580}>
         {sel && (
           <div>
-            <TabBar tabs={[{ id: 'dados', label: 'Dados' }, { id: 'medidas', label: 'Medidas' }, { id: 'fotos', label: 'Fotos' }, { id: 'historico', label: 'OS e quiz' }]} active={aba} onChange={setAba} />
+            <TabBar tabs={[{ id: 'dados', label: 'Dados' }, { id: 'medidas', label: 'Medidas' }, { id: 'fotos', label: 'Fotos e arquivos' }, { id: 'historico', label: 'OS e quiz' }, { id: 'vendas', label: 'Vendas' }]} active={aba} onChange={setAba} />
             {erro && <Aviso tipo="erro">{erro}</Aviso>}
             {aviso && <Aviso tipo="ok">{aviso}</Aviso>}
             {(aba === 'dados' || aba === 'medidas') && (
@@ -200,7 +202,8 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], o
               </div>
             )}
 
-            {aba === 'fotos' && <Aviso tipo="info">O envio de fotos da cliente ainda não está ligado ao armazenamento. Por enquanto, guarde as fotos que ela mandar pelo WhatsApp.</Aviso>}
+            {aba === 'fotos' && <ArquivosCliente clienteId={sel.id} />}
+            {aba === 'vendas' && <PedidosVenda clientes={clientes} os={os} clienteId={sel.id} onRecarregar={onRecarregar} />}
 
             {aba === 'historico' && (
               <div>
