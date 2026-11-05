@@ -3,14 +3,14 @@ import { supabase } from '../lib/supabaseClient.js';
 import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
 
 // Pedidos de venda da loja: sutiã, cinta, locação de roupa/sapato/acessório, flores. Sempre ligados à ficha da cliente.
-export const TIPOS_ITEM = { sutia: 'Sutiã', cinta: 'Cinta', locacao_roupa: 'Locação de roupa', sapato: 'Sapato', acessorio: 'Acessório', flores: 'Flores', outro: 'Outro' };
+export const TIPOS_ITEM = { peca_pronta: 'Peça pronta', sutia: 'Sutiã', cinta: 'Cinta', locacao_roupa: 'Locação de roupa', sapato: 'Sapato', acessorio: 'Acessório', flores: 'Flores', outro: 'Outro' };
 const STATUS = { aberto: '#f59e0b', pago: '#16a34a', entregue: '#0ea5e9', devolvido: '#6b7280', cancelado: '#ef4444' };
 const brl = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261104000000. ' + e.message : (e.message || String(e));
 const totalItens = (its) => its.reduce((s, i) => s + Number(i.quantidade || 0) * Number(i.valor_unit || 0), 0);
 
 // clienteId fixo = usado dentro da ficha da cliente; sem clienteId = tela geral
-export default function PedidosVenda({ clientes, os, clienteId, onRecarregar }) {
+export default function PedidosVenda({ clientes, os, clienteId, produtos = [], abrirTick = 0, onRecarregar }) {
   const [pedidos, setPedidos] = useState([]);
   const [itens, setItens] = useState({});
   const [novo, setNovo] = useState(null);
@@ -31,7 +31,14 @@ export default function PedidosVenda({ clientes, os, clienteId, onRecarregar }) 
   }, [clienteId]);
   useEffect(() => { carregar(); }, [carregar]);
 
-  const abrir = () => setNovo({ cliente_id: clienteId || '', ordem_servico_id: '', forma_pagamento: '', desconto: 0, observacoes: '', itens: [{ tipo: 'sutia', descricao: '', quantidade: 1, valor_unit: '', retirada: '', devolucao: '' }] });
+  const ITEM_VAZIO = { tipo: 'peca_pronta', modalidade: 'venda', produto_id: '', descricao: '', quantidade: 1, valor_unit: '', retirada: '', devolucao: '' };
+  const abrir = () => setNovo({ cliente_id: clienteId || '', ordem_servico_id: '', forma_pagamento: '', entrega_em: '', desconto: 0, observacoes: '', itens: [{ ...ITEM_VAZIO }] });
+  useEffect(() => { if (abrirTick > 0) abrir(); }, [abrirTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const escolherProduto = (i, id) => {
+    const pr = produtos.find(x => x.id === id);
+    if (!pr) { setItem(i, { produto_id: '' }); return; }
+    setNovo(n => ({ ...n, itens: n.itens.map((x, k) => k !== i ? x : { ...x, produto_id: id, descricao: [pr.codigo, pr.nome].filter(Boolean).join(' — '), valor_unit: x.modalidade === 'locacao' ? (pr.preco_locacao ?? pr.preco_venda ?? '') : (pr.preco_venda ?? ''), tipo: x.tipo === 'peca_pronta' ? 'peca_pronta' : x.tipo }) }));
+  };
   const setItem = (i, patch) => setNovo(n => ({ ...n, itens: n.itens.map((x, k) => k === i ? { ...x, ...patch } : x) }));
 
   async function salvar() {
@@ -41,9 +48,9 @@ export default function PedidosVenda({ clientes, os, clienteId, onRecarregar }) 
     if (!validos.length) { setErro('Inclua ao menos um item com descrição.'); return; }
     const total = Math.max(0, totalItens(validos) - Number(novo.desconto || 0));
     const numero = 'PV-' + String(pedidos.length + 1).padStart(4, '0');
-    const { data, error } = await supabase.from('pedidos_venda').insert({ numero, cliente_id: novo.cliente_id, ordem_servico_id: novo.ordem_servico_id || null, forma_pagamento: novo.forma_pagamento || null, desconto: Number(novo.desconto || 0), total, observacoes: novo.observacoes || null }).select().single();
+    const { data, error } = await supabase.from('pedidos_venda').insert({ numero, cliente_id: novo.cliente_id, ordem_servico_id: novo.ordem_servico_id || null, forma_pagamento: novo.forma_pagamento || null, entrega_em: novo.entrega_em || null, desconto: Number(novo.desconto || 0), total, observacoes: novo.observacoes || null }).select().single();
     if (error) { setErro(msgErro(error)); return; }
-    const { error: e2 } = await supabase.from('pedidos_venda_itens').insert(validos.map(i => ({ pedido_id: data.id, tipo: i.tipo, descricao: i.descricao, quantidade: Number(i.quantidade) || 1, valor_unit: Number(i.valor_unit) || 0, retirada: i.retirada || null, devolucao: i.devolucao || null })));
+    const { error: e2 } = await supabase.from('pedidos_venda_itens').insert(validos.map(i => ({ pedido_id: data.id, tipo: i.tipo, modalidade: i.modalidade || 'venda', produto_id: i.produto_id || null, descricao: i.descricao, quantidade: Number(i.quantidade) || 1, valor_unit: Number(i.valor_unit) || 0, retirada: i.retirada || null, devolucao: i.devolucao || null })));
     if (e2) { setErro(msgErro(e2)); return; }
     setNovo(null); carregar(); onRecarregar && onRecarregar();
   }
@@ -74,21 +81,32 @@ export default function PedidosVenda({ clientes, os, clienteId, onRecarregar }) 
             {!clienteId && <select value={novo.cliente_id} onChange={e => setNovo(n => ({ ...n, cliente_id: e.target.value, ordem_servico_id: '' }))} style={inp}><option value="">Cliente...</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>}
             <select value={novo.ordem_servico_id} onChange={e => setNovo(n => ({ ...n, ordem_servico_id: e.target.value }))} style={inp}><option value="">Sem OS vinculada</option>{osDaCliente(novo.cliente_id).map(o => <option key={o.id} value={o.id}>{o.numero}</option>)}</select>
             <input placeholder="Forma de pagamento" value={novo.forma_pagamento} onChange={e => setNovo(n => ({ ...n, forma_pagamento: e.target.value }))} style={inp} />
+            <label style={{ fontSize: 11, color: '#6b7280' }}>Entrega / retirada em<input type="date" value={novo.entrega_em} onChange={e => setNovo(n => ({ ...n, entrega_em: e.target.value }))} style={inp} /></label>
+            <input placeholder="Observações" value={novo.observacoes} onChange={e => setNovo(n => ({ ...n, observacoes: e.target.value }))} style={{ ...inp, gridColumn: 'span 2', alignSelf: 'end' }} />
           </div>
-          {novo.itens.map((it, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 60px 90px 130px 130px 30px', gap: 6, marginBottom: 6 }}>
-              <select value={it.tipo} onChange={e => setItem(i, { tipo: e.target.value })} style={inp}>{Object.entries(TIPOS_ITEM).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-              <input placeholder="Descrição (modelo, tamanho, cor)" value={it.descricao} onChange={e => setItem(i, { descricao: e.target.value })} style={inp} />
-              <input type="number" value={it.quantidade} onChange={e => setItem(i, { quantidade: e.target.value })} style={inp} />
-              <input type="number" step="0.01" placeholder="R$ unit." value={it.valor_unit} onChange={e => setItem(i, { valor_unit: e.target.value })} style={inp} />
-              <input type="date" title="Retirada" disabled={it.tipo !== 'locacao_roupa' && it.tipo !== 'sapato' && it.tipo !== 'acessorio'} value={it.retirada} onChange={e => setItem(i, { retirada: e.target.value })} style={inp} />
-              <input type="date" title="Devolução" disabled={it.tipo !== 'locacao_roupa' && it.tipo !== 'sapato' && it.tipo !== 'acessorio'} value={it.devolucao} onChange={e => setItem(i, { devolucao: e.target.value })} style={inp} />
-              <button onClick={() => setNovo(n => ({ ...n, itens: n.itens.filter((_, k) => k !== i) }))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444' }}>✕</button>
-            </div>
-          ))}
-          <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8 }}>Datas de retirada e devolução valem para locação, sapatos e acessórios alugados.</div>
+          {novo.itens.map((it, i) => {
+            const loc = it.modalidade === 'locacao';
+            const doTipo = produtos.filter(pr => loc ? pr.modalidade !== 'venda' : pr.modalidade !== 'locacao');
+            return (
+              <div key={i} style={{ border: '1px solid #f3f4f6', borderRadius: 8, padding: 8, marginBottom: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '120px 130px 1fr 30px', gap: 6, marginBottom: 6 }}>
+                  <select value={it.modalidade} onChange={e => setItem(i, { modalidade: e.target.value, produto_id: '' })} style={inp}><option value="venda">Venda</option><option value="locacao">Locação</option></select>
+                  <select value={it.tipo} onChange={e => setItem(i, { tipo: e.target.value })} style={inp}>{Object.entries(TIPOS_ITEM).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+                  <select value={it.produto_id} onChange={e => escolherProduto(i, e.target.value)} style={inp}><option value="">Produto do cadastro (opcional)...</option>{doTipo.map(pr => <option key={pr.id} value={pr.id}>{[pr.codigo, pr.nome].filter(Boolean).join(' — ')}</option>)}</select>
+                  <button onClick={() => setNovo(n => ({ ...n, itens: n.itens.filter((_, k) => k !== i) }))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444' }}>✕</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 100px 140px 140px', gap: 6 }}>
+                  <input placeholder="Descrição (modelo, tamanho, cor)" value={it.descricao} onChange={e => setItem(i, { descricao: e.target.value })} style={inp} />
+                  <input type="number" title="Quantidade" value={it.quantidade} onChange={e => setItem(i, { quantidade: e.target.value })} style={inp} />
+                  <input type="number" step="0.01" placeholder={loc ? 'R$ locação' : 'R$ unit.'} value={it.valor_unit} onChange={e => setItem(i, { valor_unit: e.target.value })} style={inp} />
+                  <input type="date" title="Retirada" disabled={!loc} value={it.retirada} onChange={e => setItem(i, { retirada: e.target.value })} style={inp} />
+                  <input type="date" title="Devolução" disabled={!loc} value={it.devolucao} onChange={e => setItem(i, { devolucao: e.target.value })} style={inp} />
+                </div>
+              </div>);
+          })}
+          <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8 }}>Datas de retirada e devolução valem para itens de locação.</div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <BtnSecondary small onClick={() => setNovo(n => ({ ...n, itens: [...n.itens, { tipo: 'sutia', descricao: '', quantidade: 1, valor_unit: '', retirada: '', devolucao: '' }] }))}>+ Item</BtnSecondary>
+            <BtnSecondary small onClick={() => setNovo(n => ({ ...n, itens: [...n.itens, { ...ITEM_VAZIO }] }))}>+ Item</BtnSecondary>
             <input type="number" placeholder="Desconto R$" value={novo.desconto} onChange={e => setNovo(n => ({ ...n, desconto: e.target.value }))} style={{ ...inp, width: 120 }} />
             <strong style={{ marginLeft: 'auto' }}>Total: {brl(Math.max(0, totalItens(novo.itens) - Number(novo.desconto || 0)))}</strong>
             <BtnPrimary onClick={salvar}>Salvar pedido</BtnPrimary><BtnSecondary onClick={() => setNovo(null)}>Cancelar</BtnSecondary>
@@ -100,10 +118,10 @@ export default function PedidosVenda({ clientes, os, clienteId, onRecarregar }) 
         {lista.map(p => (
           <Card key={p.id}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-              <div><strong>{p.numero}</strong>{!clienteId && <> · {clientes.find(c => c.id === p.cliente_id)?.nome}</>} <span style={{ color: '#9ca3af', fontSize: 12 }}>{fmtDate(p.created_at)}</span></div>
+              <div><strong>{p.numero}</strong>{p.orcamento_id ? <> <Badge label="do orçamento" color="#8b5cf6" /></> : null}{!clienteId && <> · {clientes.find(c => c.id === p.cliente_id)?.nome}</>} <span style={{ color: '#9ca3af', fontSize: 12 }}>{fmtDate(p.created_at)}</span></div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><strong>{brl(p.total)}</strong><Badge label={p.status} color={STATUS[p.status]} /></div>
             </div>
-            {(itens[p.id] || []).map(i => <div key={i.id} style={{ fontSize: 13, color: '#374151' }}>• {TIPOS_ITEM[i.tipo] || i.tipo}: {i.descricao} × {i.quantidade} — {brl(i.valor_unit)}{i.retirada ? ` · retira ${fmtDate(i.retirada)}` : ''}{i.devolucao ? ` · devolve ${fmtDate(i.devolucao)}` : ''}</div>)}
+            {(itens[p.id] || []).map(i => <div key={i.id} style={{ fontSize: 13, color: '#374151' }}>• {i.modalidade === 'locacao' ? '[Locação] ' : ''}{TIPOS_ITEM[i.tipo] || i.tipo}: {i.descricao} × {i.quantidade} — {brl(i.valor_unit)}{i.retirada ? ` · retira ${fmtDate(i.retirada)}` : ''}{i.devolucao ? ` · devolve ${fmtDate(i.devolucao)}` : ''}</div>)}
             <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
               {p.status === 'aberto' && <BtnSecondary small onClick={() => status(p, 'pago')}>Marcar pago</BtnSecondary>}
               {(p.status === 'aberto' || p.status === 'pago') && <BtnSecondary small onClick={() => status(p, 'entregue')}>Entregue / retirado</BtnSecondary>}

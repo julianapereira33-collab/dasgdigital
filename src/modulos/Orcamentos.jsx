@@ -132,6 +132,19 @@ export default function Orcamentos({ os, clientes, onRecarregar }) {
     setOcupado(false); setAba('financeiro'); setAviso('Orçamento aprovado. Entrada e saldo foram lançados no financeiro; anexe os comprovantes quando a cliente pagar.');
   }
 
+  async function virarVenda() {
+    if (!orc?.id || !aprovado) return;
+    setOcupado(true); setErro('');
+    const { data: ja } = await supabase.from('pedidos_venda').select('id,numero').eq('orcamento_id', orc.id).limit(1);
+    if (ja?.length) { setOcupado(false); setAviso(`Este orçamento já virou o pedido de venda ${ja[0].numero}. Veja em Venda › Pedidos de Venda.`); return; }
+    const { count } = await supabase.from('pedidos_venda').select('id', { count: 'exact', head: true });
+    const { data: pv, error } = await supabase.from('pedidos_venda').insert({ numero: 'PV-' + String((count || 0) + 1).padStart(4, '0'), cliente_id: osSel.cliente_id, ordem_servico_id: osId, orcamento_id: orc.id, status: parcelasFin.length && parcelasFin.every(p => p.status === 'pago') ? 'pago' : 'aberto', total: n(orc.preco_final), entrega_em: osSel.data_entrega_prevista || null, observacoes: `Gerado do orçamento ${orc.numero || ''}` }).select().single();
+    if (error) { setOcupado(false); setErro(msgErro(error)); return; }
+    await supabase.from('pedidos_venda_itens').insert({ pedido_id: pv.id, tipo: 'outro', modalidade: 'venda', descricao: `Peça sob medida — ${orc.descricao || osSel.descricao || osSel.numero}`, quantidade: 1, valor_unit: n(orc.preco_final) });
+    await supabase.from('financeiro_receber').update({ pedido_venda_id: pv.id }).eq('orcamento_id', orc.id);
+    setOcupado(false); setAviso(`Pedido de venda ${pv.numero} criado a partir do orçamento. Ele aparece em Venda › Pedidos de Venda e na aba Vendas da ficha da cliente.`);
+  }
+
   async function marcarPago(p) {
     const { error } = await supabase.from('financeiro_receber').update({ status: 'pago', pago_em: new Date().toISOString(), valor_pago: p.valor }).eq('id', p.id);
     if (error) { setErro(msgErro(error)); return; }
@@ -210,6 +223,7 @@ export default function Orcamentos({ os, clientes, onRecarregar }) {
                 <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
                   <BtnPrimary disabled={ocupado || aprovado} onClick={salvar}>{ocupado ? 'Salvando...' : 'Salvar'}</BtnPrimary>
                   {aprovado && <Badge label={'Aprovado em ' + fmtDate(orc.aprovado_em)} color="#16a34a" />}
+                  {aprovado && <BtnSecondary disabled={ocupado} onClick={virarVenda}>Transformar em pedido de venda</BtnSecondary>}
                 </div>
                 <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 8 }}>Materiais vêm da aba "Materiais e cotações".</div>
               </Card>

@@ -8,15 +8,18 @@ import { Card, BtnPrimary, BtnSecondary, BtnDanger, Aviso, fmtDateTime, erroDeSc
 export const CATEGORIAS_ARQUIVO = {
   foto_cliente: 'Foto da cliente',
   croqui: 'Croqui',
-  referencia: 'Referência / inspiração',
+  referencia: 'Inspiração enviada pela cliente',
   tecido: 'Tecido / material',
   prova: 'Foto de prova',
-  imagem_ia: 'Imagem do vestido (IA)',
+  gravacao_prova: 'Gravação da prova (vídeo/áudio)',
+  imagem_ia: 'Arquivo gerado por IA',
   comprovante: 'Comprovante de pagamento',
   outro: 'Outro',
 };
 
 const limpaNome = (n) => n.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '_');
+const ehVideo = (n) => /\.(mp4|mov|webm|m4v)$/i.test(n || '');
+const ehAudio = (n) => /\.(mp3|m4a|ogg|wav|opus|aac)$/i.test(n || '');
 const ehImagem = (nome) => /\.(png|jpe?g|webp|gif|heic)$/i.test(nome || '');
 
 export default function Arquivos({ osId, clienteId, categorias, titulo, ajuda, onMudou, comPrompt }) {
@@ -30,8 +33,10 @@ export default function Arquivos({ osId, clienteId, categorias, titulo, ajuda, o
   const inputRef = useRef(null);
 
   const carregar = useCallback(async () => {
-    if (!osId) { setLista([]); return; }
-    const { data, error } = await supabase.from('os_arquivos').select('*').eq('ordem_servico_id', osId).in('categoria', cats).order('created_at', { ascending: false });
+    if (!osId && !clienteId) { setLista([]); return; }
+    let q = supabase.from('os_arquivos').select('*').in('categoria', cats).order('created_at', { ascending: false });
+    q = osId ? q.eq('ordem_servico_id', osId) : q.eq('cliente_id', clienteId);
+    const { data, error } = await q;
     if (error) { setErro(erroDeSchema(error) ? 'Falta aplicar a migração 20261104000000 no Supabase. ' + error.message : error.message); return; }
     setLista(data || []);
     const caminhos = (data || []).map(a => a.caminho);
@@ -40,18 +45,18 @@ export default function Arquivos({ osId, clienteId, categorias, titulo, ajuda, o
       const m = {}; (assinadas || []).forEach(s => { if (s.signedUrl) m[s.path] = s.signedUrl; });
       setUrls(m);
     }
-  }, [osId, cats.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [osId, clienteId, cats.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { setErro(''); carregar(); }, [carregar]);
 
   async function enviar(arquivos) {
-    if (!osId || !arquivos.length) return;
+    if ((!osId && !clienteId) || !arquivos.length) return;
     setEnviando(true); setErro('');
     for (const f of arquivos) {
-      const caminho = `${osId}/${cat}/${Date.now()}-${limpaNome(f.name)}`;
+      const caminho = `${osId || 'cliente-' + clienteId}/${cat}/${Date.now()}-${limpaNome(f.name)}`;
       const up = await supabase.storage.from('os-arquivos').upload(caminho, f, { contentType: f.type || undefined, upsert: false });
       if (up.error) { setErro('Não consegui enviar ' + f.name + ': ' + up.error.message); continue; }
-      const { error } = await supabase.from('os_arquivos').insert({ ordem_servico_id: osId, cliente_id: clienteId || null, categoria: cat, caminho, nome: f.name, legenda: legenda || null });
+      const { error } = await supabase.from('os_arquivos').insert({ ordem_servico_id: osId || null, cliente_id: clienteId || null, categoria: cat, caminho, nome: f.name, legenda: legenda || null });
       if (error) { setErro('Arquivo enviado, mas não foi registrado: ' + error.message); }
     }
     setLegenda(''); if (inputRef.current) inputRef.current.value = '';
@@ -66,7 +71,7 @@ export default function Arquivos({ osId, clienteId, categorias, titulo, ajuda, o
     await carregar(); onMudou && onMudou();
   }
 
-  if (!osId) return <Card style={{ color: '#9ca3af', textAlign: 'center' }}>Escolha uma OS para ver ou enviar arquivos.</Card>;
+  if (!osId && !clienteId) return <Card style={{ color: '#9ca3af', textAlign: 'center' }}>Escolha uma OS para ver ou enviar arquivos.</Card>;
 
   return (
     <div>
@@ -87,7 +92,7 @@ export default function Arquivos({ osId, clienteId, categorias, titulo, ajuda, o
             <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', marginBottom: 4 }}>Legenda (opcional)</div>
             <input value={legenda} onChange={e => setLegenda(e.target.value)} placeholder="Ex.: frente, costas, detalhe da manga" style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
           </div>
-          <input ref={inputRef} type="file" multiple accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => enviar(Array.from(e.target.files || []))} />
+          <input ref={inputRef} type="file" multiple accept="image/*,video/*,audio/*,application/pdf" style={{ display: 'none' }} onChange={e => enviar(Array.from(e.target.files || []))} />
           <BtnPrimary disabled={enviando} onClick={() => inputRef.current && inputRef.current.click()}>{enviando ? 'Enviando...' : 'Enviar arquivos'}</BtnPrimary>
         </div>
       </Card>
@@ -96,8 +101,8 @@ export default function Arquivos({ osId, clienteId, categorias, titulo, ajuda, o
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 14 }}>
         {lista.map(a => (
           <Card key={a.id} style={{ padding: 10 }}>
-            <a href={urls[a.caminho]} target="_blank" rel="noreferrer" style={{ display: 'block', background: '#f3f4f6', borderRadius: 6, height: 150, overflow: 'hidden', textAlign: 'center', lineHeight: '150px', color: '#9ca3af', fontSize: 13 }}>
-              {ehImagem(a.nome) && urls[a.caminho] ? <img src={urls[a.caminho]} alt={a.legenda || a.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (a.nome || 'Abrir arquivo')}
+            <a href={urls[a.caminho]} target="_blank" rel="noreferrer" onClick={e => { if (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO') e.preventDefault(); }} style={{ display: 'block', background: '#f3f4f6', borderRadius: 6, height: 150, overflow: 'hidden', textAlign: 'center', lineHeight: '150px', color: '#9ca3af', fontSize: 13 }}>
+              {ehVideo(a.nome) && urls[a.caminho] ? <video src={urls[a.caminho]} controls preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : ehAudio(a.nome) && urls[a.caminho] ? <audio src={urls[a.caminho]} controls style={{ width: '100%', marginTop: 55 }} /> : ehImagem(a.nome) && urls[a.caminho] ? <img src={urls[a.caminho]} alt={a.legenda || a.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (a.nome || 'Abrir arquivo')}
             </a>
             <div style={{ fontSize: 12, fontWeight: 600, marginTop: 8 }}>{CATEGORIAS_ARQUIVO[a.categoria] || a.categoria}</div>
             {a.legenda && <div style={{ fontSize: 12, color: '#374151' }}>{a.legenda}</div>}

@@ -122,12 +122,13 @@ export default function CadastroProduto({
 
   const salvarCampos = async () => {
     const { id, tecido, composicao, cor, tamanhos, detalhes, preco_custo, preco_venda, ncm,
-      ncm_confirmado, marca, cest, gtin, categoria_produto, descricao_curta, descricao_completa } = form;
+      ncm_confirmado, marca, cest, gtin, categoria_produto, descricao_curta, descricao_completa, modalidade, preco_locacao } = form;
     const numOuNull = (v) => (v === '' || v === null || v === undefined) ? null : Number(v);
     await onSalvarProduto(id, {
       tecido, composicao, cor, tamanhos, detalhes,
       preco_custo: numOuNull(preco_custo), preco_venda: numOuNull(preco_venda), ncm,
       ncm_confirmado, marca, cest, gtin, categoria_produto, descricao_curta, descricao_completa,
+      modalidade: modalidade || 'venda', preco_locacao: numOuNull(preco_locacao),
     });
   };
 
@@ -385,6 +386,8 @@ export default function CadastroProduto({
           <Campo label="Detalhes" value={form.detalhes} onChange={v => setForm({ ...form, detalhes: v })} type="textarea" />
           <Campo label="Preço custo" value={form.preco_custo} onChange={v => setForm({ ...form, preco_custo: v })} type="number" />
           <Campo label="Preço venda" value={form.preco_venda} onChange={v => setForm({ ...form, preco_venda: v })} type="number" />
+          <Campo label="Este produto é para" value={form.modalidade || 'venda'} onChange={v => setForm({ ...form, modalidade: v })} options={[{ value: 'venda', label: 'Venda' }, { value: 'locacao', label: 'Locação' }, { value: 'ambos', label: 'Venda e locação' }]} />
+          {(form.modalidade === 'locacao' || form.modalidade === 'ambos') && <Campo label="Preço da locação" value={form.preco_locacao} onChange={v => setForm({ ...form, preco_locacao: v })} type="number" />}
           <Campo label="NCM" value={form.ncm} onChange={v => setForm({ ...form, ncm: v })} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, marginTop: -8 }}>
             <input type="checkbox" checked={!!form.ncm_confirmado} onChange={e => setForm({ ...form, ncm_confirmado: e.target.checked })} />

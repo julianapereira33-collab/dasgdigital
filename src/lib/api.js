@@ -2,6 +2,7 @@
 // Todas retornam { data, error } — quem chama decide como mostrar o erro.
 import { supabase } from './supabaseClient.js';
 import { enviarWhatsApp } from './whatsapp.js';
+import { gerarEtapasAtelie } from './producao.js';
 import { linkDoQuiz } from '../modulos/quizConsultoria.js';
 
 // mesma ordem de STATUS_OS / check constraint de ordens_servico.status
@@ -76,12 +77,14 @@ export async function criarAtividadeDaEtapa({ os, cliente, slug }) {
   }).select().single();
 }
 
-export async function criarOS({ cliente, listaOS, descricao, data_evento, servico, canal, etapaInicial = 'qualificacao' }) {
+export async function criarOS({ cliente, listaOS, descricao, data_evento, servico, canal, etapaInicial = 'qualificacao', ocasiao, data_entrega_prevista, data_tecidos_medidas, valor_total }) {
   const { data, error } = await supabase.from('ordens_servico').insert(limpar({
-    cliente_id: cliente.id, numero: proximoNumeroOS(listaOS), descricao, data_evento, servico,
+    cliente_id: cliente.id, numero: proximoNumeroOS(listaOS), descricao, data_evento, servico, tipo: 'encomenda', ocasiao,
+    data_entrega_prevista, data_tecidos_medidas, valor_total: valor_total ? Number(valor_total) : undefined,
     canal: canal || 'crm', status: etapaInicial,
   })).select().single();
   if (error) return { data: null, error };
+  await gerarEtapasAtelie(data.id); // melhor esforço: não bloqueia se a tabela ainda não existir
   await criarAtividadeDaEtapa({ os: data, cliente, slug: etapaInicial });
   return { data, error: null };
 }

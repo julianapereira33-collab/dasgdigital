@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MEDIDAS_CLIENTE } from './medidas.js';
+import { BriefingQuiz } from './Consultoria.jsx';
 import ArquivosCliente from './ArquivosCliente.jsx';
 import PedidosVenda from './PedidosVenda.jsx';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Drawer, Campo, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
@@ -10,7 +11,8 @@ import ChecklistAtendimento from './ChecklistAtendimento.jsx';
 const OPCOES_ORIGEM = [['instagram', 'Instagram'], ['indicacao', 'Indicação'], ['loja_fisica', 'Loja física'], ['google', 'Google'], ['whatsapp', 'WhatsApp'], ['outro', 'Outro']].map(([value, label]) => ({ value, label }));
 const ETAPAS_INICIAIS = SLUGS_ETAPA.slice(0, 8).map(s => ({ value: s, label: ROTULO_ETAPA[s] }));
 const FORM_VAZIO = { nome: '', telefone: '', email: '', instagram: '', origem: '', obs: '' };
-const OS_VAZIA = { descricao: '', data_evento: '', servico: '', etapaInicial: 'qualificacao' };
+const OS_VAZIA = { descricao: '', data_evento: '', servico: '', ocasiao: '', data_entrega_prevista: '', valor_total: '', etapaInicial: 'qualificacao' };
+const PECAS = ['Vestido de festa', 'Vestido de madrinha', 'Vestido de noiva', 'Vestido de formatura', 'Conjunto / alfaiataria', 'Saia e blusa', 'Macacão', 'Outro'].map(v => ({ value: v, label: v }));
 
 function msgErro(error) {
   if (!error) return '';
@@ -18,7 +20,9 @@ function msgErro(error) {
   return error.message || String(error);
 }
 
-export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], onRecarregar, onSalvar, onIrFluxo, onNavegar }) {
+export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], produtos = [], onRecarregar, onSalvar, onIrFluxo, onNavegar, onAbrirOS }) {
+  const [vendaTick, setVendaTick] = useState(0);
+  const [quizAberto, setQuizAberto] = useState(null);
   const [checklistAberto, setChecklistAberto] = useState(null);
   const [busca, setBusca] = useState('');
   const [sel, setSel] = useState(null);
@@ -156,6 +160,10 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], o
       <Drawer open={!!sel} onClose={fecharFicha} title={sel?.nome || ''} width={580}>
         {sel && (
           <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              <BtnPrimary small onClick={() => { setAba('historico'); setMostrarFormOS(true); setOsForm(OS_VAZIA); }}>+ Abrir encomenda (OS)</BtnPrimary>
+              <BtnSecondary small onClick={() => { setAba('vendas'); setVendaTick(t => t + 1); }}>+ Abrir venda (produtos prontos)</BtnSecondary>
+            </div>
             <TabBar tabs={[{ id: 'dados', label: 'Dados' }, { id: 'medidas', label: 'Medidas' }, { id: 'fotos', label: 'Fotos e arquivos' }, { id: 'historico', label: 'OS e quiz' }, { id: 'vendas', label: 'Vendas' }]} active={aba} onChange={setAba} />
             {erro && <Aviso tipo="erro">{erro}</Aviso>}
             {aviso && <Aviso tipo="ok">{aviso}</Aviso>}
@@ -209,8 +217,8 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], o
               </div>
             )}
 
-            {aba === 'fotos' && <ArquivosCliente clienteId={sel.id} />}
-            {aba === 'vendas' && <PedidosVenda clientes={clientes} os={os} clienteId={sel.id} onRecarregar={onRecarregar} />}
+            {aba === 'fotos' && <ArquivosCliente clienteId={sel.id} osDaCliente={osDaCliente} />}
+            {aba === 'vendas' && <PedidosVenda clientes={clientes} os={os} produtos={produtos} abrirTick={vendaTick} clienteId={sel.id} onRecarregar={onRecarregar} />}
 
             {aba === 'historico' && (
               <div>
@@ -222,8 +230,13 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], o
 
                 {mostrarFormOS && (
                   <Card style={{ background: '#fef9f0', marginBottom: 16 }}>
-                    <Campo label="O que ela procura" value={osForm.descricao} onChange={v => setOsForm(p => ({ ...p, descricao: v }))} />
+                    <h4 style={{ margin: '0 0 8px', fontSize: 13 }}>Nova encomenda (ordem de serviço)</h4>
+                    <Campo label="Peça" value={osForm.servico} onChange={v => setOsForm(p => ({ ...p, servico: v }))} options={PECAS} />
+                    <Campo label="O que ela procura / descrição" value={osForm.descricao} onChange={v => setOsForm(p => ({ ...p, descricao: v }))} placeholder="Ex.: vestido longo azul petróleo, decote em V" />
+                    <Campo label="Ocasião" value={osForm.ocasiao} onChange={v => setOsForm(p => ({ ...p, ocasiao: v }))} placeholder="Casamento, formatura, aniversário..." />
                     <Campo label="Data do evento" value={osForm.data_evento} onChange={v => setOsForm(p => ({ ...p, data_evento: v }))} type="date" />
+                    <Campo label="Entrega prevista" value={osForm.data_entrega_prevista} onChange={v => setOsForm(p => ({ ...p, data_entrega_prevista: v }))} type="date" ajuda="Normalmente alguns dias antes do evento." />
+                    <Campo label="Valor estimado (R$)" value={osForm.valor_total} onChange={v => setOsForm(p => ({ ...p, valor_total: v }))} type="number" />
                     <Campo label="Etapa inicial no fluxo" value={osForm.etapaInicial} onChange={v => setOsForm(p => ({ ...p, etapaInicial: v }))} options={ETAPAS_INICIAIS} />
                     <BtnPrimary small onClick={abrirOSDaCliente} disabled={salvando}>{salvando ? 'Abrindo...' : 'Abrir OS'}</BtnPrimary>
                   </Card>
@@ -238,6 +251,7 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], o
                     <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
                       <Badge label={ROTULO_ETAPA[o.status] || o.status} color="#c4a45a" />
                       <span style={{ fontSize: 12, color: '#9ca3af' }}>Evento: {fmtDate(o.data_evento)}</span>
+                      {onAbrirOS && <BtnSecondary small onClick={() => onAbrirOS(o.id)}>Abrir OS</BtnSecondary>}
                       <button onClick={() => setChecklistAberto(checklistAberto === o.id ? null : o.id)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#c4a45a', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{checklistAberto === o.id ? 'Fechar checklist' : 'Checklist do atendimento'}</button>
                     </div>
                     {checklistAberto === o.id && <ChecklistAtendimento os={o} cliente={sel} agenda={agenda} quizEnvios={quizEnvios} onRecarregar={onRecarregar} onNavegar={onNavegar} />}
@@ -252,7 +266,7 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], o
                       <Badge label={q.status === 'respondido' ? 'Respondido' : q.status === 'enviado' ? 'Enviado' : 'Link criado'} color={q.status === 'respondido' ? '#22c55e' : '#f59e0b'} />
                       <span style={{ fontSize: 12, color: '#9ca3af' }}>{fmtDate(q.respondido_em || q.enviado_em || q.criado_em)}</span>
                     </div>
-                    {q.status === 'respondido' && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>As respostas foram para a ficha (campos vazios) e estão na aba Consultoria Express.</div>}
+                    {q.status === 'respondido' && <div style={{ marginTop: 6 }}><button onClick={() => setQuizAberto(quizAberto === q.id ? null : q.id)} style={{ background: 'none', border: 'none', color: '#c4a45a', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{quizAberto === q.id ? 'Fechar respostas' : 'Ver respostas do quiz'}</button>{quizAberto === q.id && <BriefingQuiz respostas={q.respostas} compacto />}</div>}
                   </Card>
                 ))}
               </div>
