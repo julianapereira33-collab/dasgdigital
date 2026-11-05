@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import { criarAtividadeDaEtapa, ROTULO_ETAPA } from '../lib/api.js';
 import { QUIZ_SECOES, respostaLegivel } from './quizConsultoria.js';
 import { BriefingQuiz } from './Consultoria.jsx';
+import { TODAS_MEDIDAS } from './medidas.js';
 import Arquivos from './Arquivos.jsx';
 import MateriaisOS from './MateriaisOS.jsx';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Campo, Aviso, erroDeSchema } from './ui.jsx';
@@ -19,7 +20,7 @@ const SECOES_DOSSIE = [
   ['referencias', 'Referências', 'textarea'],
   ['producao', 'Observações para a produção', 'textarea'],
 ];
-const MEDIDAS = [['busto', 'Busto'], ['cintura', 'Cintura'], ['quadril', 'Quadril'], ['altura', 'Altura'], ['ombro_joelho', 'Ombro ao joelho'], ['ombro_chao', 'Ombro ao chão'], ['manga', 'Manga'], ['cava', 'Cava'], ['entrepernas', 'Entrepernas']];
+const MEDIDAS = TODAS_MEDIDAS;
 const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261104000000 no Supabase. ' + e.message : (e.message || String(e));
 
 function respostaDoQuiz(quiz, id) {

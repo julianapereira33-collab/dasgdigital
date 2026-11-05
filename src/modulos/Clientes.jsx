@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MEDIDAS_CLIENTE } from './medidas.js';
 import ArquivosCliente from './ArquivosCliente.jsx';
 import PedidosVenda from './PedidosVenda.jsx';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Drawer, Campo, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
@@ -195,9 +196,15 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], o
 
             {aba === 'medidas' && (
               <div>
-                {[['busto', 'Busto (cm)'], ['cintura', 'Cintura (cm)'], ['quadril', 'Quadril (cm)'], ['altura', 'Altura (cm)'], ['peso', 'Peso (kg)'], ['ombro_joelho', 'Ombro ao joelho (cm)'], ['ombro_chao', 'Ombro ao chão (cm)'], ['manga', 'Manga (cm)'], ['cava', 'Cava (cm)'], ['entrepernas', 'Entrepernas (cm)']].map(([k, l]) => (
-                  <Campo key={k} label={l} value={editando ? form[k] : sel[k]} onChange={v => setForm(p => ({ ...p, [k]: v }))} readonly={!editando} type="number" />
+                {MEDIDAS_CLIENTE.map(([grupo, campos]) => (
+                  <div key={grupo} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#c4a45a', textTransform: 'uppercase', letterSpacing: 1, margin: '8px 0 4px' }}>{grupo}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                      {campos.map(([k, l]) => <Campo key={k} label={l + ' (cm)'} value={editando ? form[k] : sel[k]} onChange={v => setForm(p => ({ ...p, [k]: v }))} readonly={!editando} type="number" />)}
+                    </div>
+                  </div>
                 ))}
+                <Campo label="Peso (kg)" value={editando ? form.peso : sel.peso} onChange={v => setForm(p => ({ ...p, peso: v }))} readonly={!editando} type="number" />
                 <Campo label="Observações de medidas" value={editando ? form.obs_medidas : sel.obs_medidas} onChange={v => setForm(p => ({ ...p, obs_medidas: v }))} readonly={!editando} type="textarea" />
               </div>
             )}
