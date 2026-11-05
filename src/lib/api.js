@@ -77,9 +77,9 @@ export async function criarAtividadeDaEtapa({ os, cliente, slug }) {
   }).select().single();
 }
 
-export async function criarOS({ cliente, listaOS, descricao, data_evento, servico, canal, etapaInicial = 'qualificacao', ocasiao, data_entrega_prevista, data_tecidos_medidas, valor_total }) {
+export async function criarOS({ cliente, listaOS, descricao, data_evento, servico, canal, etapaInicial = 'qualificacao', ocasiao, data_entrega_prevista, data_tecidos_medidas, valor_total, tipo_atendimento }) {
   const { data, error } = await supabase.from('ordens_servico').insert(limpar({
-    cliente_id: cliente.id, numero: proximoNumeroOS(listaOS), descricao, data_evento, servico, tipo: 'encomenda', ocasiao,
+    cliente_id: cliente.id, numero: proximoNumeroOS(listaOS), descricao, data_evento, servico, tipo: 'encomenda', tipo_atendimento, ocasiao,
     data_entrega_prevista, data_tecidos_medidas, valor_total: valor_total ? Number(valor_total) : undefined,
     canal: canal || 'crm', status: etapaInicial,
   })).select().single();

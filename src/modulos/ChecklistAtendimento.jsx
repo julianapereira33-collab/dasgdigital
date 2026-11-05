@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { enviarWhatsApp, msgConfirmacaoEvento, whatsappConfigurado } from '../lib/whatsapp.js';
 import { enviarQuizPorWhatsApp } from '../lib/api.js';
+import { tipoDaOS } from './tiposAtendimento.js';
 import { Badge, Card, BtnPrimary, BtnSecondary, Campo, Aviso, fmtDateTime, erroDeSchema } from './ui.jsx';
 
 // Checklist do atendimento de uma OS: agendou → confirmou o horário → quiz → pagamento da consultoria → vídeo.
@@ -31,9 +32,10 @@ export function statusChecklist({ os, agenda, quizEnvios }) {
   const quiz = (quizEnvios || []).filter(q => q.ordem_servico_id === os.id).sort((x, y) => new Date(y.criado_em) - new Date(x.criado_em))[0] || null;
   const agendado = !!ev;
   const confirmado = ev?.status === 'confirmado' || ev?.status === 'realizado';
-  const respondeu = quiz?.status === 'respondido';
+  const precisaQuiz = tipoDaOS(os).quiz;
+  const respondeu = !precisaQuiz || quiz?.status === 'respondido';
   const pago = os.pagamento_status === 'pago';
-  return { ev, quiz, agendado, confirmado, respondeu, pago, pronta: agendado && confirmado && respondeu && pago };
+  return { ev, quiz, precisaQuiz, agendado, confirmado, respondeu, pago, pronta: agendado && confirmado && respondeu && pago };
 }
 
 export default function ChecklistAtendimento({ os, cliente, agenda, quizEnvios, onRecarregar, onNavegar }) {
@@ -86,7 +88,7 @@ export default function ChecklistAtendimento({ os, cliente, agenda, quizEnvios, 
     if (!linkPg.trim()) throw new Error('Cole o link de pagamento da consultoria.');
     await salvarPagamento();
     const v = valor !== '' ? ` (${brl(valor)})` : '';
-    await enviar(`Olá, ${primeiroNome(cliente?.nome)}! Para reservar o seu horário da consultoria${v}, segue o link de pagamento:\n\n${linkPg.trim()}\n\nAssim que o pagamento for confirmado eu libero tudo por aqui. Qualquer dúvida é só chamar!`);
+    await enviar(`Olá, ${primeiroNome(cliente?.nome)}! Para reservar o seu horário ${tipoDaOS(os).pagamento}${v}, segue o link de pagamento:\n\n${linkPg.trim()}\n\nAssim que o pagamento for confirmado eu libero tudo por aqui. Qualquer dúvida é só chamar!`);
     const { error } = await supabase.from('ordens_servico').update({ pagamento_status: 'link_enviado', pagamento_link_enviado_em: new Date().toISOString() }).eq('id', os.id);
     if (error) throw new Error(msgErro(error));
     return 'Link de pagamento enviado.';
@@ -117,7 +119,7 @@ export default function ChecklistAtendimento({ os, cliente, agenda, quizEnvios, 
     <Card style={{ marginTop: 10, background: '#fffdf7', padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ fontWeight: 700 }}>Checklist do atendimento · {os.numero}</div>
-        {s.pronta ? <Badge label="Pronta para a consultoria" color="#16a34a" /> : <Badge label="Faltam passos" color="#f59e0b" />}
+        {s.pronta ? <Badge label="Pronta para o atendimento" color="#16a34a" /> : <Badge label="Faltam passos" color="#f59e0b" />}
       </div>
       {erro && <div style={{ marginTop: 10 }}><Aviso tipo="erro">{erro}</Aviso></div>}
       {aviso && <div style={{ marginTop: 10 }}><Aviso tipo="ok">{aviso}</Aviso></div>}
@@ -139,11 +141,11 @@ export default function ChecklistAtendimento({ os, cliente, agenda, quizEnvios, 
         )}
       </Passo>
 
-      <Passo ok={s.respondeu} titulo="Quiz respondido" detalhe={s.quiz ? (s.respondeu ? `Respondido em ${fmtDateTime(s.quiz.respondido_em)}` : s.quiz.status === 'enviado' ? `Enviado em ${fmtDateTime(s.quiz.enviado_em)}, aguardando resposta` : 'Link criado, ainda não enviado') : 'Quiz ainda não enviado.'}>
+      {s.precisaQuiz && <Passo ok={s.respondeu} titulo="Quiz respondido" detalhe={s.quiz ? (s.respondeu ? `Respondido em ${fmtDateTime(s.quiz.respondido_em)}` : s.quiz.status === 'enviado' ? `Enviado em ${fmtDateTime(s.quiz.enviado_em)}, aguardando resposta` : 'Link criado, ainda não enviado') : 'Quiz ainda não enviado.'}>
         {!s.respondeu && <BtnPrimary small disabled={semZap || !!ocupado} onClick={enviarQuiz}>{ocupado === 'quiz' ? 'Enviando...' : s.quiz ? 'Reenviar quiz' : 'Enviar quiz'}</BtnPrimary>}
-      </Passo>
+      </Passo>}
 
-      <Passo ok={s.pago} titulo="Pagamento da consultoria" detalhe={s.pago ? `Recebido em ${fmtDateTime(os.pago_em)}` : os.pagamento_status === 'link_enviado' ? `Link enviado em ${fmtDateTime(os.pagamento_link_enviado_em)}, aguardando pagamento` : 'Link de pagamento ainda não enviado.'}>
+      <Passo ok={s.pago} titulo={`Pagamento ${tipoDaOS(os).pagamento}`} detalhe={s.pago ? `Recebido em ${fmtDateTime(os.pago_em)}` : os.pagamento_status === 'link_enviado' ? `Link enviado em ${fmtDateTime(os.pagamento_link_enviado_em)}, aguardando pagamento` : 'Link de pagamento ainda não enviado.'}>
         {!s.pago ? (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10 }}>

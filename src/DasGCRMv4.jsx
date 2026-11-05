@@ -1,4 +1,5 @@
-﻿import OrdemServico from './modulos/OrdemServico.jsx';
+﻿import Atendimento from './modulos/Atendimento.jsx';
+import OrdemServico from './modulos/OrdemServico.jsx';
 import OrcamentosOS from './modulos/Orcamentos.jsx';
 import ProvasOS from './modulos/Provas.jsx';
 import PedidosVenda from './modulos/PedidosVenda.jsx';
@@ -1333,7 +1334,7 @@ export default function DasGCRM() {
   const [pagina, setPagina] = useState('central');
   const [osFocoId, setOsFocoId] = useState('');
   const abrirOS = (id) => { setOsFocoId(id); setPagina('os'); };
-  const [gruposAbertos, setGruposAbertos] = useState({ 'Atendimento': true });
+  const [gruposAbertos, setGruposAbertos] = useState({ 'Entrada': true, '1 · Cadastro': true, '2 · Atendimento': true });
   const [clientes, setClientes] = useState([]);
   const [os, setOs] = useState([]);
   const [leads, setLeads] = useState([]);
@@ -1575,6 +1576,7 @@ export default function DasGCRM() {
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'agenda', label: 'Agenda e Tarefas' },
     { id: 'fluxo', label: 'Fluxo de Atendimento' },
+    { id: 'atendimento', label: 'Atendimento (tipo, pagamento, quiz)', dot: quizEnvios.filter(q => q.status === 'respondido' && Date.now() - new Date(q.respondido_em).getTime() < 3 * 86400000).length },
     { id: 'clientes', label: 'Clientes' },
     { id: 'consultoria', label: 'Consultoria Express', dot: quizEnvios.filter(q => q.status === 'respondido' && Date.now() - new Date(q.respondido_em).getTime() < 3 * 86400000).length },
     { id: 'criacao', label: 'Criação' },
@@ -1591,10 +1593,12 @@ export default function DasGCRM() {
     { id: 'produtos', label: 'Cadastro de Produto', dot: produtos.filter(p => (p.status_geral || 'em_aprovacao') === 'em_aprovacao').length },
   ];
   const GRUPOS = [
-    { titulo: 'Atendimento', ids: ['central', 'clientes', 'agenda', 'fluxo'] },
-    { titulo: 'Consultoria e Criação', ids: ['consultoria', 'criacao'] },
-    { titulo: 'Venda', ids: ['orcamentos', 'pedidosvenda'] },
-    { titulo: 'Produção', ids: ['os', 'provas', 'compras'] },
+    { titulo: 'Entrada', ids: ['central'] },
+    { titulo: '1 · Cadastro', ids: ['clientes'] },
+    { titulo: '2 · Atendimento', ids: ['atendimento', 'agenda', 'fluxo'] },
+    { titulo: '3 · Consultoria e Criação', ids: ['consultoria', 'criacao'] },
+    { titulo: '4 · Ordem de Serviço', ids: ['os', 'provas', 'compras'] },
+    { titulo: '5 · Venda', ids: ['orcamentos', 'pedidosvenda'] },
     { titulo: 'Gestão', ids: ['dashboard', 'processos', 'financeiro', 'marketing', 'feedback', 'relatorios'] },
     { titulo: 'Catálogo', ids: ['produtos'] },
   ].map(g => ({ ...g, itens: g.ids.map(id => nav.find(n => n.id === id)).filter(Boolean) }));
@@ -1617,6 +1621,7 @@ export default function DasGCRM() {
       case 'consultoria': return <Consultoria clientes={clientes} os={os} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'criacao': return <CriacaoOS os={os} clientes={clientes} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'orcamentos': return <OrcamentosOS os={os} clientes={clientes} onRecarregar={recarregar} />;
+      case 'atendimento': return <Atendimento clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'os': return <OrdemServico os={os} clientes={clientes} osFocoId={osFocoId} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'pedidosvenda': return <PedidosVenda clientes={clientes} os={os} produtos={produtos} onRecarregar={recarregar} />;
       case 'processos': return <Processos os={os} clientes={clientes} onAbrirCliente={(o) => abrirOS(o.id)} />;
