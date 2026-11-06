@@ -5,8 +5,10 @@
 export function normalizarTelefone(tel) {
   const d = String(tel || '').replace(/\D/g, '');
   if (!d) return '';
-  if (d.startsWith('55') && d.length >= 12) return d;
-  return '55' + d;
+  let n = d.startsWith('55') && d.length >= 12 ? d.slice(2) : d;
+  // celular brasileiro sem o 9: DDD + 8 dígitos começando em 6-9 -> insere o 9
+  if (n.length === 10 && /^[6-9]/.test(n.slice(2))) n = n.slice(0, 2) + '9' + n.slice(2);
+  return '55' + n;
 }
 
 export function whatsappConfigurado() {
@@ -25,7 +27,7 @@ export async function enviarWhatsApp({ telefone, nome, mensagem }) {
       headers: { 'Content-Type': 'application/json', 'x-dasg-secret': import.meta.env.VITE_N8N_ENVIAR_SECRET || '' },
       body: JSON.stringify({ phone, nome: nome || '', mensagem }),
     });
-    if (!r.ok) return { ok: false, erro: 'O n8n recusou o envio (HTTP ' + r.status + ').' };
+    if (!r.ok) return { ok: false, erro: r.status === 500 ? 'Não foi possível enviar: confira se o telefone tem WhatsApp (DDD + 9 dígitos). Se estiver certo, o WhatsApp da Das G pode estar desconectado.' : 'O n8n recusou o envio (HTTP ' + r.status + ').' };
     return { ok: true };
   } catch (e) {
     return { ok: false, erro: 'Não consegui falar com o n8n: ' + e.message };
