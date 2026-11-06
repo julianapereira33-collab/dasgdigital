@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TOTAL_ETAPAS } from '../lib/etapas.js';
 import { MEDIDAS_CLIENTE } from './medidas.js';
 import { BriefingQuiz } from './Consultoria.jsx';
 import ArquivosCliente from './ArquivosCliente.jsx';
@@ -11,7 +12,7 @@ import ChecklistAtendimento from './ChecklistAtendimento.jsx';
 const OPCOES_ORIGEM = [['instagram', 'Instagram'], ['indicacao', 'Indicação'], ['loja_fisica', 'Loja física'], ['google', 'Google'], ['whatsapp', 'WhatsApp'], ['outro', 'Outro']].map(([value, label]) => ({ value, label }));
 const ETAPAS_INICIAIS = SLUGS_ETAPA.slice(0, 8).map(s => ({ value: s, label: ROTULO_ETAPA[s] }));
 const FORM_VAZIO = { nome: '', telefone: '', email: '', instagram: '', origem: '', obs: '' };
-const OS_VAZIA = { descricao: '', data_evento: '', servico: '', ocasiao: '', data_entrega_prevista: '', valor_total: '', etapaInicial: 'qualificacao' };
+const OS_VAZIA = { descricao: '', data_evento: '', servico: '', ocasiao: '', data_entrega_prevista: '', valor_total: '', etapaInicial: 'atendimento' };
 const PECAS = ['Vestido de festa', 'Vestido de madrinha', 'Vestido de noiva', 'Vestido de formatura', 'Conjunto / alfaiataria', 'Saia e blusa', 'Macacão', 'Outro'].map(v => ({ value: v, label: v }));
 
 function msgErro(error) {
@@ -113,7 +114,7 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
           </thead>
           <tbody>
             {filtrados.map((c, i) => {
-              const ativas = os.filter(o => o.cliente_id === c.id && o.status_idx < 23);
+              const ativas = os.filter(o => o.cliente_id === c.id && o.status_idx < TOTAL_ETAPAS);
               return (
                 <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                   <td style={{ padding: '12px 16px', fontWeight: 600 }}>{c.nome}</td>
@@ -224,7 +225,7 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
               <div>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
                   <BtnPrimary small onClick={() => { setMostrarFormOS(v => !v); setOsForm(OS_VAZIA); }}>{mostrarFormOS ? 'Fechar' : 'Abrir nova OS'}</BtnPrimary>
-                  <BtnSecondary small disabled={salvando || !sel.telefone} onClick={() => enviarQuiz(osDaCliente.find(o => o.status_idx < 23) || null)}>{salvando ? 'Enviando...' : 'Enviar quiz da consultoria'}</BtnSecondary>
+                  <BtnSecondary small disabled={salvando || !sel.telefone} onClick={() => enviarQuiz(osDaCliente.find(o => o.status_idx < TOTAL_ETAPAS) || null)}>{salvando ? 'Enviando...' : 'Enviar quiz da consultoria'}</BtnSecondary>
                 </div>
                 {!sel.telefone && <Aviso tipo="atencao">Cadastre o telefone para enviar o quiz pelo WhatsApp.</Aviso>}
 

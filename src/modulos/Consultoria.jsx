@@ -1,3 +1,4 @@
+import { TOTAL_ETAPAS } from '../lib/etapas.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { enviarQuizPorWhatsApp, criarQuizEnvio, criarAtividadeDaEtapa, ROTULO_ETAPA } from '../lib/api.js';
@@ -55,7 +56,7 @@ export default function Consultoria({ clientes, os, quizEnvios, onRecarregar, on
     return () => clearInterval(timerRef.current);
   }, [rodando]);
 
-  const osAtivas = useMemo(() => os.filter(o => o.status_idx < 23), [os]);
+  const osAtivas = useMemo(() => os.filter(o => o.status_idx < TOTAL_ETAPAS), [os]);
   const cli = osSel ? clientes.find(c => c.id === osSel.cliente_id) : null;
   const quizDaOS = (o) => quizEnvios.filter(q => q.ordem_servico_id === o.id || (!q.ordem_servico_id && q.cliente_id === o.cliente_id)).sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em))[0];
   const quizSel = osSel ? quizDaOS(osSel) : null;

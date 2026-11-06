@@ -127,8 +127,8 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
     if (!evento.id && evento.ordem_servico_id && ['consultoria_express', 'personal_stylist'].includes(evento.tipo)) {
       const o = os.find(x => x.id === evento.ordem_servico_id);
       if (o && o.status_idx < 3) {
-        await supabase.from('ordens_servico').update({ status: 'agendado' }).eq('id', o.id);
-        await criarAtividadeDaEtapa({ os: o, cliente: cli(o.cliente_id), slug: 'agendado' });
+        await supabase.from('ordens_servico').update({ status: 'agendamento' }).eq('id', o.id);
+        await criarAtividadeDaEtapa({ os: o, cliente: cli(o.cliente_id), slug: 'agendamento' });
       }
     }
 

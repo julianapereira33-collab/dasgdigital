@@ -1,20 +1,20 @@
+import { TOTAL_ETAPAS } from '../lib/etapas.js';
 import { useState } from 'react';
 import { ROTULO_ETAPA } from '../lib/api.js';
 import { Badge, Card, fmtDate } from './ui.jsx';
 
 // Visão da gestão: OS abertas por processo (departamento) e por etapa.
 const PROCESSOS = [
-  { titulo: 'Atendimento', cor: '#0ea5e9', etapas: ['lead', 'qualificacao', 'agendado', 'consultoria'] },
-  { titulo: 'Orçamento e pagamento', cor: '#f97316', etapas: ['orcamento_enviado', 'aprovado', 'entrada'] },
-  { titulo: 'Criação', cor: '#8b5cf6', etapas: ['os_aberta', 'briefing', 'dossie', 'criacao'] },
-  { titulo: 'Ateliê (produção)', cor: '#c4a45a', etapas: ['modelagem', 'corte', 'costura', 'acabamento'] },
-  { titulo: 'Provas e ajustes', cor: '#ec4899', etapas: ['prova1', 'ajustes1', 'prova2', 'prova_final'] },
-  { titulo: 'Entrega e pós-venda', cor: '#16a34a', etapas: ['finalizacao', 'pgto_final', 'entrega', 'feedback'] },
+  { titulo: 'Atendimento', cor: '#0ea5e9', etapas: ['cliente', 'atendimento', 'agendamento', 'consultoria'] },
+  { titulo: 'Orçamento e pagamento', cor: '#f97316', etapas: ['criacao', 'orcamento', 'aprovacao', 'venda'] },
+    { titulo: 'Ateliê (produção)', cor: '#c4a45a', etapas: ['os', 'tecido', 'corte', 'montagem'] },
+  { titulo: 'Provas e ajustes', cor: '#ec4899', etapas: ['prova1', 'ajuste1', 'prova2', 'ajuste2', 'prova_final', 'prova4'] },
+  { titulo: 'Entrega, pós-venda e marketing', cor: '#16a34a', etapas: ['finalizacao', 'entrega', 'pos_venda', 'marketing'] },
 ];
 
 export default function Processos({ os, clientes, onAbrirCliente }) {
   const [aberto, setAberto] = useState(null);
-  const ativas = os.filter(o => o.status_idx < 23);
+  const ativas = os.filter(o => o.status_idx < TOTAL_ETAPAS);
   const nome = (o) => clientes.find(c => c.id === o.cliente_id)?.nome || '—';
   return (
     <div>

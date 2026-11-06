@@ -1,3 +1,4 @@
+import { TOTAL_ETAPAS } from '../lib/etapas.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { criarAtividadeDaEtapa, ROTULO_ETAPA } from '../lib/api.js';
@@ -47,7 +48,7 @@ export default function Orcamentos({ os, clientes, onRecarregar }) {
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState(false);
 
-  const ativas = useMemo(() => os.filter(o => o.status_idx < 23), [os]);
+  const ativas = useMemo(() => os.filter(o => o.status_idx < TOTAL_ETAPAS), [os]);
   const osSel = os.find(o => o.id === osId) || null;
   const cli = osSel ? clientes.find(c => c.id === osSel.cliente_id) : null;
 
@@ -107,7 +108,7 @@ export default function Orcamentos({ os, clientes, onRecarregar }) {
     const r = await enviarWhatsApp({ telefone: cli?.telefone || cli?.whatsapp, nome: cli?.nome, mensagem: texto });
     if (!r.ok) { setOcupado(false); setErro(r.erro); return; }
     await supabase.from('orcamentos').update({ enviado_em: new Date().toISOString(), status: 'enviado', texto_whatsapp: texto }).eq('id', salvo.id);
-    if (osSel.status_idx < 5) { await supabase.from('ordens_servico').update({ status: 'orcamento_enviado' }).eq('id', osId); await criarAtividadeDaEtapa({ os: osSel, cliente: cli, slug: 'orcamento_enviado' }); await onRecarregar(); }
+    if (osSel.status_idx < 6) { await supabase.from('ordens_servico').update({ status: 'orcamento' }).eq('id', osId); await criarAtividadeDaEtapa({ os: osSel, cliente: cli, slug: 'orcamento' }); await onRecarregar(); }
     setOcupado(false); setAviso('Orçamento enviado pelo WhatsApp.'); setOrc(o => ({ ...o, enviado_em: new Date().toISOString(), status: 'enviado' })); carregarLista();
   }
 
@@ -125,8 +126,8 @@ export default function Orcamentos({ os, clientes, onRecarregar }) {
     const { error } = await supabase.from('financeiro_receber').insert(linhas);
     if (error) { setOcupado(false); setErro(msgErro(error)); return; }
     await supabase.from('orcamentos').update({ aprovado_em: new Date().toISOString(), status: 'aprovado' }).eq('id', salvo.id);
-    await supabase.from('ordens_servico').update({ status: 'aprovado', valor_total: total }).eq('id', osId);
-    await criarAtividadeDaEtapa({ os: osSel, cliente: cli, slug: 'aprovado' });
+    await supabase.from('ordens_servico').update({ status: 'aprovacao', valor_total: total }).eq('id', osId);
+    await criarAtividadeDaEtapa({ os: osSel, cliente: cli, slug: 'aprovacao' });
     await onRecarregar(); await carregarFin(); await carregarLista();
     setOrc(o => ({ ...o, aprovado_em: new Date().toISOString(), status: 'aprovado' }));
     setOcupado(false); setAba('financeiro'); setAviso('Orçamento aprovado. Entrada e saldo foram lançados no financeiro; anexe os comprovantes quando a cliente pagar.');
@@ -149,7 +150,7 @@ export default function Orcamentos({ os, clientes, onRecarregar }) {
     const { error } = await supabase.from('financeiro_receber').update({ status: 'pago', pago_em: new Date().toISOString(), valor_pago: p.valor }).eq('id', p.id);
     if (error) { setErro(msgErro(error)); return; }
     carregarFin();
-    if (/^1\//.test(p.parcela || '') && osSel.status_idx < 7) { await supabase.from('ordens_servico').update({ status: 'entrada' }).eq('id', osId); await onRecarregar(); }
+    if (/^1\//.test(p.parcela || '') && osSel.status_idx < 8) { await supabase.from('ordens_servico').update({ status: 'venda' }).eq('id', osId); await onRecarregar(); }
   }
 
   const inp = { width: '100%', padding: '6px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' };

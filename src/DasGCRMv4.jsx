@@ -1,4 +1,5 @@
-﻿import Atendimento from './modulos/Atendimento.jsx';
+﻿import { ETAPAS, SLUGS_ETAPA, FASES_FLUXO, TOTAL_ETAPAS } from './lib/etapas.js';
+import Atendimento from './modulos/Atendimento.jsx';
 import OrdemServico from './modulos/OrdemServico.jsx';
 import OrcamentosOS from './modulos/Orcamentos.jsx';
 import ProvasOS from './modulos/Provas.jsx';
@@ -35,40 +36,11 @@ const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency:
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
 const fmtDateTime = (d) => d ? new Date(d).toLocaleString('pt-BR') : '—';
 
-const STATUS_OS = [
-  { id: 1, label: 'Lead', fase: 'CAPTAÇÃO', cor: '#6366f1' },
-  { id: 2, label: 'Qualificação', fase: 'CAPTAÇÃO', cor: '#8b5cf6' },
-  { id: 3, label: 'Agendado', fase: 'CAPTAÇÃO', cor: '#a78bfa' },
-  { id: 4, label: 'Consultoria realizada', fase: 'VENDA', cor: '#f59e0b' },
-  { id: 5, label: 'Orçamento enviado', fase: 'VENDA', cor: '#f97316' },
-  { id: 6, label: 'Aprovado', fase: 'VENDA', cor: '#22c55e' },
-  { id: 7, label: 'Entrada recebida', fase: 'FINANCEIRO', cor: '#16a34a' },
-  { id: 8, label: 'OS aberta', fase: 'FINANCEIRO', cor: '#15803d' },
-  { id: 9, label: 'Briefing', fase: 'CRIAÇÃO', cor: '#0ea5e9' },
-  { id: 10, label: 'Dossiê', fase: 'CRIAÇÃO', cor: '#0284c7' },
-  { id: 11, label: 'Criação', fase: 'CRIAÇÃO', cor: '#0369a1' },
-  { id: 12, label: 'Modelagem', fase: 'CRIAÇÃO', cor: '#075985' },
-  { id: 13, label: 'Corte', fase: 'CRIAÇÃO', cor: '#0c4a6e' },
-  { id: 14, label: 'Costura', fase: 'CRIAÇÃO', cor: '#1e3a5f' },
-  { id: 15, label: 'Acabamento', fase: 'CRIAÇÃO', cor: '#1e2a4f' },
-  { id: 16, label: 'Prova 1', fase: 'PROVAS', cor: '#f472b6' },
-  { id: 17, label: 'Ajustes 1', fase: 'PROVAS', cor: '#ec4899' },
-  { id: 18, label: 'Prova 2', fase: 'PROVAS', cor: '#db2777' },
-  { id: 19, label: 'Prova final', fase: 'PROVAS', cor: '#be185d' },
-  { id: 20, label: 'Finalização', fase: 'FINALIZAÇÃO', cor: '#d4a017' },
-  { id: 21, label: 'Pgto final', fase: 'FINALIZAÇÃO', cor: '#b8860b' },
-  { id: 22, label: 'Entrega', fase: 'FINALIZAÇÃO', cor: '#8b6914' },
-  { id: 23, label: 'Feedback pós-evento', fase: 'PÓS', cor: '#78716c' },
-];
+const STATUS_OS = ETAPAS.map((e, i) => ({ id: i + 1, label: e.label, fase: e.fase, cor: e.cor }));
 
 // Ordem exata dos slugs de status no banco (check constraint de ordens_servico.status),
 // index+1 corresponde ao STATUS_OS.id / status_idx usado na UI.
-const DB_STATUS_SLUGS = [
-  'lead', 'qualificacao', 'agendado', 'consultoria', 'orcamento_enviado', 'aprovado',
-  'entrada', 'os_aberta', 'briefing', 'dossie', 'criacao', 'modelagem', 'corte', 'costura',
-  'acabamento', 'prova1', 'ajustes1', 'prova2', 'prova_final', 'finalizacao', 'pgto_final',
-  'entrega', 'feedback',
-];
+const DB_STATUS_SLUGS = SLUGS_ETAPA;
 
 // ── MOCK DATA ─────────────────────────────────────────────
 const MOCK_CLIENTES = [
@@ -483,7 +455,7 @@ function Dashboard({ clientes, os, agenda, tarefas, pedidos, contasPagar }) {
   const agendaHoje = agenda.filter(a => new Date(a.data).toDateString() === hoje.toDateString());
   const osParadas = os.filter(o => {
     const dias = (hoje - new Date(o.ultima_atualizacao)) / (1000 * 60 * 60 * 24);
-    return dias >= 14 && o.status_idx < 23;
+    return dias >= 14 && o.status_idx < TOTAL_ETAPAS;
   });
   const receitaTotal = pedidos.reduce((acc, p) => acc + p.parcelas.filter(x => x.status === 'recebido').reduce((a, x) => a + x.valor, 0), 0);
   const receitaPendente = pedidos.reduce((acc, p) => acc + p.parcelas.filter(x => x.status === 'pendente').reduce((a, x) => a + x.valor, 0), 0);
@@ -500,7 +472,7 @@ function Dashboard({ clientes, os, agenda, tarefas, pedidos, contasPagar }) {
           { label: 'Receita recebida', valor: fmt(receitaTotal), cor: '#22c55e' },
           { label: 'A receber', valor: fmt(receitaPendente), cor: '#f59e0b' },
           { label: 'Clientes ativos', valor: clientes.length, cor: '#6366f1' },
-          { label: 'OS em andamento', valor: os.filter(o => o.status_idx < 22).length, cor: '#c4a45a' },
+          { label: 'OS em andamento', valor: os.filter(o => o.status_idx < TOTAL_ETAPAS).length, cor: '#c4a45a' },
         ].map((m, i) => (
           <Card key={i} style={{ borderTop: `4px solid ${m.cor}` }}>
             <div style={{ fontSize: 24, fontWeight: 700, color: m.cor }}>{m.valor}</div>
@@ -579,7 +551,7 @@ function Dashboard({ clientes, os, agenda, tarefas, pedidos, contasPagar }) {
 // ── MÓDULO: FLUXO DE ATENDIMENTO (KANBAN) ─────────────────
 function FluxoAtendimento({ os, clientes, onAvancar, onVoltar }) {
   const [selecionada, setSelecionada] = useState(null);
-  const fases = ['CAPTAÇÃO', 'VENDA', 'FINANCEIRO', 'CRIAÇÃO', 'PROVAS', 'FINALIZAÇÃO', 'PÓS'];
+  const fases = FASES_FLUXO;
   const hoje = new Date();
 
   const osPorFase = (fase) => {
@@ -590,7 +562,7 @@ function FluxoAtendimento({ os, clientes, onAvancar, onVoltar }) {
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Fluxo de Atendimento</h1>
-      <p style={{ color: '#6b7280', marginBottom: 24 }}>Kanban com as 23 etapas do atendimento</p>
+      <p style={{ color: '#6b7280', marginBottom: 24 }}>Acompanhe cada OS, do cadastro da cliente ao marketing, passando pela produção do ateliê</p>
 
       <div style={{ overflowX: 'auto', paddingBottom: 16 }}>
         <div style={{ display: 'flex', gap: 12, minWidth: 900 }}>
@@ -1464,7 +1436,7 @@ export default function DasGCRM() {
   // (ex.: chegou em "Prova 1" -> tarefa "Agendar e fazer a Prova 1 de ..."). Só ao avançar.
   const avancarOS = async (id) => {
     const atual = os.find(o => o.id === id);
-    if (!atual || atual.status_idx >= 23) return;
+    if (!atual || atual.status_idx >= TOTAL_ETAPAS) return;
     const novoIdx = atual.status_idx + 1;
     setOs(prev => prev.map(o => o.id === id ? { ...o, status_idx: novoIdx, ultima_atualizacao: new Date().toISOString() } : o));
     const { error } = await supabase.from('ordens_servico').update({ status: DB_STATUS_SLUGS[novoIdx - 1] }).eq('id', id);

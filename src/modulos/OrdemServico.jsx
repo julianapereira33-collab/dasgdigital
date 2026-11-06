@@ -1,3 +1,4 @@
+import { TOTAL_ETAPAS } from '../lib/etapas.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { criarAtividadeDaEtapa, ROTULO_ETAPA, SLUGS_ETAPA } from '../lib/api.js';
@@ -22,7 +23,7 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
   useEffect(() => { if (osFocoId) setOsId(osFocoId); }, [osFocoId]);
   const osSel = os.find(o => o.id === osId) || null;
   const cli = osSel ? clientes.find(c => c.id === osSel.cliente_id) : null;
-  const ativas = useMemo(() => [...os].sort((a, b) => (a.status_idx >= 23) - (b.status_idx >= 23)), [os]);
+  const ativas = useMemo(() => [...os].sort((a, b) => (a.status_idx >= TOTAL_ETAPAS) - (b.status_idx >= TOTAL_ETAPAS)), [os]);
 
   const carregar = useCallback(async () => {
     if (!osId) { setTarefas([]); return; }

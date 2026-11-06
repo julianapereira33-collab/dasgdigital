@@ -1,3 +1,4 @@
+import { TOTAL_ETAPAS } from '../lib/etapas.js';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { criarAtividadeDaEtapa, ROTULO_ETAPA } from '../lib/api.js';
@@ -39,7 +40,7 @@ export default function Criacao({ os, clientes, quizEnvios, onRecarregar, onNave
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState(false);
 
-  const ativas = useMemo(() => os.filter(o => o.status_idx < 23), [os]);
+  const ativas = useMemo(() => os.filter(o => o.status_idx < TOTAL_ETAPAS), [os]);
   const osSel = os.find(o => o.id === osId) || null;
   const cli = osSel ? clientes.find(c => c.id === osSel.cliente_id) : null;
   const quiz = osSel ? quizEnvios.filter(q => q.ordem_servico_id === osSel.id && q.status === 'respondido').sort((a, b) => new Date(b.respondido_em) - new Date(a.respondido_em))[0] : null;
@@ -93,7 +94,7 @@ export default function Criacao({ os, clientes, quizEnvios, onRecarregar, onNave
     const { data, error } = dossie?.id ? await supabase.from('dossies').update(linha).eq('id', dossie.id).select().single() : await supabase.from('dossies').insert(linha).select().single();
     if (error) { setOcupado(false); setErro(msgErro(error)); return; }
     setDossie(data);
-    if (avancar && osSel.status_idx < 11) {
+    if (avancar && osSel.status_idx < 5) {
       await supabase.from('ordens_servico').update({ status: 'criacao' }).eq('id', osSel.id);
       await criarAtividadeDaEtapa({ os: osSel, cliente: cli, slug: 'criacao' });
       await onRecarregar();
@@ -170,7 +171,7 @@ export default function Criacao({ os, clientes, quizEnvios, onRecarregar, onNave
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
                 <BtnPrimary disabled={ocupado} onClick={() => salvarDossie(false)}>{ocupado ? 'Salvando...' : 'Salvar dossiê'}</BtnPrimary>
-                {osSel.status_idx < 11 && <BtnSecondary disabled={ocupado} onClick={() => salvarDossie(true)}>Salvar e avançar a OS para Criação</BtnSecondary>}
+                {osSel.status_idx < 5 && <BtnSecondary disabled={ocupado} onClick={() => salvarDossie(true)}>Salvar e avançar a OS para Criação</BtnSecondary>}
               </div>
             </Card>
           )}

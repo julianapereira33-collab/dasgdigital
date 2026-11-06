@@ -34,7 +34,7 @@ export default function Atendimento({ clientes, os, agenda, tarefas = [], quizEn
   async function criarAtendimento() {
     if (!novo?.cliente_id) { setErro('Escolha a cliente.'); return; }
     setOcupado('novo'); setErro('');
-    const r = await criarOS({ cliente: cli(novo.cliente_id), listaOS: os, descricao: novo.descricao, tipo_atendimento: novo.tipo, etapaInicial: 'qualificacao' });
+    const r = await criarOS({ cliente: cli(novo.cliente_id), listaOS: os, descricao: novo.descricao, tipo_atendimento: novo.tipo, etapaInicial: 'atendimento' });
     setOcupado('');
     if (r.error) { setErro(msgErro(r.error)); return; }
     await onRecarregar(); setNovo(null); setAberta(r.data.id); setAviso(`Atendimento ${r.data.numero} aberto.`);
@@ -49,7 +49,7 @@ export default function Atendimento({ clientes, os, agenda, tarefas = [], quizEn
   async function copiar(q) { try { await navigator.clipboard.writeText(linkDoQuiz(q.token)); setAviso('Link copiado.'); } catch { setAviso(linkDoQuiz(q.token)); } }
 
   const quizzes = quizEnvios.filter(q => filtroQuiz === 'todos' || (filtroQuiz === 'respondidos' ? q.status === 'respondido' : q.status !== 'respondido'));
-  const precisamQuiz = os.filter(o => tipoDaOS(o).quiz && o.status_idx <= 12 && !quizEnvios.some(q => q.ordem_servico_id === o.id));
+  const precisamQuiz = os.filter(o => tipoDaOS(o).quiz && o.status_idx <= 6 && !quizEnvios.some(q => q.ordem_servico_id === o.id));
   const proximos = agenda.filter(a => (a.departamento || 'atendimento') === 'atendimento' && a.status !== 'cancelado' && new Date(a.data_hora) >= new Date(Date.now() - 3600000)).sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora)).slice(0, 10);
   const abertas = tarefas.filter(t => (t.departamento || 'atendimento') === 'atendimento' && t.status !== 'concluida').slice(0, 10);
 

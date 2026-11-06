@@ -5,45 +5,33 @@ import { enviarWhatsApp } from './whatsapp.js';
 import { gerarEtapasAtelie } from './producao.js';
 import { linkDoQuiz } from '../modulos/quizConsultoria.js';
 
-// mesma ordem de STATUS_OS / check constraint de ordens_servico.status
-export const SLUGS_ETAPA = [
-  'lead', 'qualificacao', 'agendado', 'consultoria', 'orcamento_enviado', 'aprovado',
-  'entrada', 'os_aberta', 'briefing', 'dossie', 'criacao', 'modelagem', 'corte', 'costura',
-  'acabamento', 'prova1', 'ajustes1', 'prova2', 'prova_final', 'finalizacao', 'pgto_final',
-  'entrega', 'feedback',
-];
-export const ROTULO_ETAPA = {
-  lead: 'Lead', qualificacao: 'Qualificação', agendado: 'Agendado', consultoria: 'Consultoria realizada',
-  orcamento_enviado: 'Orçamento enviado', aprovado: 'Aprovado', entrada: 'Entrada recebida', os_aberta: 'OS aberta',
-  briefing: 'Briefing', dossie: 'Dossiê', criacao: 'Criação', modelagem: 'Modelagem', corte: 'Corte', costura: 'Costura',
-  acabamento: 'Acabamento', prova1: 'Prova 1', ajustes1: 'Ajustes 1', prova2: 'Prova 2', prova_final: 'Prova final',
-  finalizacao: 'Finalização', pgto_final: 'Pgto final', entrega: 'Entrega', feedback: 'Feedback pós-evento',
-};
+// Etapas do fluxo: ver lib/etapas.js (fonte única)
+import { SLUGS_ETAPA, ROTULO_ETAPA } from './etapas.js';
+export { SLUGS_ETAPA, ROTULO_ETAPA };
 
 // Atividade (tarefa) criada automaticamente quando a OS ENTRA na etapa
 const ATIVIDADE_POR_ETAPA = {
-  qualificacao: 'Qualificar {c}: entender ocasião, prazo e orçamento',
-  agendado: 'Confirmar o horário da consultoria com {c}',
-  consultoria: 'Montar e enviar o orçamento para {c}',
-  orcamento_enviado: 'Acompanhar a resposta do orçamento de {c}',
-  aprovado: 'Combinar e cobrar a entrada de {c}',
-  entrada: 'Conferir o recebimento da entrada de {c}',
-  os_aberta: 'Preencher o briefing de {c}',
-  briefing: 'Gerar o dossiê de {c}',
-  dossie: 'Apresentar e aprovar o dossiê com {c}',
-  criacao: 'Criar croqui e ficha técnica de {c}',
-  modelagem: 'Fazer a modelagem da peça de {c}',
+  atendimento: 'Atender {c}: entender ocasião, prazo e definir o tipo de atendimento',
+  agendamento: 'Confirmar o horário com {c} e enviar o link de pagamento',
+  consultoria: 'Fazer a consultoria com {c}',
+  criacao: 'Montar briefing, dossiê, croqui e ficha técnica de {c}',
+  orcamento: 'Montar e enviar o orçamento para {c}',
+  aprovacao: 'Acompanhar a aprovação do orçamento de {c}',
+  venda: 'Cobrar e conferir a entrada de {c}',
+  os: 'Abrir a OS e conferir o pedido de {c}',
+  tecido: 'Ver tecidos e medidas com {c}',
   corte: 'Conferir tecidos e cortar a peça de {c}',
-  costura: 'Costurar a peça de {c}',
-  acabamento: 'Acabamento da peça de {c}',
-  prova1: 'Agendar e fazer a Prova 1 de {c}',
-  ajustes1: 'Fazer os ajustes da Prova 1 de {c}',
-  prova2: 'Agendar e fazer a Prova 2 de {c}',
-  prova_final: 'Agendar e fazer a Prova final de {c}',
-  finalizacao: 'Finalizar e passar a peça de {c}',
-  pgto_final: 'Cobrar o pagamento final de {c}',
-  entrega: 'Entregar a peça para {c}',
-  feedback: 'Pedir feedback pós-evento para {c}',
+  montagem: 'Montar a peça de {c} para a 1ª prova',
+  prova1: 'Agendar e fazer a 1ª prova de {c}',
+  ajuste1: 'Fazer os ajustes da 1ª prova de {c}',
+  prova2: 'Agendar e fazer a 2ª prova de {c}',
+  ajuste2: 'Fazer os ajustes da 2ª prova de {c}',
+  prova_final: 'Agendar e fazer a 3ª prova (final) de {c}',
+  prova4: 'Fazer a 4ª prova (exceção) de {c}',
+  finalizacao: 'Finalizar, passar e embalar a peça de {c}',
+  entrega: 'Entregar a peça para {c} e conferir o saldo',
+  pos_venda: 'Pedir feedback pós-evento para {c}',
+  marketing: 'Registrar fotos e vídeos de {c} para divulgação (com autorização)',
 };
 
 const limpar = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== '' && v !== undefined && v !== null));
@@ -61,8 +49,8 @@ export async function criarCliente(campos) {
 
 // Departamento (agenda) responsável por cada etapa do fluxo
 const DEP_POR_ETAPA = {
-  modelagem: 'atelie', corte: 'atelie', costura: 'atelie', acabamento: 'atelie', prova1: 'atelie', ajustes1: 'atelie', prova2: 'atelie', prova_final: 'atelie',
-  finalizacao: 'recepcao', pgto_final: 'recepcao', entrega: 'recepcao', feedback: 'recepcao',
+  os: 'atelie', tecido: 'atelie', corte: 'atelie', montagem: 'atelie', prova1: 'atelie', ajuste1: 'atelie', prova2: 'atelie', ajuste2: 'atelie', prova_final: 'atelie', prova4: 'atelie', finalizacao: 'atelie',
+  entrega: 'adm', pos_venda: 'adm', marketing: 'marketing',
 };
 
 export async function criarAtividadeDaEtapa({ os, cliente, slug }) {
@@ -73,11 +61,11 @@ export async function criarAtividadeDaEtapa({ os, cliente, slug }) {
   if (jaTem && jaTem.length) return { data: null, error: null };
   return supabase.from('tarefas').insert({
     titulo, status: 'pendente', prazo: emDias(2), prioridade: 'normal',
-    cliente_id: cliente?.id || null, ordem_servico_id: os.id, origem: 'fluxo', departamento: DEP_POR_ETAPA[slug] || 'atendimento',
+    cliente_id: cliente?.id || null, ordem_servico_id: os.id, origem: 'fluxo', departamento: DEP_POR_ETAPA[slug] || 'adm',
   }).select().single();
 }
 
-export async function criarOS({ cliente, listaOS, descricao, data_evento, servico, canal, etapaInicial = 'qualificacao', ocasiao, data_entrega_prevista, data_tecidos_medidas, valor_total, tipo_atendimento }) {
+export async function criarOS({ cliente, listaOS, descricao, data_evento, servico, canal, etapaInicial = 'atendimento', ocasiao, data_entrega_prevista, data_tecidos_medidas, valor_total, tipo_atendimento }) {
   const { data, error } = await supabase.from('ordens_servico').insert(limpar({
     cliente_id: cliente.id, numero: proximoNumeroOS(listaOS), descricao, data_evento, servico, tipo: 'encomenda', tipo_atendimento, ocasiao,
     data_entrega_prevista, data_tecidos_medidas, valor_total: valor_total ? Number(valor_total) : undefined,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { TOTAL_ETAPAS } from '../lib/etapas.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { ROTULO_ETAPA } from '../lib/api.js';
 import Arquivos from './Arquivos.jsx';
@@ -15,7 +16,7 @@ export default function Provas({ os, clientes, onRecarregar }) {
   const [datas, setDatas] = useState({ data_tecidos_medidas: '', data_entrega_prevista: '' });
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
-  const ativas = useMemo(() => os.filter(o => o.status_idx < 23), [os]);
+  const ativas = useMemo(() => os.filter(o => o.status_idx < TOTAL_ETAPAS), [os]);
   const osSel = os.find(o => o.id === osId) || null;
   const cli = osSel ? clientes.find(c => c.id === osSel.cliente_id) : null;
 
