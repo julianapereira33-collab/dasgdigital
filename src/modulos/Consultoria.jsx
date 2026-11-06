@@ -110,7 +110,7 @@ export default function Consultoria({ clientes, os, quizEnvios, agenda = [], onR
     setErro('');
     const r = await gerarMeet({ titulo: 'Consultoria · ' + (cli?.nome || ''), inicio: new Date(), duracao_min: 60 });
     if (!r.ok) { aba?.close(); setErro(r.erro); return; }
-    await supabase.from('agenda').insert({ cliente_id: osSel.cliente_id, ordem_servico_id: osSel.id, tipo: 'consultoria_express', titulo: 'Consultoria Express', departamento: 'adm', data_hora: new Date().toISOString(), duracao_min: 60, link_meet: r.link, status: 'agendado' });
+    await supabase.from('agenda').insert({ cliente_id: osSel.cliente_id, ordem_servico_id: osSel.id, tipo: 'consultoria_express', titulo: 'Consultoria Express', departamento: 'clientes', data_hora: new Date().toISOString(), duracao_min: 60, link_meet: r.link, status: 'agendado' });
     await onRecarregar();
     if (aba) aba.location.href = r.link; else window.open(r.link, '_blank', 'noopener');
   }

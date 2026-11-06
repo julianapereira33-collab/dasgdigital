@@ -8,14 +8,14 @@ import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, TabBar, Drawer, Campo
 
 // dep = departamento padrão do tipo (a Juliana pode trocar ao criar o evento)
 const TIPOS = {
-  consultoria_express: { label: 'Consultoria Express', cor: '#c4a45a', dep: 'adm', meet: true },
-  personal_stylist: { label: 'Personal Stylist', cor: '#8b5cf6', dep: 'adm', meet: true },
-  teste_colorimetria: { label: 'Teste de colorimetria', cor: '#a855f7', dep: 'adm', meet: true },
-  orcamento: { label: 'Atendimento de orçamento', cor: '#f97316', dep: 'adm' },
-  entrega: { label: 'Entrega', cor: '#16a34a', dep: 'adm' },
-  retirada_locacao: { label: 'Retirada de locação', cor: '#15803d', dep: 'adm' },
-  devolucao_locacao: { label: 'Devolução de locação', cor: '#65a30d', dep: 'adm' },
-  venda_loja: { label: 'Venda / atendimento na loja', cor: '#d97706', dep: 'adm' },
+  consultoria_express: { label: 'Consultoria Express', cor: '#c4a45a', dep: 'clientes', meet: true },
+  personal_stylist: { label: 'Personal Stylist', cor: '#8b5cf6', dep: 'clientes', meet: true },
+  teste_colorimetria: { label: 'Teste de colorimetria', cor: '#a855f7', dep: 'clientes', meet: true },
+  orcamento: { label: 'Atendimento de orçamento', cor: '#f97316', dep: 'clientes' },
+  entrega: { label: 'Entrega', cor: '#16a34a', dep: 'clientes' },
+  retirada_locacao: { label: 'Retirada de locação', cor: '#15803d', dep: 'clientes' },
+  devolucao_locacao: { label: 'Devolução de locação', cor: '#65a30d', dep: 'clientes' },
+  venda_loja: { label: 'Venda / atendimento na loja', cor: '#d97706', dep: 'clientes' },
   reuniao: { label: 'Reunião interna', cor: '#6b7280', dep: 'adm', meet: true },
   outro: { label: 'Outro', cor: '#0ea5e9', dep: 'adm' },
   tecidos_medidas: { label: 'Ver tecidos e medidas', cor: '#0ea5e9', dep: 'atelie' },
@@ -35,7 +35,8 @@ const TIPOS = {
   reuniao_fornecedor: { label: 'Reunião com fornecedor', cor: '#5b21b6', dep: 'tissu', meet: true },
 };
 const DEPARTAMENTOS = {
-  adm: { label: 'ADM / Clientes', curto: 'ADM', cor: '#c4a45a' },
+  adm: { label: 'ADM', curto: 'ADM', cor: '#c4a45a' },
+  clientes: { label: 'Clientes', curto: 'Clientes', cor: '#d97706' },
   atelie: { label: 'Ateliê', curto: 'Ateliê', cor: '#0ea5e9' },
   marketing: { label: 'Marketing', curto: 'Marketing', cor: '#e11d48' },
   financeira: { label: 'Financeira 🔒', curto: 'Financeira', cor: '#0f766e' },

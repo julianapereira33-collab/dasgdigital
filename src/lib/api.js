@@ -50,7 +50,7 @@ export async function criarCliente(campos) {
 // Departamento (agenda) responsável por cada etapa do fluxo
 const DEP_POR_ETAPA = {
   os: 'atelie', tecido: 'atelie', corte: 'atelie', montagem: 'atelie', prova1: 'atelie', ajuste1: 'atelie', prova2: 'atelie', ajuste2: 'atelie', prova_final: 'atelie', prova4: 'atelie', finalizacao: 'atelie',
-  entrega: 'adm', pos_venda: 'adm', marketing: 'marketing',
+  entrega: 'clientes', pos_venda: 'clientes', marketing: 'marketing',
 };
 
 export async function criarAtividadeDaEtapa({ os, cliente, slug }) {
@@ -61,7 +61,7 @@ export async function criarAtividadeDaEtapa({ os, cliente, slug }) {
   if (jaTem && jaTem.length) return { data: null, error: null };
   return supabase.from('tarefas').insert({
     titulo, status: 'pendente', prazo: emDias(2), prioridade: 'normal',
-    cliente_id: cliente?.id || null, ordem_servico_id: os.id, origem: 'fluxo', departamento: DEP_POR_ETAPA[slug] || 'adm',
+    cliente_id: cliente?.id || null, ordem_servico_id: os.id, origem: 'fluxo', departamento: DEP_POR_ETAPA[slug] || 'clientes',
   }).select().single();
 }
 

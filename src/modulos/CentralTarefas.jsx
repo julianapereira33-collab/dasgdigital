@@ -4,7 +4,8 @@ import PortaoFinanceira, { finLiberada, travarFinanceira } from './PortaoFinance
 import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, Aviso, fmtDate } from './ui.jsx';
 
 export const AGENDAS = {
-  adm: { label: 'ADM / Clientes', cor: '#c4a45a' },
+  adm: { label: 'ADM', cor: '#c4a45a' },
+  clientes: { label: 'Clientes', cor: '#d97706' },
   atelie: { label: 'Ateliê', cor: '#0ea5e9' },
   marketing: { label: 'Marketing', cor: '#e11d48' },
   financeira: { label: 'Financeira', cor: '#0f766e', privada: true },
