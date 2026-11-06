@@ -49,7 +49,7 @@ export async function criarCliente(campos) {
 
 // Departamento (agenda) responsável por cada etapa do fluxo
 const DEP_POR_ETAPA = {
-  os: 'atelie', tecido: 'atelie', corte: 'atelie', montagem: 'atelie', prova1: 'atelie', ajuste1: 'atelie', prova2: 'atelie', ajuste2: 'atelie', prova_final: 'atelie', prova4: 'atelie', finalizacao: 'atelie',
+  os: 'atelie', tecido: 'atelie', corte: 'atelie', montagem: 'atelie', prova1: 'clientes', ajuste1: 'atelie', prova2: 'clientes', ajuste2: 'atelie', prova_final: 'clientes', prova4: 'clientes', finalizacao: 'atelie',
   entrega: 'clientes', pos_venda: 'clientes', marketing: 'marketing',
 };
 

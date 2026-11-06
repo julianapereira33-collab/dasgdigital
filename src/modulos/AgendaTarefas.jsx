@@ -17,11 +17,16 @@ const TIPOS = {
   devolucao_locacao: { label: 'Devolução de locação', cor: '#65a30d', dep: 'clientes' },
   venda_loja: { label: 'Venda / atendimento na loja', cor: '#d97706', dep: 'clientes' },
   reuniao: { label: 'Reunião interna', cor: '#6b7280', dep: 'adm', meet: true },
+  troca_vitrine: { label: 'Trocar vitrine', cor: '#a16207', dep: 'adm' },
+  postagem: { label: 'Postagem', cor: '#f43f5e', dep: 'adm' },
+  checar_marketplace: { label: 'Checar vendas do marketplace', cor: '#2563eb', dep: 'adm' },
+  tarefa_adm: { label: 'Outras tarefas de ADM', cor: '#78716c', dep: 'adm' },
   outro: { label: 'Outro', cor: '#0ea5e9', dep: 'adm' },
-  tecidos_medidas: { label: 'Ver tecidos e medidas', cor: '#0ea5e9', dep: 'atelie' },
-  prova1: { label: '1ª prova', cor: '#ec4899', dep: 'atelie' },
-  prova2: { label: '2ª prova', cor: '#db2777', dep: 'atelie' },
-  prova_final: { label: '3ª prova (final)', cor: '#be185d', dep: 'atelie' },
+  tirar_medidas: { label: 'Tirar medidas', cor: '#0284c7', dep: 'clientes' },
+  tecidos_medidas: { label: 'Ver tecidos e medidas', cor: '#0ea5e9', dep: 'clientes' },
+  prova1: { label: '1ª prova', cor: '#ec4899', dep: 'clientes' },
+  prova2: { label: '2ª prova', cor: '#db2777', dep: 'clientes' },
+  prova_final: { label: '3ª prova (final)', cor: '#be185d', dep: 'clientes' },
   modelagem_corte: { label: 'Modelagem / corte', cor: '#0369a1', dep: 'atelie' },
   costura: { label: 'Montagem / costura', cor: '#075985', dep: 'atelie' },
   gravacao_conteudo: { label: 'Gravação de conteúdo', cor: '#e11d48', dep: 'marketing' },
@@ -43,7 +48,7 @@ const DEPARTAMENTOS = {
   tissu: { label: 'Tissu', curto: 'Tissu', cor: '#7c3aed' },
 };
 const depDe = (x) => DEPARTAMENTOS[x?.departamento] ? x.departamento : (TIPOS[x?.tipo]?.dep || 'adm');
-const primeiroTipoDe = (d) => ({ atelie: 'prova1' })[d] || Object.keys(TIPOS).find(k => TIPOS[k].dep === d) || 'outro';
+const primeiroTipoDe = (d) => ({ atelie: 'modelagem_corte' })[d] || Object.keys(TIPOS).find(k => TIPOS[k].dep === d) || 'outro';
 // Texto pronto por tipo (padrão do banco: agenda_modelos_msg). {nome} {tipo} {quando} {local} {meet}
 function aplicarModelo(texto, { nome, tipoLabel, data, local, meet }) {
   const primeiro = (nome || '').split(' ')[0] || 'tudo bem';
