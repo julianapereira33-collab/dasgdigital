@@ -541,6 +541,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
           <div>
             {erro && <Aviso tipo="erro">{erro}</Aviso>}
             <Campo label="Título *" value={tarefa.titulo} onChange={v => editarTarefa({ titulo: v })} />
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '-4px 0 10px' }}>{['Comprar tecido', 'Orçar tecido', 'Comprar aviamentos', 'Pedir orçamento ao fornecedor', 'Conferir entrega de material'].map(t => <button key={t} type="button" onClick={() => editarTarefa({ titulo: t })} style={{ border: '1px solid #e5e7eb', background: '#f9fafb', borderRadius: 12, padding: '2px 10px', fontSize: 12, cursor: 'pointer' }}>{t}</button>)}</div>
             <Campo label="Departamento" value={tarefa.departamento} onChange={v => setTarefa(p => ({ ...p, departamento: v }))} options={Object.entries(DEPARTAMENTOS).map(([value, d]) => ({ value, label: d.label }))} />
             <Campo label="Detalhes" type="textarea" value={tarefa.descricao} onChange={v => setTarefa(p => ({ ...p, descricao: v }))} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -548,7 +549,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
               <Campo label="Prazo" type="date" value={tarefa.prazo} onChange={v => editarTarefa({ prazo: v })} />
             </div>
             <Campo label="Cliente (opcional)" value={tarefa.cliente_id} onChange={v => editarTarefa({ cliente_id: v, ordem_servico_id: '' })} options={clientes.map(c => ({ value: c.id, label: c.nome }))} />
-            {tarefa.cliente_id && osDaCliente(tarefa.cliente_id).length > 0 && <Campo label="OS (opcional)" value={tarefa.ordem_servico_id} onChange={v => setTarefa(p => ({ ...p, ordem_servico_id: v }))} options={osDaCliente(tarefa.cliente_id).map(o => ({ value: o.id, label: `${o.numero || 'OS'} — ${o.descricao || ''}` }))} />}
+            <Campo label="Vincular a uma OS (opcional) — ex.: compra ou orçamento de tecido" value={tarefa.ordem_servico_id} onChange={v => { const o = os.find(x => x.id === v); setTarefa(p => ({ ...p, ordem_servico_id: v, cliente_id: o ? o.cliente_id : p.cliente_id })); }} options={os.filter(o => o.status_idx < 22 || o.id === tarefa.ordem_servico_id).map(o => ({ value: o.id, label: `${o.numero || 'OS'} — ${clientes.find(c => c.id === o.cliente_id)?.nome || ''} ${o.descricao ? '· ' + o.descricao : ''}` }))} />
             <Campo label="Responsável" value={tarefa.responsavel} onChange={v => setTarefa(p => ({ ...p, responsavel: v }))} />
             {tarefa.cliente_id && (
               <>

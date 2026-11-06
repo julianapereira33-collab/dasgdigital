@@ -13,7 +13,7 @@ const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261105000
 const OPCOES_TIPO = Object.entries(TIPOS_ATENDIMENTO).map(([value, t]) => ({ value, label: t.label }));
 const STATUS_QUIZ = { criado: ['Link criado', '#6b7280'], enviado: ['Enviado, aguardando', '#f59e0b'], respondido: ['Respondido', '#16a34a'] };
 
-export default function Atendimento({ clientes, os, agenda, tarefas = [], quizEnvios, clienteFocoId = '', focoTick = 0, onRecarregar, onNavegar }) {
+export default function Atendimento({ canais = [], clientes, os, agenda, tarefas = [], quizEnvios, clienteFocoId = '', focoTick = 0, onRecarregar, onNavegar }) {
   const [aba, setAba] = useState('atendimentos');
   const [aberta, setAberta] = useState(null);
   const [filtroQuiz, setFiltroQuiz] = useState('todos');
@@ -131,6 +131,13 @@ export default function Atendimento({ clientes, os, agenda, tarefas = [], quizEn
 
       {aba === 'agenda' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Card><h3 style={{ fontWeight: 700, marginBottom: 8 }}>Redes e canais</h3>
+            {[['whatsapp', 'WhatsApp', '#25D366'], ['instagram', 'Instagram', '#E1306C'], ['facebook', 'Facebook', '#1877F2'], ['tiktok', 'TikTok', '#111']].map(([id, nome, cor]) => { const c = canais.find(x => x.canal === id) || {}; const ok = c.status === 'conectado'; return (
+              <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}>
+                <span><b style={{ color: cor }}>●</b> {nome}{c.identificador ? <span style={{ color: '#9ca3af' }}> · {c.identificador}</span> : null}</span>
+                {ok ? <Badge label="Conectado" color="#22c55e" /> : <button onClick={() => onNavegar('central')} style={{ border: '1px solid #c4a45a', background: '#fffdf7', color: '#92400e', borderRadius: 6, padding: '2px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Conectar</button>}
+              </div>); })}
+            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 8 }}>"Conectar" abre a Central de Atendimento → aba Canais, com o passo a passo.</div></Card>
           <Card><h3 style={{ fontWeight: 700, marginBottom: 8 }}>Próximos agendamentos</h3>
             {proximos.length === 0 && <div style={{ color: '#9ca3af', fontSize: 13 }}>Nada agendado.</div>}
             {proximos.map(a => <div key={a.id} style={{ fontSize: 13, padding: '5px 0', borderBottom: '1px solid #f3f4f6' }}><strong>{fmtDateTime(a.data_hora)}</strong> · {a.titulo || cli(a.cliente_id)?.nome} <Badge label={a.status || 'agendado'} color="#6b7280" /></div>)}

@@ -67,6 +67,14 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
       }
     }
   }
+  async function mudarEtapa(slug) {
+    if (!slug || slug === osSel.status) return;
+    const { error } = await supabase.from('ordens_servico').update({ status: slug }).eq('id', osId);
+    if (error) { setErro(msgErro(error)); return; }
+    await criarAtividadeDaEtapa({ os: osSel, cliente: cli, slug });
+    await onRecarregar();
+    setAviso(`Etapa alterada para "${ROTULO_ETAPA[slug]}". O Fluxo de Atendimento já mostra a mudança.`);
+  }
   async function adicionar(fase) {
     const titulo = (novaTarefa[fase] || '').trim(); if (!titulo) return;
     const ordem = Math.max(0, ...tarefas.filter(t => t.fase === fase).map(t => t.ordem)) + 0.5;
@@ -99,7 +107,10 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{osSel.numero} · {cli?.nome}</div>
                 <div style={{ fontSize: 13, color: '#6b7280' }}>{osSel.descricao || osSel.servico || '—'}{osSel.ocasiao ? ' · ' + osSel.ocasiao : ''}</div>
               </div>
-              <Badge label={ROTULO_ETAPA[osSel.status] || osSel.status} color="#c4a45a" />
+              <label style={{ fontSize: 11, color: '#6b7280' }}>Etapa do fluxo<br />
+                <select value={osSel.status} onChange={e => mudarEtapa(e.target.value)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #c4a45a', fontSize: 13, fontWeight: 600, minWidth: 220 }}>
+                  {SLUGS_ETAPA.map((sl, i) => <option key={sl} value={sl}>{i + 1}. {ROTULO_ETAPA[sl]}</option>)}
+                </select></label>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginTop: 12 }}>
               {[['Evento', fmtDate(osSel.data_evento)], ['Tecidos e medidas', fmtDate(osSel.data_tecidos_medidas)], ['Entrega prevista', fmtDate(osSel.data_entrega_prevista)], ['Valor', brl(osSel.valor_total)], ['Recebido', brl(pago)], ['A receber', brl(aReceber)]].map(([k, v]) => <div key={k} style={{ background: '#f9fafb', borderRadius: 6, padding: '6px 10px' }}><div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase' }}>{k}</div><div style={{ fontWeight: 600, fontSize: 13 }}>{v}</div></div>)}
