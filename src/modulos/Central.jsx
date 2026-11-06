@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { enviarWhatsApp, whatsappConfigurado } from '../lib/whatsapp.js';
 import { converterLead } from '../lib/api.js';
+import { TarefasPorAgenda } from './CentralTarefas.jsx';
 import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, TabBar, Drawer, Campo, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
 
 const digitos = (t) => String(t || '').replace(/\D/g, '');
@@ -229,6 +230,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
       {/* ═════ PAINEL ═════ */}
       {aba === 'painel' && (
         <div>
+          <TarefasPorAgenda tarefas={tarefas} onAbrir={() => onNavegar?.('tarefas')} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 24 }}>
             {atalhosCard(naoLidasTotal, 'Conversas aguardando você', '#f59e0b', () => { setAba('conversas'); setFiltro('sem_resposta'); })}
             {atalhosCard(eventosHoje.length, 'Compromissos hoje', '#c4a45a', () => onNavegar?.('agenda'))}

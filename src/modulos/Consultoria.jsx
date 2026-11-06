@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { enviarQuizPorWhatsApp, criarQuizEnvio, criarAtividadeDaEtapa, ROTULO_ETAPA } from '../lib/api.js';
 import { QUIZ_SECOES, respostaLegivel, linkDoQuiz } from './quizConsultoria.js';
+import { gerarMeet, meetConfigurado } from '../lib/meet.js';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Campo, Aviso, fmtDate, fmtDateTime, erroDeSchema } from './ui.jsx';
 import Arquivos from './Arquivos.jsx';
 import MateriaisOS from './MateriaisOS.jsx';
@@ -32,7 +33,7 @@ export function BriefingQuiz({ respostas, compacto }) {
   );
 }
 
-export default function Consultoria({ clientes, os, quizEnvios, onRecarregar, onNavegar }) {
+export default function Consultoria({ clientes, os, quizEnvios, agenda = [], onRecarregar, onNavegar }) {
   const [aba, setAba] = useState('acompanhamento');
   const [sub, setSub] = useState('anotacoes');
   const [osSel, setOsSel] = useState(null);
@@ -96,6 +97,22 @@ export default function Consultoria({ clientes, os, quizEnvios, onRecarregar, on
     await onRecarregar();
     try { await navigator.clipboard.writeText(linkDoQuiz(envio.token)); setAviso('Link copiado. Cole no WhatsApp, Instagram ou e-mail.'); }
     catch { setAviso('Link do quiz: ' + linkDoQuiz(envio.token)); }
+  }
+
+  // Abre o Meet da consulta: usa o link do agendamento desta cliente/OS; se não tiver, gera um novo e guarda na agenda.
+  async function abrirMeet() {
+    if (!osSel) return;
+    const doEvento = agenda.filter(a => a.link_meet && (a.ordem_servico_id === osSel.id || a.cliente_id === osSel.cliente_id) && a.status !== 'cancelado')
+      .sort((a, b) => Math.abs(new Date(a.data_hora) - Date.now()) - Math.abs(new Date(b.data_hora) - Date.now()))[0];
+    if (doEvento) { window.open(doEvento.link_meet, '_blank', 'noopener'); return; }
+    if (!meetConfigurado()) { setErro('Esta consulta não tem link do Meet e a geração automática ainda não está ligada. Crie o evento na Agenda com o link.'); return; }
+    const aba = window.open('about:blank', '_blank');
+    setErro('');
+    const r = await gerarMeet({ titulo: 'Consultoria · ' + (cli?.nome || ''), inicio: new Date(), duracao_min: 60 });
+    if (!r.ok) { aba?.close(); setErro(r.erro); return; }
+    await supabase.from('agenda').insert({ cliente_id: osSel.cliente_id, ordem_servico_id: osSel.id, tipo: 'consultoria_express', titulo: 'Consultoria Express', departamento: 'adm', data_hora: new Date().toISOString(), duracao_min: 60, link_meet: r.link, status: 'agendado' });
+    await onRecarregar();
+    if (aba) aba.location.href = r.link; else window.open(r.link, '_blank', 'noopener');
   }
 
   async function finalizar() {
@@ -189,6 +206,7 @@ export default function Consultoria({ clientes, os, quizEnvios, onRecarregar, on
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
               <span style={{ color: '#c4a45a', fontWeight: 700, fontSize: 18, fontFamily: 'monospace' }}>{fmtTimer(timer)}</span>
               <button onClick={() => setRodando(r => !r)} disabled={!osSel} style={{ padding: '6px 14px', background: rodando ? '#ef4444' : '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>{rodando ? 'Pausar' : 'Iniciar'}</button>
+              <BtnSecondary small disabled={!osSel} onClick={abrirMeet}>🎥 Abrir Meet</BtnSecondary>
               <BtnPrimary small disabled={!osSel || ocupado} onClick={finalizar}>{ocupado ? 'Salvando...' : 'Finalizar consultoria'}</BtnPrimary>
             </div>
           </div>

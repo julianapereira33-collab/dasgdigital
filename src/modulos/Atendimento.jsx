@@ -51,8 +51,8 @@ export default function Atendimento({ clientes, os, agenda, tarefas = [], quizEn
 
   const quizzes = quizEnvios.filter(q => filtroQuiz === 'todos' || (filtroQuiz === 'respondidos' ? q.status === 'respondido' : q.status !== 'respondido'));
   const precisamQuiz = os.filter(o => tipoDaOS(o).quiz && o.status_idx <= 6 && !quizEnvios.some(q => q.ordem_servico_id === o.id));
-  const proximos = agenda.filter(a => (a.departamento || 'atendimento') === 'atendimento' && a.status !== 'cancelado' && new Date(a.data_hora) >= new Date(Date.now() - 3600000)).sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora)).slice(0, 10);
-  const abertas = tarefas.filter(t => (t.departamento || 'atendimento') === 'atendimento' && t.status !== 'concluida').slice(0, 10);
+  const proximos = agenda.filter(a => (a.departamento || 'adm') === 'adm' && a.status !== 'cancelado' && new Date(a.data_hora) >= new Date(Date.now() - 3600000)).sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora)).slice(0, 10);
+  const abertas = tarefas.filter(t => (t.departamento || 'adm') === 'adm' && t.status !== 'concluida').slice(0, 10);
 
   return (
     <div>

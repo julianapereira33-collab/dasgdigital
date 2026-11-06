@@ -1,4 +1,6 @@
 ﻿import { ETAPAS, SLUGS_ETAPA, FASES_FLUXO, TOTAL_ETAPAS } from './lib/etapas.js';
+import AssistenteChat from './modulos/AssistenteChat.jsx';
+import CentralTarefas, { TarefasPorAgenda } from './modulos/CentralTarefas.jsx';
 import Atendimento from './modulos/Atendimento.jsx';
 import OrdemServico from './modulos/OrdemServico.jsx';
 import OrcamentosOS from './modulos/Orcamentos.jsx';
@@ -450,7 +452,7 @@ function StatusBadge({ statusIdx }) {
 }
 
 // ── MÓDULO: DASHBOARD ─────────────────────────────────────
-function Dashboard({ clientes, os, agenda, tarefas, pedidos, contasPagar }) {
+function Dashboard({ clientes, os, agenda, tarefas, pedidos, contasPagar, onNavegar }) {
   const hoje = new Date();
   const agendaHoje = agenda.filter(a => new Date(a.data).toDateString() === hoje.toDateString());
   const osParadas = os.filter(o => {
@@ -466,6 +468,8 @@ function Dashboard({ clientes, os, agenda, tarefas, pedidos, contasPagar }) {
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Dashboard</h1>
       <p style={{ color: '#6b7280', marginBottom: 24 }}>Visão geral do ateliê — {hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+
+      <TarefasPorAgenda tarefas={tarefas} onAbrir={() => onNavegar?.('tarefas')} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
@@ -1557,6 +1561,7 @@ export default function DasGCRM() {
     { id: 'orcamentos', label: 'Orçamentos' },
     { id: 'pedidosvenda', label: 'Pedidos de Venda' },
     { id: 'processos', label: 'Processos (OS abertas)' },
+    { id: 'tarefas', label: 'Central de Tarefas', dot: tarefas.filter(t => t.status !== 'concluida' && t.departamento !== 'financeira').length },
     { id: 'os', label: 'Ordem de Serviço' },
     { id: 'provas', label: 'Provas e Entrega' },
     { id: 'financeiro', label: 'Financeiro' },
@@ -1567,7 +1572,7 @@ export default function DasGCRM() {
     { id: 'produtos', label: 'Cadastro de Produto', dot: produtos.filter(p => (p.status_geral || 'em_aprovacao') === 'em_aprovacao').length },
   ];
   const GRUPOS = [
-    { titulo: 'Entrada', ids: ['central', 'fluxo'] },
+    { titulo: 'Entrada', ids: ['central', 'fluxo', 'tarefas'] },
     { titulo: '1 · Atendimento', ids: ['atendimento', 'agenda'] },
     { titulo: '2 · Cadastro', ids: ['clientes'] },
     { titulo: '3 · Consultoria e Criação', ids: ['consultoria', 'criacao'] },
@@ -1588,11 +1593,12 @@ export default function DasGCRM() {
       case 'produtos': return <CadastroProduto produtos={produtos} produtoFotos={produtoFotos} produtoVariantes={produtoVariantes}
         onAprovar={aprovarProduto} onRefazerFotos={refazerFotosProduto} onSalvarProduto={salvarProduto}
         onSalvarVariante={salvarVariante} onRemoverVariante={removerVariante} onEscolherMosaico={escolherMosaico} />;
-      case 'dashboard': return <Dashboard clientes={clientes} os={os} agenda={agendaDashboard} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;
+      case 'dashboard': return <Dashboard clientes={clientes} os={os} agenda={agendaDashboard} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} onNavegar={setPagina} />;
       case 'agenda': return <AgendaTarefas agenda={agenda} tarefas={tarefas} clientes={clientes} os={os} onRecarregar={recarregar} />;
+      case 'tarefas': return <CentralTarefas tarefas={tarefas} clientes={clientes} onRecarregar={recarregar} />;
       case 'fluxo': return <FluxoAtendimento os={os} clientes={clientes} onAvancar={avancarOS} onVoltar={voltarOS} />;
       case 'clientes': return <Clientes clientes={clientes} os={os} quizEnvios={quizEnvios} agenda={agenda} onRecarregar={recarregar} onSalvar={salvarCliente} onIrFluxo={() => setPagina('fluxo')} onNavegar={setPagina} onAbrirOS={abrirOS} onAbrirCom={abrirCom} produtos={produtos} />;
-      case 'consultoria': return <Consultoria clientes={clientes} os={os} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
+      case 'consultoria': return <Consultoria clientes={clientes} os={os} agenda={agenda} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'criacao': return <CriacaoOS os={os} clientes={clientes} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'orcamentos': return <OrcamentosOS os={os} clientes={clientes} onRecarregar={recarregar} />;
       case 'atendimento': return <Atendimento clienteFocoId={foco.clienteId} focoTick={foco.tick} clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
@@ -1672,6 +1678,7 @@ export default function DasGCRM() {
           </div>
         </div>
       </div>
+      <AssistenteChat contexto={`Tela atual do CRM: ${(nav.find(n => n.id === pagina) || {}).label || pagina}. ${os.filter(o => o.status_idx < TOTAL_ETAPAS).length} OS abertas, ${clientes.length} clientes.`} />
     </>
   );
 }
