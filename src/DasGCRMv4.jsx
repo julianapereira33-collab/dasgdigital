@@ -1571,8 +1571,8 @@ export default function DasGCRM() {
     { titulo: '1 · Atendimento', ids: ['atendimento', 'agenda'] },
     { titulo: '2 · Cadastro', ids: ['clientes'] },
     { titulo: '3 · Consultoria e Criação', ids: ['consultoria', 'criacao'] },
-    { titulo: '4 · Ordem de Serviço', ids: ['os', 'provas', 'compras'] },
-    { titulo: '5 · Venda', ids: ['orcamentos', 'pedidosvenda'] },
+    { titulo: '4 · Orçamento e Venda', ids: ['orcamentos', 'pedidosvenda'] },
+    { titulo: '5 · Ordem de Serviço', ids: ['os', 'provas', 'compras'] },
     { titulo: 'Gestão', ids: ['dashboard', 'processos', 'financeiro', 'marketing', 'feedback', 'relatorios'] },
     { titulo: 'Catálogo', ids: ['produtos'] },
   ].map(g => ({ ...g, itens: g.ids.map(id => nav.find(n => n.id === id)).filter(Boolean) }));

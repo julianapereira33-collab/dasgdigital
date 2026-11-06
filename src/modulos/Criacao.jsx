@@ -11,7 +11,7 @@ import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Campo, Aviso, erroDeSche
 
 // Criação: briefing completo → dossiê → imagens do vestido → ficha técnica, tudo ligado à OS e à ficha da cliente.
 
-const SECOES_DOSSIE = [
+export const SECOES_DOSSIE = [
   ['conceito', 'Conceito / ideia central', 'textarea'],
   ['ocasiao', 'Ocasião e público', 'textarea'],
   ['paleta', 'Paleta de cores', 'textarea'],

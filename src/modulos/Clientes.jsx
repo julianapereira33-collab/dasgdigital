@@ -7,6 +7,7 @@ import PedidosVenda from './PedidosVenda.jsx';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Drawer, Campo, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
 import { criarCliente, criarOS, enviarQuizPorWhatsApp, ROTULO_ETAPA, SLUGS_ETAPA } from '../lib/api.js';
 import { linkDoQuiz } from './quizConsultoria.js';
+import { DossiesDaCliente, ColorimetriaDaCliente } from './FichaDossie.jsx';
 import ChecklistAtendimento from './ChecklistAtendimento.jsx';
 
 const OPCOES_ORIGEM = [['instagram', 'Instagram'], ['indicacao', 'Indicação'], ['loja_fisica', 'Loja física'], ['google', 'Google'], ['whatsapp', 'WhatsApp'], ['outro', 'Outro']].map(([value, label]) => ({ value, label }));
@@ -169,7 +170,7 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
               <BtnPrimary small onClick={() => { setAba('historico'); setMostrarFormOS(true); setOsForm(OS_VAZIA); }}>+ Abrir encomenda (OS)</BtnPrimary>
               <BtnSecondary small onClick={() => { setAba('vendas'); setVendaTick(t => t + 1); }}>+ Abrir venda (produtos prontos)</BtnSecondary>
             </div>
-            <TabBar tabs={[{ id: 'dados', label: 'Dados' }, { id: 'medidas', label: 'Medidas' }, { id: 'fotos', label: 'Fotos e arquivos' }, { id: 'historico', label: 'OS e quiz' }, { id: 'vendas', label: 'Vendas' }]} active={aba} onChange={setAba} />
+            <TabBar tabs={[{ id: 'dados', label: 'Dados' }, { id: 'medidas', label: 'Medidas' }, { id: 'fotos', label: 'Fotos e arquivos' }, { id: 'historico', label: 'OS, quiz e dossiê' }, { id: 'vendas', label: 'Vendas' }]} active={aba} onChange={setAba} />
             {erro && <Aviso tipo="erro">{erro}</Aviso>}
             {aviso && <Aviso tipo="ok">{aviso}</Aviso>}
             {(aba === 'dados' || aba === 'medidas') && (
@@ -263,7 +264,7 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
                   </Card>
                 ))}
 
-                <h4 style={{ margin: '18px 0 10px', fontSize: 13, color: '#6b7280', textTransform: 'uppercase' }}>Quiz da consultoria</h4>
+                <h4 style={{ margin: '18px 0 10px', fontSize: 13, color: '#6b7280', textTransform: 'uppercase' }}>Quiz da consultoria (respostas)</h4>
                 {quizzesDaCliente.length === 0 && <div style={{ color: '#9ca3af', fontSize: 14 }}>Nenhum quiz enviado.</div>}
                 {quizzesDaCliente.map(q => (
                   <Card key={q.id} style={{ marginBottom: 10 }}>
@@ -271,9 +272,14 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
                       <Badge label={q.status === 'respondido' ? 'Respondido' : q.status === 'enviado' ? 'Enviado' : 'Link criado'} color={q.status === 'respondido' ? '#22c55e' : '#f59e0b'} />
                       <span style={{ fontSize: 12, color: '#9ca3af' }}>{fmtDate(q.respondido_em || q.enviado_em || q.criado_em)}</span>
                     </div>
-                    {q.status === 'respondido' && <div style={{ marginTop: 6 }}><button onClick={() => setQuizAberto(quizAberto === q.id ? null : q.id)} style={{ background: 'none', border: 'none', color: '#c4a45a', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{quizAberto === q.id ? 'Fechar respostas' : 'Ver respostas do quiz'}</button>{quizAberto === q.id && <BriefingQuiz respostas={q.respostas} compacto />}</div>}
+                    {q.status === 'respondido' && <div style={{ marginTop: 6 }}><button onClick={() => setQuizAberto(quizAberto === 'fechado-' + q.id ? null : 'fechado-' + q.id)} style={{ background: 'none', border: 'none', color: '#c4a45a', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{quizAberto === 'fechado-' + q.id ? 'Ver respostas do quiz' : 'Esconder respostas'}</button>{quizAberto !== 'fechado-' + q.id && <BriefingQuiz respostas={q.respostas} compacto />}</div>}
                   </Card>
                 ))}
+
+                <h4 style={{ margin: '22px 0 10px', fontSize: 13, color: '#6b7280', textTransform: 'uppercase' }}>Dossiê do vestido</h4>
+                <DossiesDaCliente osDaCliente={osDaCliente} onNavegar={onNavegar} />
+                <h4 style={{ margin: '22px 0 10px', fontSize: 13, color: '#6b7280', textTransform: 'uppercase' }}>Resultado do teste de colorimetria</h4>
+                <ColorimetriaDaCliente cliente={sel} quizEnvios={quizEnvios} />
               </div>
             )}
           </div>
