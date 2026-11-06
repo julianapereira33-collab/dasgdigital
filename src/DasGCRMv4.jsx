@@ -1565,9 +1565,9 @@ export default function DasGCRM() {
     { id: 'produtos', label: 'Cadastro de Produto', dot: produtos.filter(p => (p.status_geral || 'em_aprovacao') === 'em_aprovacao').length },
   ];
   const GRUPOS = [
-    { titulo: 'Entrada', ids: ['central'] },
+    { titulo: 'Entrada', ids: ['central', 'fluxo'] },
     { titulo: '1 · Cadastro', ids: ['clientes'] },
-    { titulo: '2 · Atendimento', ids: ['atendimento', 'agenda', 'fluxo'] },
+    { titulo: '2 · Atendimento', ids: ['atendimento', 'agenda'] },
     { titulo: '3 · Consultoria e Criação', ids: ['consultoria', 'criacao'] },
     { titulo: '4 · Ordem de Serviço', ids: ['os', 'provas', 'compras'] },
     { titulo: '5 · Venda', ids: ['orcamentos', 'pedidosvenda'] },
