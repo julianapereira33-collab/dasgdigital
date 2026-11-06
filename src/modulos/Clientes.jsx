@@ -21,7 +21,7 @@ function msgErro(error) {
   return error.message || String(error);
 }
 
-export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], produtos = [], onRecarregar, onSalvar, onIrFluxo, onNavegar, onAbrirOS }) {
+export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], produtos = [], onRecarregar, onSalvar, onIrFluxo, onNavegar, onAbrirOS, onAbrirCom }) {
   const [vendaTick, setVendaTick] = useState(0);
   const [quizAberto, setQuizAberto] = useState(null);
   const [checklistAberto, setChecklistAberto] = useState(null);
@@ -33,7 +33,6 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
 
   const [novoAberto, setNovoAberto] = useState(false);
   const [novo, setNovo] = useState(FORM_VAZIO);
-  const [abrirOSJunto, setAbrirOSJunto] = useState(true);
   const [novaOS, setNovaOS] = useState(OS_VAZIA);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
@@ -47,14 +46,15 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
   const abrirFicha = (c) => { setSel(c); setForm({ ...c }); setEditando(false); setAba('dados'); setErro(''); setAviso(''); setMostrarFormOS(false); };
   const fecharFicha = () => { setSel(null); setErro(''); setAviso(''); };
 
-  async function salvarNovo() {
+  // destino: 'so' (só salvar) | 'atendimento' | 'os' | 'venda'
+  async function salvarNovo(destino = 'so') {
     if (!novo.nome.trim()) { setErro('Informe o nome da cliente.'); return; }
     setSalvando(true); setErro('');
     const { data: cliente, error } = await criarCliente({ ...novo, nome: novo.nome.trim() });
     if (error) { setSalvando(false); setErro(msgErro(error)); return; }
     let osCriada = null;
-    if (abrirOSJunto) {
-      const r = await criarOS({ cliente, listaOS: os, ...novaOS });
+    if (destino === 'os') {
+      const r = await criarOS({ cliente, listaOS: os, ...novaOS, etapaInicial: novaOS.etapaInicial || 'os' });
       if (r.error) {
         setSalvando(false);
         await onRecarregar();
@@ -66,7 +66,10 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
     await onRecarregar();
     setSalvando(false);
     setNovoAberto(false); setNovo(FORM_VAZIO); setNovaOS(OS_VAZIA);
-    if (osCriada && onIrFluxo) onIrFluxo();
+    if (destino === 'os' && osCriada) onAbrirOS?.(osCriada.id);
+    else if (destino === 'atendimento') onAbrirCom?.('atendimento', cliente.id);
+    else if (destino === 'venda') onAbrirCom?.('pedidosvenda', cliente.id);
+    else setAviso(`${cliente.nome} cadastrada.`);
   }
 
   async function abrirOSDaCliente() {
@@ -98,7 +101,7 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
           <h1 style={{ fontSize: 24, fontWeight: 700 }}>Clientes</h1>
           <p style={{ color: '#6b7280', marginTop: 4 }}>{clientes.length} clientes cadastradas</p>
         </div>
-        <BtnPrimary onClick={() => { setNovo(FORM_VAZIO); setNovaOS(OS_VAZIA); setAbrirOSJunto(true); setErro(''); setNovoAberto(true); }}>Nova cliente</BtnPrimary>
+        <BtnPrimary onClick={() => { setNovo(FORM_VAZIO); setNovaOS(OS_VAZIA); setErro(''); setNovoAberto(true); }}>Nova cliente</BtnPrimary>
       </div>
 
       <div style={{ marginBottom: 16 }}>
@@ -141,18 +144,19 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
         <Campo label="Como chegou até nós" value={novo.origem} onChange={v => setNovo(p => ({ ...p, origem: v }))} options={OPCOES_ORIGEM} />
         <Campo label="Observações" value={novo.obs} onChange={v => setNovo(p => ({ ...p, obs: v }))} type="textarea" />
 
-        <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0 14px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
-          <input type="checkbox" checked={abrirOSJunto} onChange={e => setAbrirOSJunto(e.target.checked)} /> Abrir ordem de serviço agora
-        </label>
-        {abrirOSJunto && (
+        <div style={{ margin: '8px 0 8px', fontWeight: 600, fontSize: 14 }}>Se for abrir uma OS, preencha (opcional):</div>
+        {(
           <Card style={{ background: '#fef9f0', marginBottom: 16 }}>
             <Campo label="O que ela procura" value={novaOS.descricao} onChange={v => setNovaOS(p => ({ ...p, descricao: v }))} placeholder="Ex.: vestido de madrinha, azul petróleo" />
             <Campo label="Data do evento" value={novaOS.data_evento} onChange={v => setNovaOS(p => ({ ...p, data_evento: v }))} type="date" />
             <Campo label="Etapa inicial no fluxo" value={novaOS.etapaInicial} onChange={v => setNovaOS(p => ({ ...p, etapaInicial: v }))} options={ETAPAS_INICIAIS} ajuda="A OS entra no Fluxo de Atendimento nesta etapa e já cria a tarefa correspondente." />
           </Card>
         )}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <BtnPrimary onClick={salvarNovo} disabled={salvando}>{salvando ? 'Salvando...' : abrirOSJunto ? 'Cadastrar e abrir OS' : 'Cadastrar cliente'}</BtnPrimary>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <BtnPrimary onClick={() => salvarNovo('so')} disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar'}</BtnPrimary>
+          <BtnSecondary onClick={() => salvarNovo('atendimento')} disabled={salvando}>Salvar e abrir atendimento</BtnSecondary>
+          <BtnSecondary onClick={() => salvarNovo('os')} disabled={salvando}>Salvar e abrir OS</BtnSecondary>
+          <BtnSecondary onClick={() => salvarNovo('venda')} disabled={salvando}>Salvar e abrir venda</BtnSecondary>
           <BtnSecondary onClick={() => setNovoAberto(false)}>Cancelar</BtnSecondary>
         </div>
       </Drawer>

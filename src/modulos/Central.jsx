@@ -222,7 +222,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
       {erro && <Aviso tipo="erro">{erro} <button onClick={() => setErro('')} style={{ marginLeft: 8, border: 'none', background: 'none', cursor: 'pointer', color: 'inherit', textDecoration: 'underline' }}>fechar</button></Aviso>}
 
       <TabBar active={aba} onChange={setAba} tabs={[
-        { id: 'painel', label: 'Painel' }, { id: 'conversas', label: 'Conversas', count: naoLidasTotal }, { id: 'leads', label: 'Leads', count: leadsNovos.length },
+        { id: 'painel', label: 'Painel' }, { id: 'conversas', label: 'Conversas', count: naoLidasTotal },
         { id: 'canais', label: 'Canais' }, { id: 'respostas', label: 'Respostas automáticas' }, { id: 'base', label: 'Base da Júlia' },
       ]} />
 
@@ -231,7 +231,6 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 24 }}>
             {atalhosCard(naoLidasTotal, 'Conversas aguardando você', '#f59e0b', () => { setAba('conversas'); setFiltro('sem_resposta'); })}
-            {atalhosCard(leadsNovos.length, 'Leads novos', '#6366f1', () => setAba('leads'))}
             {atalhosCard(eventosHoje.length, 'Compromissos hoje', '#c4a45a', () => onNavegar?.('agenda'))}
             {atalhosCard(aguardandoConfirmacao.length, 'Aguardando confirmação', '#3b82f6', () => onNavegar?.('agenda'))}
             {atalhosCard(pendentes.length, `Tarefas pendentes${atrasadas.length ? ` (${atrasadas.length} atrasadas)` : ''}`, atrasadas.length ? '#ef4444' : '#16a34a', () => onNavegar?.('agenda'))}
@@ -267,16 +266,6 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
                     {t.titulo} <span style={{ color: atrasadas.includes(t) ? '#dc2626' : '#9ca3af' }}>· {fmtDate(t.prazo)}</span>
                   </div>
                 )), 'Nenhuma tarefa pendente.')}
-              </div>
-            </Card>
-            <Card>
-              <h3 style={{ fontSize: 15, marginBottom: 12 }}>Leads novos</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {lista(leadsNovos.slice(0, 6).map(l => (
-                  <div key={l.id} style={{ padding: '8px 10px', background: '#f9fafb', borderRadius: 6, fontSize: 13 }}>
-                    <b>{l.nome}</b> <span style={{ color: '#9ca3af' }}>· {l.ocasiao || l.procura || l.origem || 'sem detalhes'}</span>
-                  </div>
-                )), 'Nenhum lead novo.')}
               </div>
             </Card>
           </div>

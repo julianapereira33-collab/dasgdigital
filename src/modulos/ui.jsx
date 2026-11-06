@@ -1,6 +1,6 @@
 // Primitivos visuais compartilhados pelos módulos novos (Central, Agenda, Clientes, Consultoria).
 // Mesma aparência do DasGCRMv4.jsx; cópia deliberada pra não acoplar com o monólito.
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export const fmtDate = (d) => d ? new Date(d.length === 10 ? d + 'T12:00:00' : d).toLocaleDateString('pt-BR') : '—';
 export const fmtDateTime = (d) => d ? new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
@@ -85,4 +85,25 @@ export function Aviso({ tipo = 'info', children }) {
 export function erroDeSchema(error) {
   if (!error) return false;
   return ['42P01', '42703', 'PGRST204', 'PGRST205'].includes(error.code) || /does not exist|schema cache/i.test(error.message || '');
+}
+
+// Busca de cliente por nome/telefone + lista filtrada. Usado em Atendimento, Pedidos de Venda etc.
+export function SeletorCliente({ clientes, value, onChange, label = 'Cliente', onCadastrar }) {
+  const [q, setQ] = useState('');
+  const t = q.trim().toLowerCase();
+  const digitos = t.replace(/\D/g, '');
+  const achadas = clientes.filter(c => !t || (c.nome || '').toLowerCase().includes(t) || (digitos && (c.telefone || '').replace(/\D/g, '').includes(digitos)) || (c.email || '').toLowerCase().includes(t));
+  const lista = value && !achadas.some(c => c.id === value) ? [clientes.find(c => c.id === value), ...achadas].filter(Boolean) : achadas;
+  const st = { width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', background: '#fff' };
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</label>
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar cadastro por nome, telefone ou e-mail..." style={{ ...st, marginBottom: 6 }} />
+      <select value={value || ''} onChange={e => onChange(e.target.value)} style={st}>
+        <option value="">{achadas.length ? `Selecionar (${achadas.length} encontrada${achadas.length > 1 ? 's' : ''})...` : 'Nenhum cadastro encontrado'}</option>
+        {lista.map(c => <option key={c.id} value={c.id}>{c.nome}{c.telefone ? ' · ' + c.telefone : ''}</option>)}
+      </select>
+      {onCadastrar && achadas.length === 0 && <div style={{ fontSize: 12, marginTop: 6 }}>Não achou? <button type="button" onClick={onCadastrar} style={{ border: 'none', background: 'none', color: '#c4a45a', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Cadastrar nova cliente</button></div>}
+    </div>
+  );
 }

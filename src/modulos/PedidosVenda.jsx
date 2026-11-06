@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
-import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
+import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, SeletorCliente, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
 
 // Pedidos de venda da loja: sutiã, cinta, locação de roupa/sapato/acessório, flores. Sempre ligados à ficha da cliente.
 export const TIPOS_ITEM = { peca_pronta: 'Peça pronta', sutia: 'Sutiã', cinta: 'Cinta', locacao_roupa: 'Locação de roupa', sapato: 'Sapato', acessorio: 'Acessório', flores: 'Flores', outro: 'Outro' };
@@ -10,7 +10,7 @@ const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261104000
 const totalItens = (its) => its.reduce((s, i) => s + Number(i.quantidade || 0) * Number(i.valor_unit || 0), 0);
 
 // clienteId fixo = usado dentro da ficha da cliente; sem clienteId = tela geral
-export default function PedidosVenda({ clientes, os, clienteId, produtos = [], abrirTick = 0, onRecarregar }) {
+export default function PedidosVenda({ clientes, os, clienteId, clienteNovoId = '', produtos = [], abrirTick = 0, onRecarregar }) {
   const [pedidos, setPedidos] = useState([]);
   const [itens, setItens] = useState({});
   const [novo, setNovo] = useState(null);
@@ -32,7 +32,7 @@ export default function PedidosVenda({ clientes, os, clienteId, produtos = [], a
   useEffect(() => { carregar(); }, [carregar]);
 
   const ITEM_VAZIO = { tipo: 'peca_pronta', modalidade: 'venda', produto_id: '', descricao: '', quantidade: 1, valor_unit: '', retirada: '', devolucao: '' };
-  const abrir = () => setNovo({ cliente_id: clienteId || '', ordem_servico_id: '', forma_pagamento: '', entrega_em: '', desconto: 0, observacoes: '', itens: [{ ...ITEM_VAZIO }] });
+  const abrir = () => setNovo({ cliente_id: clienteId || clienteNovoId || '', ordem_servico_id: '', forma_pagamento: '', entrega_em: '', desconto: 0, observacoes: '', itens: [{ ...ITEM_VAZIO }] });
   useEffect(() => { if (abrirTick > 0) abrir(); }, [abrirTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const escolherProduto = (i, id) => {
     const pr = produtos.find(x => x.id === id);
@@ -78,7 +78,7 @@ export default function PedidosVenda({ clientes, os, clienteId, produtos = [], a
         <Card style={{ marginBottom: 16, background: '#fffdf7' }}>
           <h3 style={{ fontWeight: 700, marginBottom: 10 }}>Novo pedido de venda</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-            {!clienteId && <select value={novo.cliente_id} onChange={e => setNovo(n => ({ ...n, cliente_id: e.target.value, ordem_servico_id: '' }))} style={inp}><option value="">Cliente...</option>{clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>}
+            {!clienteId && <SeletorCliente clientes={clientes} value={novo.cliente_id} onChange={v => setNovo(n => ({ ...n, cliente_id: v, ordem_servico_id: '' }))} />}
             <select value={novo.ordem_servico_id} onChange={e => setNovo(n => ({ ...n, ordem_servico_id: e.target.value }))} style={inp}><option value="">Sem OS vinculada</option>{osDaCliente(novo.cliente_id).map(o => <option key={o.id} value={o.id}>{o.numero}</option>)}</select>
             <input placeholder="Forma de pagamento" value={novo.forma_pagamento} onChange={e => setNovo(n => ({ ...n, forma_pagamento: e.target.value }))} style={inp} />
             <label style={{ fontSize: 11, color: '#6b7280' }}>Entrega / retirada em<input type="date" value={novo.entrega_em} onChange={e => setNovo(n => ({ ...n, entrega_em: e.target.value }))} style={inp} /></label>
