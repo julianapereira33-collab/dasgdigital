@@ -90,20 +90,35 @@ export function erroDeSchema(error) {
 // Busca de cliente por nome/telefone + lista filtrada. Usado em Atendimento, Pedidos de Venda etc.
 export function SeletorCliente({ clientes, value, onChange, label = 'Cliente', onCadastrar }) {
   const [q, setQ] = useState('');
+  const [aberto, setAberto] = useState(false);
+  const sel = value ? clientes.find(c => c.id === value) : null;
   const t = q.trim().toLowerCase();
   const digitos = t.replace(/\D/g, '');
   const achadas = clientes.filter(c => !t || (c.nome || '').toLowerCase().includes(t) || (digitos && (c.telefone || '').replace(/\D/g, '').includes(digitos)) || (c.email || '').toLowerCase().includes(t));
-  const lista = value && !achadas.some(c => c.id === value) ? [clientes.find(c => c.id === value), ...achadas].filter(Boolean) : achadas;
   const st = { width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', background: '#fff' };
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 14, position: 'relative' }}>
       <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</label>
-      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar cadastro por nome, telefone ou e-mail..." style={{ ...st, marginBottom: 6 }} />
-      <select value={value || ''} onChange={e => onChange(e.target.value)} style={st}>
-        <option value="">{achadas.length ? `Selecionar (${achadas.length} encontrada${achadas.length > 1 ? 's' : ''})...` : 'Nenhum cadastro encontrado'}</option>
-        {lista.map(c => <option key={c.id} value={c.id}>{c.nome}{c.telefone ? ' · ' + c.telefone : ''}</option>)}
-      </select>
-      {onCadastrar && achadas.length === 0 && <div style={{ fontSize: 12, marginTop: 6 }}>Não achou? <button type="button" onClick={onCadastrar} style={{ border: 'none', background: 'none', color: '#c4a45a', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Cadastrar nova cliente</button></div>}
+      {sel && !aberto ? (
+        <div style={{ ...st, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fffdf7', borderColor: '#c4a45a' }}>
+          <span><b>{sel.nome}</b>{sel.telefone ? ' · ' + sel.telefone : ''}</span>
+          <button type="button" onClick={() => { onChange(''); setQ(''); setAberto(true); }} style={{ border: 'none', background: 'none', color: '#c4a45a', fontWeight: 600, cursor: 'pointer' }}>trocar</button>
+        </div>
+      ) : (
+        <>
+          <input autoComplete="off" value={q} onFocus={() => setAberto(true)} onChange={e => { setQ(e.target.value); setAberto(true); }} placeholder="Digite o nome, telefone ou e-mail da cliente..." style={st} />
+          {aberto && (
+            <div style={{ border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', marginTop: 4, maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }}>
+              {achadas.slice(0, 8).map(c => (
+                <div key={c.id} role="option" onMouseDown={e => { e.preventDefault(); onChange(c.id); setQ(''); setAberto(false); }} style={{ padding: '8px 10px', cursor: 'pointer', fontSize: 14, borderBottom: '1px solid #f3f4f6' }}>
+                  <b>{c.nome}</b>{c.telefone ? <span style={{ color: '#6b7280' }}> · {c.telefone}</span> : null}
+                </div>))}
+              {achadas.length === 0 && <div style={{ padding: '8px 10px', fontSize: 13, color: '#9ca3af' }}>Nenhum cadastro encontrado.</div>}
+              {achadas.length > 8 && <div style={{ padding: '6px 10px', fontSize: 12, color: '#9ca3af' }}>+{achadas.length - 8} — continue digitando para filtrar</div>}
+              {onCadastrar && <div style={{ padding: '8px 10px', fontSize: 13 }}><button type="button" onMouseDown={e => { e.preventDefault(); onCadastrar(); }} style={{ border: 'none', background: 'none', color: '#c4a45a', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>+ Cadastrar nova cliente</button></div>}
+            </div>)}
+        </>
+      )}
     </div>
   );
 }

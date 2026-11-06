@@ -12,6 +12,26 @@ import ChecklistAtendimento from './ChecklistAtendimento.jsx';
 
 const OPCOES_ORIGEM = [['instagram', 'Instagram'], ['indicacao', 'Indicação'], ['loja_fisica', 'Loja física'], ['google', 'Google'], ['whatsapp', 'WhatsApp'], ['outro', 'Outro']].map(([value, label]) => ({ value, label }));
 const ETAPAS_INICIAIS = SLUGS_ETAPA.slice(0, 8).map(s => ({ value: s, label: ROTULO_ETAPA[s] }));
+function SugestoesCadastro({ clientes, nome, telefone, email, onAbrir }) {
+  const n = (nome || '').trim().toLowerCase(); const d = (telefone || '').replace(/\D/g, ''); const e = (email || '').trim().toLowerCase();
+  if (n.length < 2 && d.length < 4 && e.length < 4) return null;
+  const partes = n.split(/\s+/).filter(x => x.length >= 2);
+  const lista = clientes.filter(c => {
+    const cn = (c.nome || '').toLowerCase();
+    return (partes.length && partes.every(p => cn.includes(p))) || (d.length >= 4 && (c.telefone || '').replace(/\D/g, '').includes(d)) || (e.length >= 4 && (c.email || '').toLowerCase().includes(e));
+  }).slice(0, 5);
+  if (!lista.length) return <div style={{ fontSize: 12, color: '#16a34a', margin: '-6px 0 12px' }}>✓ Nenhum cadastro parecido — pode seguir com o novo.</div>;
+  return (
+    <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: 10, margin: '-6px 0 14px' }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e', marginBottom: 6 }}>Já existe cadastro parecido. É a mesma pessoa?</div>
+      {lista.map(c => (
+        <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: 13 }}>
+          <span><b>{c.nome}</b>{c.telefone ? ' · ' + c.telefone : ''}{c.email ? ' · ' + c.email : ''}</span>
+          <button type="button" onClick={() => onAbrir(c)} style={{ border: '1px solid #c4a45a', background: '#fff', color: '#92400e', borderRadius: 6, padding: '2px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Abrir ficha</button>
+        </div>))}
+    </div>
+  );
+}
 const FORM_VAZIO = { nome: '', telefone: '', email: '', instagram: '', origem: '', obs: '' };
 const OS_VAZIA = { descricao: '', data_evento: '', servico: '', ocasiao: '', data_entrega_prevista: '', valor_total: '', etapaInicial: 'atendimento' };
 const PECAS = ['Vestido de festa', 'Vestido de madrinha', 'Vestido de noiva', 'Vestido de formatura', 'Conjunto / alfaiataria', 'Saia e blusa', 'Macacão', 'Outro'].map(v => ({ value: v, label: v }));
@@ -139,6 +159,7 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
       <Drawer open={novoAberto} onClose={() => setNovoAberto(false)} title="Nova cliente" width={520}>
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
         <Campo label="Nome completo *" value={novo.nome} onChange={v => setNovo(p => ({ ...p, nome: v }))} />
+        <SugestoesCadastro clientes={clientes} nome={novo.nome} telefone={novo.telefone} email={novo.email} onAbrir={(c) => { setNovoAberto(false); abrirFicha(c); }} />
         <Campo label="Telefone (WhatsApp)" value={novo.telefone} onChange={v => setNovo(p => ({ ...p, telefone: v }))} placeholder="(14) 99999-9999" ajuda="Usado para confirmar agenda e enviar o quiz pelo WhatsApp." />
         <Campo label="E-mail" value={novo.email} onChange={v => setNovo(p => ({ ...p, email: v }))} type="email" />
         <Campo label="Instagram" value={novo.instagram} onChange={v => setNovo(p => ({ ...p, instagram: v }))} placeholder="@usuario" />
