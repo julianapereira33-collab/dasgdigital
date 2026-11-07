@@ -4,8 +4,9 @@ import { Card, BtnPrimary, Aviso } from './ui.jsx';
 
 // A agenda/tarefas da Financeira só abrem com senha. A senha fica criptografada no banco e é conferida por função (RPC).
 const CHAVE = 'dasg_fin_ok';
-export const finLiberada = () => { try { return sessionStorage.getItem(CHAVE) === '1'; } catch { return false; } };
-export const travarFinanceira = () => { try { sessionStorage.removeItem(CHAVE); } catch { /* sem storage */ } };
+// O banco é quem libera de verdade (2 horas). Aqui guardamos só o prazo para a tela saber quando voltar a travar.
+export const finLiberada = () => { try { return Number(sessionStorage.getItem(CHAVE)) > Date.now(); } catch { return false; } };
+export const travarFinanceira = () => { try { sessionStorage.removeItem(CHAVE); } catch { /* sem storage */ } supabase.rpc('agenda_financeira_travar').then(() => {}, () => {}); };
 
 export default function PortaoFinanceira({ onLiberar }) {
   const [carregando, setCarregando] = useState(true);
@@ -18,7 +19,7 @@ export default function PortaoFinanceira({ onLiberar }) {
     supabase.rpc('agenda_financeira_status').then(({ data, error }) => { if (error) setErro(error.message); setTemSenha(!!data); setCarregando(false); });
   }, []);
   if (carregando) return <Card>Verificando...</Card>;
-  const liberar = () => { try { sessionStorage.setItem(CHAVE, '1'); } catch { /* sem storage */ } onLiberar?.(); };
+  const liberar = () => { try { sessionStorage.setItem(CHAVE, String(Date.now() + 115 * 60000)); } catch { /* sem storage */ } onLiberar?.(); };
   async function enviar() {
     setErro(''); setOcupado(true);
     if (!temSenha) {

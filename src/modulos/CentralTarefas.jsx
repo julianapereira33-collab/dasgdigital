@@ -98,7 +98,7 @@ export default function CentralTarefas({ tarefas, clientes, onRecarregar }) {
         ))}
       </div>
 
-      {bloqueada ? <PortaoFinanceira onLiberar={() => setLiberada(true)} /> : (
+      {bloqueada ? <PortaoFinanceira onLiberar={async () => { setLiberada(true); await onRecarregar?.(); }} /> : (
         <>
           {AGENDAS[ag].privada && <div style={{ marginBottom: 10 }}><BtnSecondary small onClick={() => { travarFinanceira(); setLiberada(false); setAg('adm'); }}>🔒 Travar Financeira</BtnSecondary></div>}
           <Card style={{ marginBottom: 14, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

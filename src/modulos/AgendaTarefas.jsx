@@ -346,7 +346,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
         ))}
       </div>
 
-      {bloqueado(dep) && <PortaoFinanceira onLiberar={() => setLiberada(true)} />}
+      {bloqueado(dep) && <PortaoFinanceira onLiberar={async () => { setLiberada(true); await onRecarregar?.(); }} />}
       {dep === 'financeira' && liberada && <div style={{ marginBottom: 10 }}><BtnSecondary small onClick={() => { travarFinanceira(); setLiberada(false); setDep('todos'); }}>🔒 Travar Financeira</BtnSecondary></div>}
       {!bloqueado(dep) && <TabBar tabs={[{ id: 'agenda', label: 'Agenda' }, { id: 'tarefas', label: 'Tarefas', count: tarefasLiberadas.filter(t => t.status !== 'concluida').length }, { id: 'mensagens', label: 'Mensagens prontas' }]} active={aba} onChange={setAba} />}
 
