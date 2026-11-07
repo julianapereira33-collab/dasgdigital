@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { enviarWhatsApp, msgConfirmacaoEvento, msgAvisoTarefa, whatsappConfigurado } from '../lib/whatsapp.js';
-import { criarAtividadeDaEtapa } from '../lib/api.js';
+import { criarAtividadeDaEtapa, criarCliente } from '../lib/api.js';
 import { gerarMeet, meetConfigurado, alertarJuliana, alertaConfigurado } from '../lib/meet.js';
 import PortaoFinanceira, { finLiberada, travarFinanceira } from './PortaoFinanceira.jsx';
-import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, TabBar, Drawer, Campo, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
+import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, TabBar, Drawer, Campo, Aviso, SeletorCliente, fmtDate, erroDeSchema } from './ui.jsx';
 
 // dep = departamento padrão do tipo (a Juliana pode trocar ao criar o evento)
 const TIPOS = {
@@ -75,6 +75,44 @@ const msgErro = (e) => erroDeSchema(e) ? 'O banco ainda não tem as colunas nova
 
 const EVENTO_VAZIO = (dataBase, dep) => ({ id: null, departamento: dep || 'adm', tipo: primeiroTipoDe(dep || 'adm'), gerarMeet: !!TIPOS[primeiroTipoDe(dep || 'adm')]?.meet, cliente_id: '', ordem_servico_id: '', data: isoData(dataBase || new Date()), hora: '10:00', duracao_min: 60, local: '', link_meet: '', observacoes: '', status: 'agendado', enviarConfirmacao: true, mensagem: '', msgEditada: false });
 const TAREFA_VAZIA = { id: null, departamento: 'adm', titulo: '', descricao: '', prioridade: 'normal', prazo: '', cliente_id: '', ordem_servico_id: '', responsavel: '', avisarCliente: false, mensagem: '', msgEditada: false };
+
+// Escolher cliente (com busca) e, pelo ícone ＋, cadastrar uma nova sem sair do compromisso.
+function ClienteRapido({ clientes, value, onChange, onRecarregar, label = 'Cliente' }) {
+  const [novo, setNovo] = useState(null);
+  const [erro, setErro] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  async function salvar() {
+    if (!novo.nome.trim()) { setErro('Informe o nome.'); return; }
+    setOcupado(true); setErro('');
+    const { data, error } = await criarCliente({ nome: novo.nome.trim(), telefone: novo.telefone, email: novo.email, origem: 'agenda' });
+    if (error) { setErro(error.message); setOcupado(false); return; }
+    await onRecarregar?.();
+    onChange(data.id); setNovo(null); setOcupado(false);
+  }
+  const inp = { padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box', width: '100%' };
+  return (
+    <div style={{ position: 'relative' }}>
+      <button type="button" title="Cadastrar nova cliente" aria-label="Cadastrar nova cliente" onClick={() => setNovo(novo ? null : { nome: '', telefone: '', email: '' })}
+        style={{ position: 'absolute', right: 0, top: -4, width: 28, height: 28, borderRadius: '50%', border: '1px solid #c4a45a', background: novo ? '#c4a45a' : '#fff', color: novo ? '#fff' : '#c4a45a', fontSize: 18, lineHeight: '24px', cursor: 'pointer', padding: 0, zIndex: 1 }}>＋</button>
+      <SeletorCliente clientes={clientes} value={value} onChange={onChange} label={label} onCadastrar={() => setNovo({ nome: '', telefone: '', email: '' })} />
+      {novo && (
+        <div style={{ border: '1px solid #c4a45a', borderRadius: 8, padding: 12, marginBottom: 14, background: '#fffdf7' }}>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Nova cliente</div>
+          {erro && <Aviso tipo="erro">{erro}</Aviso>}
+          <div style={{ display: 'grid', gap: 8 }}>
+            <input autoFocus placeholder="Nome completo *" value={novo.nome} onChange={e => setNovo(n => ({ ...n, nome: e.target.value }))} style={inp} />
+            <input placeholder="WhatsApp (DDD + número)" value={novo.telefone} onChange={e => setNovo(n => ({ ...n, telefone: e.target.value }))} style={inp} />
+            <input placeholder="E-mail (opcional)" value={novo.email} onChange={e => setNovo(n => ({ ...n, email: e.target.value }))} style={inp} />
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <BtnPrimary small onClick={salvar} disabled={ocupado}>{ocupado ? 'Salvando...' : 'Cadastrar e selecionar'}</BtnPrimary>
+            <BtnSecondary small onClick={() => setNovo(null)}>Cancelar</BtnSecondary>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarregar }) {
   const [aba, setAba] = useState('agenda');
@@ -489,7 +527,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
               <Campo label="Tipo" value={evento.tipo} onChange={v => editarEvento({ tipo: v })} options={Object.entries(TIPOS).filter(([, t]) => t.dep === evento.departamento).map(([value, t]) => ({ value, label: t.label }))} />
               <Campo label="Agenda (departamento)" value={evento.departamento} onChange={v => editarEvento({ departamento: v })} options={Object.entries(DEPARTAMENTOS).filter(([k]) => !bloqueado(k)).map(([value, d]) => ({ value, label: d.label }))} />
             </div>
-            <Campo label="Cliente" value={evento.cliente_id} onChange={v => editarEvento({ cliente_id: v, ordem_servico_id: '' })} options={clientes.map(c => ({ value: c.id, label: c.nome }))} />
+            <ClienteRapido clientes={clientes} value={evento.cliente_id} onChange={v => editarEvento({ cliente_id: v, ordem_servico_id: '' })} onRecarregar={onRecarregar} />
             {evento.cliente_id && osDaCliente(evento.cliente_id).length > 0 && <Campo label="Ordem de serviço (opcional)" value={evento.ordem_servico_id} onChange={v => editarEvento({ ordem_servico_id: v })} options={osDaCliente(evento.cliente_id).map(o => ({ value: o.id, label: `${o.numero || 'OS'} — ${o.descricao || ''}` }))} />}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
               <Campo label="Data" type="date" value={evento.data} onChange={v => editarEvento({ data: v })} />
@@ -548,7 +586,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
               <Campo label="Prioridade" value={tarefa.prioridade} onChange={v => setTarefa(p => ({ ...p, prioridade: v }))} options={[{ value: 'alta', label: 'Alta' }, { value: 'normal', label: 'Normal' }, { value: 'baixa', label: 'Baixa' }]} />
               <Campo label="Prazo" type="date" value={tarefa.prazo} onChange={v => editarTarefa({ prazo: v })} />
             </div>
-            <Campo label="Cliente (opcional)" value={tarefa.cliente_id} onChange={v => editarTarefa({ cliente_id: v, ordem_servico_id: '' })} options={clientes.map(c => ({ value: c.id, label: c.nome }))} />
+            <ClienteRapido label="Cliente (opcional)" clientes={clientes} value={tarefa.cliente_id} onChange={v => editarTarefa({ cliente_id: v, ordem_servico_id: '' })} onRecarregar={onRecarregar} />
             <Campo label="Vincular a uma OS (opcional) — ex.: compra ou orçamento de tecido" value={tarefa.ordem_servico_id} onChange={v => { const o = os.find(x => x.id === v); setTarefa(p => ({ ...p, ordem_servico_id: v, cliente_id: o ? o.cliente_id : p.cliente_id })); }} options={os.filter(o => o.status_idx < 22 || o.id === tarefa.ordem_servico_id).map(o => ({ value: o.id, label: `${o.numero || 'OS'} — ${clientes.find(c => c.id === o.cliente_id)?.nome || ''} ${o.descricao ? '· ' + o.descricao : ''}` }))} />
             <Campo label="Responsável" value={tarefa.responsavel} onChange={v => setTarefa(p => ({ ...p, responsavel: v }))} />
             {tarefa.cliente_id && (
