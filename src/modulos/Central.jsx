@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { enviarWhatsApp, whatsappConfigurado } from '../lib/whatsapp.js';
+import { enviarMeta, metaConfigurado } from '../lib/meta.js';
 import { converterLead } from '../lib/api.js';
 import { TarefasPorAgenda } from './CentralTarefas.jsx';
 import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, TabBar, Drawer, Campo, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
@@ -42,6 +43,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [mostrarAtalhos, setMostrarAtalhos] = useState(false);
+  const [alvoComentario, setAlvoComentario] = useState(null);
   const fimRef = useRef(null);
 
   const [formLead, setFormLead] = useState(null);
@@ -71,6 +73,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
 
   // ───── conversa aberta ─────
   useEffect(() => {
+    setAlvoComentario(null);
     if (!convSel?.telefone) { setMensagens([]); return; }
     let vivo = true;
     async function carregar() {
@@ -95,10 +98,14 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
     const msg = texto.trim();
     if (!msg || !convSel?.telefone || enviando) return;
     setEnviando(true); setErro('');
-    const r = await enviarWhatsApp({ telefone: convSel.telefone, nome: convSel.nome, mensagem: msg });
+    const ehMeta = ['instagram', 'facebook'].includes(convSel.canal);
+    const r = ehMeta
+      ? await enviarMeta({ phone: convSel.telefone, nome: convSel.nome, mensagem: msg, tipo: alvoComentario ? 'comentario' : 'mensagem', ref_id: alvoComentario?.ref_id || null })
+      : await enviarWhatsApp({ telefone: convSel.telefone, nome: convSel.nome, mensagem: msg });
     setEnviando(false);
     if (!r.ok) { setErro(r.erro + ' A mensagem continua no campo.'); return; }
-    setTexto(''); setJuliaAtiva(false);
+    setTexto(''); setAlvoComentario(null);
+    if (!ehMeta) setJuliaAtiva(false);
   }
 
   // ───── leads ─────
@@ -339,6 +346,9 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
                     <div key={m.id} style={{ alignSelf: m.direcao === 'in' ? 'flex-start' : 'flex-end', background: m.direcao === 'in' ? '#fff' : (m.direcao === 'out_humano' ? '#fef3c7' : '#dcfce7'), border: '1px solid #e5e7eb', borderRadius: 10, padding: '8px 12px', maxWidth: '80%', fontSize: 13, whiteSpace: 'pre-wrap' }}>
                       {m.direcao !== 'in' && <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', marginBottom: 2 }}>{m.direcao === 'out_humano' ? 'Você' : 'Júlia (IA)'}</div>}
                       {m.mensagem}
+                      {m.direcao === 'in' && m.tipo === 'comentario' && m.ref_id && (
+                        <div><button onClick={() => setAlvoComentario(m)} style={{ marginTop: 4, border: 'none', background: 'none', padding: 0, color: '#c4a45a', fontSize: 11, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>Responder este comentário</button></div>
+                      )}
                       <div style={{ fontSize: 10, color: '#9ca3af', textAlign: 'right', marginTop: 2 }}>{hora(m.created_at)}</div>
                     </div>
                   ))}
@@ -363,6 +373,30 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
                         style={{ flex: 1, padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
                       <BtnPrimary small onClick={enviarMensagem} disabled={enviando || !texto.trim()}>{enviando ? 'Enviando...' : 'Enviar'}</BtnPrimary>
                     </div>
+                  </>
+                ) : ['instagram', 'facebook'].includes(convSel.canal) ? (
+                  <>
+                    {!metaConfigurado() && <Aviso tipo="atencao">Envio ainda não configurado: falta <b>VITE_N8N_ENVIAR_URL</b> na Vercel.</Aviso>}
+                    {alvoComentario && (
+                      <div style={{ marginTop: 10, padding: '6px 10px', background: '#fef9f0', border: '1px solid #f3e3bf', borderRadius: 6, fontSize: 12, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                        <span>Respondendo publicamente ao comentário: <i>{String(alvoComentario.mensagem || '').replace(/^💬 Comentário: /, '').slice(0, 80)}</i></span>
+                        <button onClick={() => setAlvoComentario(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#6b7280' }}>× mandar como mensagem direta</button>
+                      </div>
+                    )}
+                    <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                      <BtnSecondary small onClick={() => setMostrarAtalhos(v => !v)}>Respostas</BtnSecondary>
+                      <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={2} disabled={enviando}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensagem(); } }}
+                        placeholder={alvoComentario ? 'Resposta pública ao comentário (Enter envia)' : `Mensagem direta no ${CANAIS.find(c => c.id === convSel.canal).nome} (Enter envia)`}
+                        style={{ flex: 1, padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, fontFamily: 'inherit', resize: 'vertical' }} />
+                      <BtnPrimary small onClick={enviarMensagem} disabled={enviando || !texto.trim()}>{enviando ? 'Enviando...' : 'Enviar'}</BtnPrimary>
+                    </div>
+                    {mostrarAtalhos && (
+                      <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, marginTop: 10, maxHeight: 220, overflowY: 'auto', background: '#fff' }}>
+                        {respostas.filter(r => r.ativa !== false).map(r => <div key={r.id} onClick={() => { setTexto(r.resposta); setMostrarAtalhos(false); }} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}><b>{r.titulo}</b><div style={{ color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.resposta}</div></div>)}
+                        {respostas.length === 0 && <div style={{ padding: 12, color: '#9ca3af', fontSize: 13 }}>Nenhuma resposta cadastrada ainda (aba Respostas automáticas).</div>}
+                      </div>
+                    )}
                   </>
                 ) : <Aviso tipo="info">A resposta direta por {CANAIS.find(c => c.id === (convSel.canal || 'whatsapp')).nome} será ligada junto com a conexão do canal (aba Canais).</Aviso>}
               </Card>
