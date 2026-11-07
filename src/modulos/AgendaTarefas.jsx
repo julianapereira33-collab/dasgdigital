@@ -260,7 +260,13 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
       const quando = new Date(dataHora).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
       alertarJuliana(`📅 *Novo compromisso* (${DEPARTAMENTOS[linha.departamento]?.curto || ''})\n${linha.titulo}${cli(evento.cliente_id) ? ' · ' + cli(evento.cliente_id).nome : ''}\n${quando}${linha.local ? '\n' + linha.local : ''}${linha.link_meet ? '\nMeet: ' + linha.link_meet : ''}`);
     }
-    if (evento.enviarConfirmacao) {
+    if (evento.enviarConfirmacao && evento.cliente_id) {
+      // com cliente: a confirmação sai sozinha às 8h do dia do evento (n8n varre a cada 10 min a partir das 8h)
+      const { error: ep } = await supabase.from('agenda').update({ confirmacao_mensagem: evento.mensagem, confirmacao_pendente: true }).eq('id', id);
+      if (ep) { setErro('Evento salvo, mas não consegui programar a confirmação: ' + msgErro(ep)); await onRecarregar(); setSalvando(false); setEvento(null); return; }
+      const dia = new Date(`${evento.data}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+      msgFinal = `Evento salvo. A confirmação vai para a cliente às 8h de ${dia}.` + avisoMeet;
+    } else if (evento.enviarConfirmacao) {
       const r = await enviarConfirmacao(evento, id);
       if (r.ok) msgFinal = 'Evento salvo e mensagem enviada pelo WhatsApp.' + avisoMeet;
       else { setErro('Evento salvo, mas a confirmação NÃO foi enviada: ' + r.erro + ' Você pode reenviar abrindo o evento.'); await onRecarregar(); setSalvando(false); setEvento(null); return; }
@@ -547,7 +553,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
 
             {!evento.id && (
               <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '4px 0 12px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
-                <input type="checkbox" checked={evento.enviarConfirmacao} onChange={e => editarEvento({ enviarConfirmacao: e.target.checked })} /> Enviar confirmação para a cliente pelo WhatsApp
+                <input type="checkbox" checked={evento.enviarConfirmacao} onChange={e => editarEvento({ enviarConfirmacao: e.target.checked })} /> Enviar confirmação para a cliente pelo WhatsApp (sai às 8h do dia do evento)
               </label>
             )}
             {(evento.enviarConfirmacao || evento.id) && (
