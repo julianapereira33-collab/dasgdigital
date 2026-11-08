@@ -116,13 +116,44 @@ const QUIZ_TECIDO = [
   },
 ];
 
-export const QUIZ_POR_TIPO = { completo: QUIZ_COMPLETO, consultivo: QUIZ_CONSULTIVO, tecido: QUIZ_TECIDO };
+const QUIZ_ORCAMENTO = [
+  {
+    id: 'modelo_o', titulo: 'O modelo que você quer', intro: 'Com isso a gente monta o orçamento da sua peça.',
+    perguntas: [
+      { id: 'modelo_desejado', tipo: 'anexo', label: 'Anexe a foto do modelo desejado e/ou descreva como ele é.' },
+      { id: 'ocasiao', tipo: 'escolha', label: 'Qual é o tipo do evento?', opcoes: [['casamento', 'Casamento'], ['formatura', 'Formatura'], ['aniversario', 'Aniversário'], ['evento_corporativo', 'Evento corporativo'], ['batizado_cerimonia', 'Batizado / cerimônia'], ['dia_a_dia', 'Dia a dia'], ['outro', 'Outro']] },
+      { id: 'data_evento', tipo: 'data', label: 'Data do evento' },
+      { id: 'local_evento', tipo: 'texto', label: 'Local do evento (nome e cidade, se já souber)' },
+      { id: 'cor_1', tipo: 'texto', label: 'Cor desejada' },
+    ],
+  },
+  {
+    id: 'medidas_o', titulo: 'Tamanho e medidas', intro: 'Se não souber alguma, pode deixar em branco — a gente mede juntas. Em centímetros.',
+    perguntas: [
+      { id: 'tamanho_habitual', tipo: 'texto', label: 'Tamanho que você costuma vestir (ex.: 48)' },
+      { id: 'busto', tipo: 'numero', label: 'Busto (cm)', ficha: true },
+      { id: 'cintura', tipo: 'numero', label: 'Cintura (cm)', ficha: true },
+      { id: 'quadril', tipo: 'numero', label: 'Quadril (cm)', ficha: true },
+      { id: 'altura', tipo: 'numero', label: 'Altura (cm)', ficha: true },
+    ],
+  },
+  {
+    id: 'final_o', titulo: 'Para fechar', intro: 'Últimas informações.',
+    perguntas: [
+      { id: 'opcao_peca', tipo: 'escolha', label: 'Como você prefere ter a peça?', opcoes: [['exclusiva', 'Comprar a peça exclusiva'], ['aluguel', 'Primeiro aluguel'], ['', 'Ainda não sei']] },
+      { id: 'investimento', tipo: 'texto', label: 'Quanto você pensa em investir? (um valor aproximado)' },
+      { id: 'observacoes', tipo: 'longo', label: 'Quer me contar mais alguma coisa?' },
+    ],
+  },
+];
+
+export const QUIZ_POR_TIPO = { completo: QUIZ_COMPLETO, consultivo: QUIZ_CONSULTIVO, tecido: QUIZ_TECIDO, orcamento: QUIZ_ORCAMENTO };
 export const QUIZ_SECOES = QUIZ_COMPLETO; // compatibilidade: o quiz completo
 export const secoesDoQuiz = (tipo) => QUIZ_POR_TIPO[tipo] || QUIZ_COMPLETO;
 // todas as seções de todos os quizzes, sem repetir pergunta (para exibir o briefing de qualquer um)
 export function secoesParaBriefing() {
   const vistos = new Set();
-  return [...QUIZ_COMPLETO, ...QUIZ_CONSULTIVO, ...QUIZ_TECIDO].map(sec => ({ ...sec, perguntas: sec.perguntas.filter(p => { if (vistos.has(p.id)) return false; vistos.add(p.id); return true; }) })).filter(sec => sec.perguntas.length);
+  return [...QUIZ_COMPLETO, ...QUIZ_CONSULTIVO, ...QUIZ_TECIDO, ...QUIZ_ORCAMENTO].map(sec => ({ ...sec, perguntas: sec.perguntas.filter(p => { if (vistos.has(p.id)) return false; vistos.add(p.id); return true; }) })).filter(sec => sec.perguntas.length);
 }
 
 // Perguntas de versões anteriores do quiz: quem já respondeu continua com essas respostas visíveis no briefing.
@@ -132,7 +163,6 @@ export const PERGUNTAS_ANTIGAS = [
   { id: 'cores_evitar', tipo: 'texto', label: 'Cor que não usa ou não gosta' },
   { id: 'sensibilidade', tipo: 'texto', label: 'Tecido que incomoda ou causa alergia' },
   { id: 'valorizar', tipo: 'longo', label: 'O que mais gosta no corpo e quer valorizar' },
-  { id: 'tamanho_habitual', tipo: 'texto', label: 'Tamanho que costuma vestir' },
 ];
 
 export const TODAS_PERGUNTAS = secoesParaBriefing().flatMap(s => s.perguntas.map(p => ({ ...p, secao: s.titulo })));

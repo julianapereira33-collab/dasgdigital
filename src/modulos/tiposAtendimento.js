@@ -11,7 +11,7 @@ export const TIPOS_ATENDIMENTO = {
     inclui: ['Quiz com informações-base do evento e do vestido', 'Criação do croqui', 'Orçamento'],
   },
   orcamento: {
-    label: 'Orçamento (sem cobrança)', preco: 0, cobra: false, quiz: null, pagamento: 'do orçamento',
+    label: 'Orçamento (sem cobrança)', preco: 0, cobra: false, quiz: 'orcamento', pagamento: 'do orçamento',
     inclui: ['Para quem já tem o modelo e quer que o ateliê faça', 'Orçamento'],
   },
   orientacao_tecido: {
