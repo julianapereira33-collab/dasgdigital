@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './lib/supabaseClient.js';
 import { QUIZ_SECOES } from './modulos/quizConsultoria.js';
+import { CampoAnexo } from './modulos/AnexosQuiz.jsx';
 
 const dourado = '#c4a45a';
 const chaveRascunho = (t) => 'dasg_quiz_' + t;
@@ -89,6 +90,7 @@ export default function QuizPublico({ token }) {
           {p.tipo === 'texto' && <input value={resp[p.id] || ''} onChange={e => mudar(p.id, e.target.value)} style={campoBase} />}
           {p.tipo === 'numero' && <input type="number" inputMode="decimal" value={resp[p.id] || ''} onChange={e => mudar(p.id, e.target.value)} style={campoBase} />}
           {p.tipo === 'data' && <input type="date" value={resp[p.id] || ''} onChange={e => mudar(p.id, e.target.value)} style={campoBase} />}
+          {p.tipo === 'anexo' && <CampoAnexo token={token} campo={p.id} valor={resp[p.id]} onChange={v => mudar(p.id, v)} estiloCampo={campoBase} cor={dourado} />}
           {p.tipo === 'longo' && <textarea rows={4} value={resp[p.id] || ''} onChange={e => mudar(p.id, e.target.value)} style={{ ...campoBase, resize: 'vertical' }} />}
           {p.tipo === 'escolha' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

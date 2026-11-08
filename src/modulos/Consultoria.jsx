@@ -2,7 +2,8 @@ import { TOTAL_ETAPAS } from '../lib/etapas.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { enviarQuizPorWhatsApp, criarQuizEnvio, criarAtividadeDaEtapa, ROTULO_ETAPA } from '../lib/api.js';
-import { QUIZ_SECOES, respostaLegivel, linkDoQuiz } from './quizConsultoria.js';
+import { QUIZ_SECOES, PERGUNTAS_ANTIGAS, respostaLegivel, linkDoQuiz } from './quizConsultoria.js';
+import { AnexosVistos } from './AnexosQuiz.jsx';
 import { gerarMeet, meetConfigurado } from '../lib/meet.js';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Campo, Aviso, fmtDate, fmtDateTime, erroDeSchema } from './ui.jsx';
 import Arquivos from './Arquivos.jsx';
@@ -14,17 +15,20 @@ const rascunhoKey = (osId) => 'dasg_consultoria_' + osId;
 
 // Respostas do quiz agrupadas por seção (usado na aba Acompanhamento e na sessão ao vivo)
 export function BriefingQuiz({ respostas, compacto }) {
-  const secoes = QUIZ_SECOES.map(s => ({ ...s, itens: s.perguntas.map(p => ({ p, v: respostaLegivel(p, respostas?.[p.id]) })).filter(x => x.v) })).filter(s => s.itens.length);
+  const secoes = QUIZ_SECOES.map(s => ({ ...s, itens: s.perguntas.map(p => ({ p, v: respostaLegivel(p, respostas?.[p.id]), arq: p.tipo === 'anexo' && typeof respostas?.[p.id] === 'object' ? (respostas[p.id].arquivos || []) : [] })).filter(x => x.v || x.arq.length) })).filter(s => s.itens.length);
+  const antigas = PERGUNTAS_ANTIGAS.map(p => ({ p, v: respostaLegivel(p, respostas?.[p.id]), arq: [] })).filter(x => x.v);
+  if (antigas.length) secoes.push({ id: 'antigas', titulo: 'Outras respostas', itens: antigas });
   if (!secoes.length) return <div style={{ color: '#9ca3af', fontSize: 13 }}>Sem respostas ainda.</div>;
   return (
     <div>
       {secoes.map(s => (
         <div key={s.id} style={{ marginBottom: compacto ? 10 : 18 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#c4a45a', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>{s.titulo}</div>
-          {s.itens.map(({ p, v }) => (
+          {s.itens.map(({ p, v, arq }) => (
             <div key={p.id} style={{ marginBottom: 8 }}>
               <div style={{ fontSize: 11, color: '#9ca3af' }}>{p.label.replace(/\s*\(.*?\)\s*$/, '')}</div>
-              <div style={{ fontSize: 13, color: '#111', whiteSpace: 'pre-wrap' }}>{v}</div>
+              {(typeof respostas?.[p.id] === 'object' ? (respostas[p.id].texto || '') : v) && <div style={{ fontSize: 13, color: '#111', whiteSpace: 'pre-wrap' }}>{typeof respostas?.[p.id] === 'object' ? respostas[p.id].texto : v}</div>}
+              <AnexosVistos arquivos={arq} />
             </div>
           ))}
         </div>
