@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient.js';
 import { enviarWhatsApp } from './whatsapp.js';
 import { gerarEtapasAtelie } from './producao.js';
 import { linkDoQuiz } from '../modulos/quizConsultoria.js';
+import { tipoDaOS } from '../modulos/tiposAtendimento.js';
 
 // Etapas do fluxo: ver lib/etapas.js (fonte única)
 import { SLUGS_ETAPA, ROTULO_ETAPA } from './etapas.js';
@@ -95,13 +96,14 @@ export async function converterLead({ lead, listaOS, abrirOS = true }) {
 }
 
 export async function criarQuizEnvio({ cliente, os }) {
-  // reaproveita um quiz ainda não respondido da mesma OS em vez de gerar vários links
+  const tipoQuiz = tipoDaOS(os).tipoQuiz || 'completo';
+  // reaproveita um quiz ainda não respondido da mesma OS (e do mesmo tipo) em vez de gerar vários links
   if (os?.id) {
     const { data: existente } = await supabase.from('consultoria_quiz_envios').select('*').eq('ordem_servico_id', os.id).neq('status', 'respondido').order('criado_em', { ascending: false }).limit(1);
-    if (existente && existente.length) return { data: existente[0], error: null };
+    if (existente && existente.length && (existente[0].tipo_quiz || 'completo') === tipoQuiz) return { data: existente[0], error: null };
   }
   return supabase.from('consultoria_quiz_envios').insert({
-    cliente_id: cliente?.id || null, ordem_servico_id: os?.id || null,
+    cliente_id: cliente?.id || null, ordem_servico_id: os?.id || null, tipo_quiz: tipoQuiz,
     nome_cliente: cliente?.nome || null, telefone: cliente?.telefone || null,
   }).select().single();
 }

@@ -4,13 +4,13 @@ import { criarOS, enviarQuizPorWhatsApp, ROTULO_ETAPA } from '../lib/api.js';
 import { linkDoQuiz } from './quizConsultoria.js';
 import { BriefingQuiz } from './Consultoria.jsx';
 import ChecklistAtendimento, { statusChecklist } from './ChecklistAtendimento.jsx';
-import { TIPOS_ATENDIMENTO, tipoDaOS } from './tiposAtendimento.js';
+import { TIPOS_ATENDIMENTO, TIPO_PADRAO, tipoDaOS, brlTipo } from './tiposAtendimento.js';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Campo, SeletorCliente, Aviso, fmtDateTime, erroDeSchema } from './ui.jsx';
 
 // 2º passo do fluxo: Atendimento. Define o tipo (Estilista Express, Consultoria Express ou Atendimento),
 // dispara o link de pagamento, o quiz (quando o tipo pede), a confirmação e a videoconferência.
 const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261105000002 no Supabase. ' + e.message : (e.message || String(e));
-const OPCOES_TIPO = Object.entries(TIPOS_ATENDIMENTO).map(([value, t]) => ({ value, label: t.label }));
+const opcoesTipo = (atual) => Object.entries(TIPOS_ATENDIMENTO).filter(([k, t]) => !t.legado || k === atual).map(([value, t]) => ({ value, label: `${t.label} · ${brlTipo(t)}` }));
 const STATUS_QUIZ = { criado: ['Link criado', '#6b7280'], enviado: ['Enviado, aguardando', '#f59e0b'], respondido: ['Respondido', '#16a34a'] };
 
 export default function Atendimento({ canais = [], clientes, os, agenda, tarefas = [], quizEnvios, clienteFocoId = '', focoTick = 0, onRecarregar, onNavegar }) {
@@ -23,7 +23,7 @@ export default function Atendimento({ canais = [], clientes, os, agenda, tarefas
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState('');
 
-  useEffect(() => { if (focoTick > 0 && clienteFocoId) { setAba('atendimentos'); setNovo({ cliente_id: clienteFocoId, tipo: 'consultoria_express', descricao: '' }); } }, [focoTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (focoTick > 0 && clienteFocoId) { setAba('atendimentos'); setNovo({ cliente_id: clienteFocoId, tipo: TIPO_PADRAO, descricao: '' }); } }, [focoTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const cli = (id) => clientes.find(c => c.id === id);
   const emAtendimento = useMemo(() => os.filter(o => o.status_idx <= 8).sort((a, b) => new Date(b.criado_em || 0) - new Date(a.criado_em || 0)), [os]);
 
@@ -62,11 +62,11 @@ export default function Atendimento({ canais = [], clientes, os, agenda, tarefas
 
       {aba === 'atendimentos' && (
         <div>
-          <div style={{ marginBottom: 14 }}>{!novo ? <BtnPrimary onClick={() => setNovo({ cliente_id: '', tipo: 'consultoria_express', descricao: '' })}>+ Novo atendimento</BtnPrimary> : (
+          <div style={{ marginBottom: 14 }}>{!novo ? <BtnPrimary onClick={() => setNovo({ cliente_id: '', tipo: TIPO_PADRAO, descricao: '' })}>+ Novo atendimento</BtnPrimary> : (
             <Card style={{ background: '#fffdf7' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <SeletorCliente clientes={clientes} value={novo.cliente_id} onChange={v => setNovo(n => ({ ...n, cliente_id: v }))} onCadastrar={() => onNavegar?.('clientes')} />
-                <Campo label="Tipo de atendimento" value={novo.tipo} onChange={v => setNovo(n => ({ ...n, tipo: v }))} options={OPCOES_TIPO} />
+                <Campo label="Tipo de atendimento" value={novo.tipo} onChange={v => setNovo(n => ({ ...n, tipo: v }))} options={opcoesTipo(novo.tipo)} />
               </div>
               <Campo label="Do que se trata (opcional)" value={novo.descricao} onChange={v => setNovo(n => ({ ...n, descricao: v }))} />
               <div style={{ display: 'flex', gap: 8 }}><BtnPrimary disabled={!!ocupado} onClick={criarAtendimento}>{ocupado === 'novo' ? 'Abrindo...' : 'Abrir atendimento'}</BtnPrimary><BtnSecondary onClick={() => setNovo(null)}>Cancelar</BtnSecondary></div>
@@ -86,7 +86,7 @@ export default function Atendimento({ canais = [], clientes, os, agenda, tarefas
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'end', marginTop: 10, flexWrap: 'wrap' }}>
-                  <div style={{ minWidth: 220 }}><Campo label="Tipo de atendimento" value={o.tipo_atendimento || 'consultoria_express'} onChange={v => v && mudarTipo(o, v)} options={OPCOES_TIPO} /></div>
+                  <div style={{ minWidth: 220 }}><Campo label="Tipo de atendimento" value={o.tipo_atendimento || 'consultoria_express'} onChange={v => v && mudarTipo(o, v)} options={opcoesTipo(o.tipo_atendimento || 'consultoria_express')} /></div>
                   <div style={{ marginBottom: 14 }}><BtnSecondary small onClick={() => setAberta(aberta === o.id ? null : o.id)}>{aberta === o.id ? 'Fechar passos' : 'Pagamento, quiz e confirmações'}</BtnSecondary></div>
                   {s.pronta && <div style={{ marginBottom: 14 }}><BtnPrimary small onClick={() => onNavegar('consultoria')}>Ir para a consultoria</BtnPrimary></div>}
                 </div>

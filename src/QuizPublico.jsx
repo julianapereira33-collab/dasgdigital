@@ -1,7 +1,7 @@
 // Página pública do quiz da Consultoria Express (abre em /?quiz=<token>, sem login).
 import { useEffect, useState } from 'react';
 import { supabase } from './lib/supabaseClient.js';
-import { QUIZ_SECOES } from './modulos/quizConsultoria.js';
+import { secoesDoQuiz } from './modulos/quizConsultoria.js';
 import { CampoAnexo } from './modulos/AnexosQuiz.jsx';
 
 const dourado = '#c4a45a';
@@ -10,6 +10,7 @@ const chaveRascunho = (t) => 'dasg_quiz_' + t;
 export default function QuizPublico({ token }) {
   const [estado, setEstado] = useState('carregando'); // carregando | invalido | pronto | enviado | erro
   const [nome, setNome] = useState('');
+  const [tipoQuiz, setTipoQuiz] = useState('completo');
   const [resp, setResp] = useState({});
   const [passo, setPasso] = useState(0);
   const [enviando, setEnviando] = useState(false);
@@ -22,7 +23,7 @@ export default function QuizPublico({ token }) {
       if (!vivo) return;
       if (error) { setEstado('erro'); setMsgErro(error.message); return; }
       if (!data) { setEstado('invalido'); return; }
-      setNome(data.nome || '');
+      setNome(data.nome || ''); setTipoQuiz(data.tipo_quiz || 'completo');
       if (data.status === 'respondido') { setEstado('enviado'); return; }
       let rascunho = {};
       try { rascunho = JSON.parse(localStorage.getItem(chaveRascunho(token)) || '{}'); } catch { /* sem storage: segue em branco */ }
@@ -53,7 +54,7 @@ export default function QuizPublico({ token }) {
     <div style={{ minHeight: '100vh', background: '#faf7f2', fontFamily: 'system-ui, sans-serif', color: '#1f2937' }}>
       <div style={{ background: '#111', padding: '18px 20px', textAlign: 'center' }}>
         <div style={{ color: dourado, fontSize: 13, letterSpacing: 3, fontWeight: 700 }}>DAS G</div>
-        <div style={{ color: '#fff', fontSize: 15, marginTop: 2 }}>Consultoria Express</div>
+        <div style={{ color: '#fff', fontSize: 15, marginTop: 2 }}>Atendimento com a Ju Pereira</div>
       </div>
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '24px 18px 60px' }}>{children}</div>
     </div>
@@ -70,6 +71,7 @@ export default function QuizPublico({ token }) {
     </div>
   );
 
+  const QUIZ_SECOES = secoesDoQuiz(tipoQuiz);
   const secao = QUIZ_SECOES[passo];
   const ultimo = passo === QUIZ_SECOES.length - 1;
   const campoBase = { width: '100%', padding: '11px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 16, boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit' };
@@ -80,7 +82,7 @@ export default function QuizPublico({ token }) {
         <div style={{ height: 6, width: `${((passo + 1) / QUIZ_SECOES.length) * 100}%`, background: dourado, borderRadius: 3, transition: 'width .3s' }} />
       </div>
       <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 18 }}>Etapa {passo + 1} de {QUIZ_SECOES.length}</div>
-      {passo === 0 && nome && <p style={{ margin: '0 0 14px', fontSize: 17 }}>Olá, <b>{nome.split(' ')[0]}</b>! Responda no seu tempo — leva uns 5 minutos.</p>}
+      {passo === 0 && nome && <p style={{ margin: '0 0 14px', fontSize: 17 }}>Olá, <b>{nome.split(' ')[0]}</b>! Responda no seu tempo — leva poucos minutos.</p>}
       <h2 style={{ margin: '0 0 4px' }}>{secao.titulo}</h2>
       <p style={{ color: '#6b7280', margin: '0 0 18px', fontSize: 14 }}>{secao.intro}</p>
 

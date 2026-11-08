@@ -2,7 +2,7 @@ import { TOTAL_ETAPAS } from '../lib/etapas.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { enviarQuizPorWhatsApp, criarQuizEnvio, criarAtividadeDaEtapa, ROTULO_ETAPA } from '../lib/api.js';
-import { QUIZ_SECOES, PERGUNTAS_ANTIGAS, respostaLegivel, linkDoQuiz } from './quizConsultoria.js';
+import { QUIZ_SECOES, secoesParaBriefing, PERGUNTAS_ANTIGAS, respostaLegivel, linkDoQuiz } from './quizConsultoria.js';
 import { AnexosVistos } from './AnexosQuiz.jsx';
 import { gerarMeet, meetConfigurado } from '../lib/meet.js';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Campo, Aviso, fmtDate, fmtDateTime, erroDeSchema } from './ui.jsx';
@@ -15,7 +15,7 @@ const rascunhoKey = (osId) => 'dasg_consultoria_' + osId;
 
 // Respostas do quiz agrupadas por seção (usado na aba Acompanhamento e na sessão ao vivo)
 export function BriefingQuiz({ respostas, compacto }) {
-  const secoes = QUIZ_SECOES.map(s => ({ ...s, itens: s.perguntas.map(p => ({ p, v: respostaLegivel(p, respostas?.[p.id]), arq: p.tipo === 'anexo' && typeof respostas?.[p.id] === 'object' ? (respostas[p.id].arquivos || []) : [] })).filter(x => x.v || x.arq.length) })).filter(s => s.itens.length);
+  const secoes = secoesParaBriefing().map(s => ({ ...s, itens: s.perguntas.map(p => ({ p, v: respostaLegivel(p, respostas?.[p.id]), arq: p.tipo === 'anexo' && typeof respostas?.[p.id] === 'object' ? (respostas[p.id].arquivos || []) : [] })).filter(x => x.v || x.arq.length) })).filter(s => s.itens.length);
   const antigas = PERGUNTAS_ANTIGAS.map(p => ({ p, v: respostaLegivel(p, respostas?.[p.id]), arq: [] })).filter(x => x.v);
   if (antigas.length) secoes.push({ id: 'antigas', titulo: 'Outras respostas', itens: antigas });
   if (!secoes.length) return <div style={{ color: '#9ca3af', fontSize: 13 }}>Sem respostas ainda.</div>;
@@ -151,7 +151,7 @@ export default function Consultoria({ clientes, os, quizEnvios, agenda = [], onR
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Consultoria Express</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Consultoria</h1>
         <p style={{ color: '#6b7280', marginTop: 4 }}>Quiz da cliente, briefing e sessão ao vivo</p>
       </div>
       {aviso && <Aviso tipo="ok">{aviso}</Aviso>}

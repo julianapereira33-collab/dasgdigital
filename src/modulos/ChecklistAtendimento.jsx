@@ -34,7 +34,7 @@ export function statusChecklist({ os, agenda, quizEnvios }) {
   const confirmado = ev?.status === 'confirmado' || ev?.status === 'realizado';
   const precisaQuiz = tipoDaOS(os).quiz;
   const respondeu = !precisaQuiz || quiz?.status === 'respondido';
-  const pago = os.pagamento_status === 'pago';
+  const pago = !tipoDaOS(os).cobra || os.pagamento_status === 'pago';
   return { ev, quiz, precisaQuiz, agendado, confirmado, respondeu, pago, pronta: agendado && confirmado && respondeu && pago };
 }
 
@@ -43,7 +43,7 @@ export default function ChecklistAtendimento({ os, cliente, agenda, quizEnvios, 
   const [ocupado, setOcupado] = useState('');
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
-  const [valor, setValor] = useState(os.consultoria_valor ?? '');
+  const [valor, setValor] = useState(os.consultoria_valor ?? (tipoDaOS(os).preco || ''));
   const [linkPg, setLinkPg] = useState(os.link_pagamento || '');
   const [meet, setMeet] = useState(os.link_meet || s.ev?.link_meet || '');
 
@@ -145,7 +145,7 @@ export default function ChecklistAtendimento({ os, cliente, agenda, quizEnvios, 
         {!s.respondeu && <BtnPrimary small disabled={semZap || !!ocupado} onClick={enviarQuiz}>{ocupado === 'quiz' ? 'Enviando...' : s.quiz ? 'Reenviar quiz' : 'Enviar quiz'}</BtnPrimary>}
       </Passo>}
 
-      <Passo ok={s.pago} titulo={`Pagamento ${tipoDaOS(os).pagamento}`} detalhe={s.pago ? `Recebido em ${fmtDateTime(os.pago_em)}` : os.pagamento_status === 'link_enviado' ? `Link enviado em ${fmtDateTime(os.pagamento_link_enviado_em)}, aguardando pagamento` : 'Link de pagamento ainda não enviado.'}>
+      {tipoDaOS(os).cobra && <Passo ok={s.pago} titulo={`Pagamento ${tipoDaOS(os).pagamento}`} detalhe={s.pago ? `Recebido em ${fmtDateTime(os.pago_em)}` : os.pagamento_status === 'link_enviado' ? `Link enviado em ${fmtDateTime(os.pagamento_link_enviado_em)}, aguardando pagamento` : 'Link de pagamento ainda não enviado.'}>
         {!s.pago ? (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10 }}>
@@ -158,7 +158,7 @@ export default function ChecklistAtendimento({ os, cliente, agenda, quizEnvios, 
             </div>
           </div>
         ) : <BtnSecondary small disabled={!!ocupado} onClick={desfazerPago}>Desfazer pagamento</BtnSecondary>}
-      </Passo>
+     </Passo>}
 
       <Passo ok={!!os.meet_enviado_em} titulo="Link da videoconferência" detalhe={os.meet_enviado_em ? `Enviado em ${fmtDateTime(os.meet_enviado_em)}` : 'Ainda não enviado.'}>
         <Campo label="Link (Meet/Zoom)" value={meet} onChange={setMeet} placeholder="https://meet.google.com/..." />

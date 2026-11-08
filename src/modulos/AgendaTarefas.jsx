@@ -8,7 +8,7 @@ import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, TabBar, Drawer, Campo
 
 // dep = departamento padrão do tipo (a Juliana pode trocar ao criar o evento)
 const TIPOS = {
-  consultoria_express: { label: 'Consultoria Express', cor: '#c4a45a', dep: 'clientes', meet: true },
+  consultoria_express: { label: 'Atendimento (completo/consultivo)', cor: '#c4a45a', dep: 'clientes', meet: true },
   personal_stylist: { label: 'Personal Stylist', cor: '#8b5cf6', dep: 'clientes', meet: true },
   teste_colorimetria: { label: 'Teste de colorimetria', cor: '#a855f7', dep: 'clientes', meet: true },
   orcamento: { label: 'Atendimento de orçamento', cor: '#f97316', dep: 'clientes' },
