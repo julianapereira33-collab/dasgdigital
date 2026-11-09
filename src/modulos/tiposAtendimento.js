@@ -12,7 +12,7 @@ export const TIPOS_ATENDIMENTO = {
   },
   orcamento: {
     label: 'Orçamento (sem cobrança)', preco: 0, cobra: false, quiz: 'orcamento', pagamento: 'do orçamento',
-    inclui: ['Para quem já tem o modelo e quer que o ateliê faça', 'Orçamento'],
+    inclui: ['Para quem já tem o modelo e quer que a Maison Das G faça', 'Orçamento'],
   },
   orientacao_tecido: {
     label: 'Orientação de tecido', preco: 47.9, cobra: true, quiz: 'tecido', pagamento: 'da orientação de tecido',

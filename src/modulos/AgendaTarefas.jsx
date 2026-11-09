@@ -42,10 +42,10 @@ const TIPOS = {
 const DEPARTAMENTOS = {
   adm: { label: 'ADM', curto: 'ADM', cor: '#c4a45a' },
   clientes: { label: 'Clientes', curto: 'Clientes', cor: '#d97706' },
-  atelie: { label: 'Ateliê', curto: 'Ateliê', cor: '#0ea5e9' },
+  atelie: { label: 'Oficina', curto: 'Oficina', cor: '#0ea5e9' },
   marketing: { label: 'Marketing', curto: 'Marketing', cor: '#e11d48' },
   financeira: { label: 'Financeira 🔒', curto: 'Financeira', cor: '#0f766e' },
-  tissu: { label: 'Tissu', curto: 'Tissu', cor: '#7c3aed' },
+  tissu: { label: 'Das G Tissu (tecidos)', curto: 'Das G Tissu', cor: '#7c3aed' },
 };
 const depDe = (x) => DEPARTAMENTOS[x?.departamento] ? x.departamento : (TIPOS[x?.tipo]?.dep || 'adm');
 const primeiroTipoDe = (d) => ({ atelie: 'modelagem_corte' })[d] || Object.keys(TIPOS).find(k => TIPOS[k].dep === d) || 'outro';
@@ -374,7 +374,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700 }}>Agenda e Tarefas</h1>
-          <p style={{ color: '#6b7280', marginTop: 4 }}>Cinco agendas — ADM/Clientes, Ateliê, Marketing, Financeira (com senha) e Tissu. O ➤ envia a mensagem pronta e fica verde quando enviada.</p>
+          <p style={{ color: '#6b7280', marginTop: 4 }}>Cinco agendas — ADM/Clientes, Oficina, Marketing, Financeira (com senha) e Tissu. O ➤ envia a mensagem pronta e fica verde quando enviada.</p>
         </div>
         {aba === 'agenda' ? <BtnPrimary onClick={() => novoEvento(cursor)}>Novo evento</BtnPrimary> : <BtnPrimary onClick={novaTarefa}>Nova tarefa</BtnPrimary>}
       </div>
@@ -540,7 +540,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
               <Campo label="Hora" type="time" value={evento.hora} onChange={v => editarEvento({ hora: v })} />
               <Campo label="Duração (min)" type="number" value={evento.duracao_min} onChange={v => editarEvento({ duracao_min: v })} />
             </div>
-            <Campo label="Local" value={evento.local} onChange={v => editarEvento({ local: v })} placeholder="Ateliê, loja, endereço..." />
+            <Campo label="Local" value={evento.local} onChange={v => editarEvento({ local: v })} placeholder="Maison Das G, Show Room, endereço..." />
             <Campo label="Link da videochamada (Google Meet)" value={evento.link_meet} onChange={v => editarEvento({ link_meet: v })} ajuda={evento.link_meet ? (evento.meet_enviado_em ? 'Link já enviado para a cliente.' : 'Se a cliente tiver telefone, o link vai sozinho 10 min antes do horário (ou use o botão para enviar agora).') : undefined} />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '-6px 0 14px' }}>
               <BtnSecondary small disabled={salvando || !meetConfigurado()} onClick={gerarLinkMeet}>{evento.link_meet ? 'Gerar novo Meet' : 'Gerar link do Meet'}</BtnSecondary>

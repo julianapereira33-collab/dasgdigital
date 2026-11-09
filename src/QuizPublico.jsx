@@ -55,7 +55,7 @@ export default function QuizPublico({ token }) {
     <div style={{ minHeight: '100vh', background: '#faf7f2', fontFamily: 'system-ui, sans-serif', color: '#1f2937' }}>
       <div style={{ background: '#111', padding: '18px 20px', textAlign: 'center' }}>
         <div style={{ color: dourado, fontSize: 13, letterSpacing: 3, fontWeight: 700 }}>DAS G</div>
-        <div style={{ color: '#fff', fontSize: 15, marginTop: 2 }}>{TITULO_POR_TIPO[tipoQuiz] || 'Atendimento com a Ju Pereira'}</div>
+        <div style={{ color: '#fff', fontSize: 15, marginTop: 2 }}>{TITULO_POR_TIPO[tipoQuiz] || 'Maison Das G · Atendimento'}</div>
       </div>
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '24px 18px 60px' }}>{children}</div>
     </div>

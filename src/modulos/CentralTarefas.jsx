@@ -6,10 +6,10 @@ import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, Aviso, fmtDate } from
 export const AGENDAS = {
   adm: { label: 'ADM', cor: '#c4a45a' },
   clientes: { label: 'Clientes', cor: '#d97706' },
-  atelie: { label: 'Ateliê', cor: '#0ea5e9' },
+  atelie: { label: 'Oficina', cor: '#0ea5e9' },
   marketing: { label: 'Marketing', cor: '#e11d48' },
   financeira: { label: 'Financeira', cor: '#0f766e', privada: true },
-  tissu: { label: 'Tissu', cor: '#7c3aed' },
+  tissu: { label: 'Das G Tissu (tecidos)', cor: '#7c3aed' },
 };
 const depDe = (t) => AGENDAS[t.departamento] ? t.departamento : 'adm';
 const atrasada = (t) => t.status !== 'concluida' && t.prazo && new Date(t.prazo + 'T23:59:59') < new Date();
@@ -87,7 +87,7 @@ export default function CentralTarefas({ tarefas, clientes, onRecarregar }) {
     <div>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700 }}>Central de Tarefas</h1>
-        <p style={{ color: '#6b7280', marginTop: 4 }}>Uma lista por agenda — tarefa ateliê, tarefa financeiro, tarefa marketing... Clique no texto para editar.</p>
+        <p style={{ color: '#6b7280', marginTop: 4 }}>Uma lista por agenda — tarefa oficina, tarefa financeiro, tarefa marketing... Clique no texto para editar.</p>
       </div>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>

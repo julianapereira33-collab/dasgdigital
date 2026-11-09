@@ -136,17 +136,17 @@ const MOCK_AGENDA = [
   },
   {
     id: 'ag2', tipo: 'prova1', cliente: 'Fernanda Oliveira', cliente_id: '1',
-    os_id: 'os1', data: '2024-11-11T14:00', duracao: 90, local: 'Ateliê', link: '',
+    os_id: 'os1', data: '2024-11-11T14:00', duracao: 90, local: 'Oficina', link: '',
     status: 'confirmado', cor: '#f9a8d4',
   },
   {
     id: 'ag3', tipo: 'entrega', cliente: 'Fernanda Oliveira', cliente_id: '1',
-    os_id: 'os1', data: '2024-12-12T10:00', duracao: 30, local: 'Ateliê', link: '',
+    os_id: 'os1', data: '2024-12-12T10:00', duracao: 30, local: 'Oficina', link: '',
     status: 'agendado', cor: '#22c55e',
   },
   {
     id: 'ag4', tipo: 'prova2', cliente: 'Carla Mendes', cliente_id: '2',
-    os_id: 'os2', data: '2024-11-20T15:00', duracao: 60, local: 'Ateliê', link: '',
+    os_id: 'os2', data: '2024-11-20T15:00', duracao: 60, local: 'Oficina', link: '',
     status: 'agendado', cor: '#ec4899',
   },
   {
@@ -317,7 +317,7 @@ const MOCK_SERVICOS = [
   },
   {
     id: 's3', nome: 'Orçamento', slug: 'orcamento',
-    descricao: 'Sem cobrança. Para quem já tem o modelo e quer que o ateliê faça.',
+    descricao: 'Sem cobrança. Para quem já tem o modelo e quer que a Maison Das G faça.',
     inclui: ['Análise do modelo e das referências', 'Orçamento com descrição técnica'],
     faixa_preco: 'Sem cobrança',
     pagamento: ['—'],
@@ -468,7 +468,7 @@ function Dashboard({ clientes, os, agenda, tarefas, pedidos, contasPagar, onNave
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Dashboard</h1>
-      <p style={{ color: '#6b7280', marginBottom: 24 }}>Visão geral do ateliê — {hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+      <p style={{ color: '#6b7280', marginBottom: 24 }}>Visão geral da Maison Das G — {hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
 
       <TarefasPorAgenda tarefas={tarefas} onAbrir={() => onNavegar?.('tarefas')} />
 
@@ -567,7 +567,7 @@ function FluxoAtendimento({ os, clientes, onAvancar, onVoltar }) {
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Fluxo de Atendimento</h1>
-      <p style={{ color: '#6b7280', marginBottom: 24 }}>Acompanhe cada OS, do cadastro da cliente ao marketing, passando pela produção do ateliê</p>
+      <p style={{ color: '#6b7280', marginBottom: 24 }}>Acompanhe cada OS, do cadastro da cliente ao marketing, passando pela produção da Oficina</p>
 
       <div style={{ overflowX: 'auto', paddingBottom: 16 }}>
         <div style={{ display: 'flex', gap: 12, minWidth: 900 }}>
@@ -1250,7 +1250,7 @@ function Relatorios({ pedidos, os, clientes, feedbacks }) {
       </div>
       <Card>
         <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Faturamento por canal</h3>
-        {[['Atelie / Costura', fmt(totalFaturado * 0.7), '#c4a45a'], ['Consultoria Online', fmt(totalFaturado * 0.2), '#6366f1'], ['Loja Fisica', fmt(totalFaturado * 0.1), '#22c55e']].map(([label, val, cor]) => (
+        {[['Oficina / Costura', fmt(totalFaturado * 0.7), '#c4a45a'], ['Consultoria Online', fmt(totalFaturado * 0.2), '#6366f1'], ['Show Room', fmt(totalFaturado * 0.1), '#22c55e']].map(([label, val, cor]) => (
           <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
             <span style={{ fontSize: 14 }}>{label}</span>
             <span style={{ fontWeight: 700, color: cor }}>{val}</span>
