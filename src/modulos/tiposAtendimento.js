@@ -2,21 +2,30 @@
 // "cobra" = tem pagamento antes do atendimento. Os tipos antigos continuam válidos para OS já criadas.
 export const TIPOS_ATENDIMENTO = {
   completo: {
-    label: 'Completo', preco: 397, cobra: true, quiz: 'completo', pagamento: 'do atendimento completo',
-    duracao: '1 hora, presencial ou online',
-    inclui: ['Quiz completo para o dossiê', 'Análise de biotipo, estilo, colorimetria e dress code', 'Criação com técnicas de harmonização', 'Dossiê e ficha técnica do vestido', 'Orçamento'],
+    label: 'Personal Stylist', preco: 397, cobra: true, quiz: 'completo', pagamento: 'do Personal Stylist',
+    duracao: 'Online (apoio de IA + 30 min com a Ju) ou presencial',
+    inclui: ['Questionário aprofundado + videochamada de 30 min com a Ju', 'Análise de biotipo, estilo, colorimetria e dress code', 'Criação do vestido com técnicas de harmonização', 'Croqui, dossiê e ficha técnica do vestido', 'Orçamento para confecção', 'Fechando o vestido: upgrade para My Personal Stylist sem pagar a diferença'],
   },
   consultivo: {
-    label: 'Consultivo', preco: 97, cobra: true, quiz: 'consultivo', pagamento: 'do atendimento consultivo',
-    inclui: ['Quiz com informações-base do evento e do vestido', 'Criação do croqui', 'Orçamento'],
+    label: 'My Consultora', preco: 147, cobra: true, quiz: 'consultivo', pagamento: 'da My Consultora',
+    inclui: ['Questionário objetivo do evento e do vestido', 'Interpretação das referências e orientação de modelo', '1 croqui e 1 proposta', 'Orçamento para confecção'],
   },
   orcamento: {
-    label: 'Orçamento (sem cobrança)', preco: 0, cobra: false, quiz: 'orcamento', pagamento: 'do orçamento',
-    inclui: ['Para quem já tem o modelo e quer que a Maison Das G faça', 'Orçamento'],
+    label: 'My Orçamento (gratuito)', preco: 0, cobra: false, quiz: 'orcamento', pagamento: 'do orçamento',
+    inclui: ['Para quem já tem foto, desenho ou referência do vestido', 'Avaliação de viabilidade e orçamento'],
   },
   orientacao_tecido: {
-    label: 'Orientação de tecido', preco: 47.9, cobra: true, quiz: 'tecido', pagamento: 'da orientação de tecido',
-    inclui: ['Tecido e metragem para o modelo desejado', 'Croqui', 'Orientação de harmonização', 'Atendimento na loja de tecidos'],
+    label: 'My Curadoria de Tecidos', preco: 47, cobra: true, quiz: 'tecido', pagamento: 'da My Curadoria de Tecidos',
+    inclui: ['Orientação de tecido, caimento e estrutura (na Das G Tissu)', 'Estimativa de metragem', 'Croqui simplificado e harmonização'],
+  },
+  cerimonial: {
+    label: 'Stylist Cerimonial', preco: 497, cobra: true, quiz: null, pagamento: 'do Stylist Cerimonial',
+    duracao: '2 horas, do salão até a entrada do evento',
+    inclui: ['Acompanhamento no dia do evento, enquanto ela se arruma e se veste', 'Leva a cliente até a entrada (não permanece no evento)'],
+  },
+  my_personal_stylist: {
+    label: 'My Personal Stylist (pacote VIP)', preco: 987, cobra: true, quiz: 'completo', pagamento: 'do My Personal Stylist',
+    inclui: ['Raio X do Estilo + Personal Stylist + My Paleta', 'Curadoria de acessórios, cabelo e make'],
   },
   // tipos antigos (OS já existentes): seguem funcionando, não aparecem para novas OS
   consultoria_express: { label: 'Consultoria Express (antigo)', legado: true, preco: 297, cobra: true, quiz: 'completo', pagamento: 'da consultoria' },

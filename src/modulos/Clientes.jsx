@@ -109,7 +109,7 @@ export default function Clientes({ clientes, os, quizEnvios = [], agenda = [], p
     setSalvando(false);
     await onRecarregar();
     if (r.error) { setErro(r.error + (r.envio ? ` O link já foi criado: ${linkDoQuiz(r.envio.token)}` : '')); return; }
-    setAviso('Quiz enviado pelo WhatsApp. As respostas vão aparecer aqui e na Consultoria Express.');
+    setAviso('Quiz enviado pelo WhatsApp. As respostas vão aparecer aqui e na Consultoria.');
   }
 
   const osDaCliente = sel ? os.filter(o => o.cliente_id === sel.id) : [];

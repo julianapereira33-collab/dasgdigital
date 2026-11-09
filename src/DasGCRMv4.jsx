@@ -301,34 +301,18 @@ const MOCK_FEEDBACK = [
 ];
 
 const MOCK_SERVICOS = [
-  {
-    id: 's1', nome: 'Atendimento Completo', slug: 'completo',
-    descricao: 'Sessão de 1 hora, presencial ou online, com quiz completo e dossiê personalizado.',
-    inclui: ['Quiz completo para gerar o dossiê', 'Análise de biotipo, estilo, colorimetria e dress code', 'Criação com técnicas de harmonização', 'Dossiê e ficha técnica do vestido', 'Orçamento'],
-    faixa_preco: 'R$ 397,00',
-    pagamento: ['PIX', 'Cartão', 'Link Cakto'],
-  },
-  {
-    id: 's2', nome: 'Atendimento Consultivo', slug: 'consultivo',
-    descricao: 'Quiz com as informações-base do evento e do vestido, criação do croqui e orçamento.',
-    inclui: ['Quiz: evento, local, papel, paleta de cores, inspirações', 'O que espera do vestido e como deseja ser vista', 'Valor a investir e 3 opções de cor', 'Criação do croqui', 'Orçamento'],
-    faixa_preco: 'R$ 97,00',
-    pagamento: ['PIX', 'Cartão', 'Link Cakto'],
-  },
-  {
-    id: 's3', nome: 'Orçamento', slug: 'orcamento',
-    descricao: 'Sem cobrança. Para quem já tem o modelo e quer que a Maison Das G faça.',
-    inclui: ['Análise do modelo e das referências', 'Orçamento com descrição técnica'],
-    faixa_preco: 'Sem cobrança',
-    pagamento: ['—'],
-  },
-  {
-    id: 's4', nome: 'Orientação de Tecido', slug: 'orientacao_tecido',
-    descricao: 'Atendimento na loja de tecidos: tecido e metragem para o modelo desejado.',
-    inclui: ['Tecido e metragem para o modelo desejado', 'Croqui', 'Orientação de harmonização'],
-    faixa_preco: 'R$ 47,90',
-    pagamento: ['PIX', 'Cartão', 'Dinheiro'],
-  },
+  { id: 's1', nome: 'Personal Stylist', slug: 'completo', descricao: 'Consultoria completa com criação autoral: online (IA + 30 min com a Ju) ou presencial.',
+    inclui: ['Questionário aprofundado e videochamada de 30 min', 'Análise de biotipo, estilo, colorimetria e dress code', 'Criação com harmonização, croqui, dossiê e ficha técnica', 'Orçamento para confecção'], faixa_preco: 'R$ 397,00', pagamento: ['A definir'] },
+  { id: 's2', nome: 'My Consultora', slug: 'consultivo', descricao: 'Com a Ju, direcionada a um evento: referências, modelo e harmonização.',
+    inclui: ['Questionário objetivo', 'Orientação de modelo e harmonização', '1 croqui e 1 proposta', 'Orçamento'], faixa_preco: 'R$ 147,00', pagamento: ['A definir'] },
+  { id: 's3', nome: 'My Orçamento', slug: 'orcamento', descricao: 'Gratuito. Para quem já tem o modelo e quer que a Maison Das G faça.',
+    inclui: ['Avaliação de viabilidade', 'Orçamento com descrição técnica'], faixa_preco: 'Gratuito', pagamento: ['—'] },
+  { id: 's4', nome: 'My Curadoria de Tecidos', slug: 'orientacao_tecido', descricao: 'Consultoria técnica na Das G Tissu: tecido e metragem para o modelo.',
+    inclui: ['Tecido, caimento e estrutura', 'Estimativa de metragem', 'Croqui simplificado e harmonização'], faixa_preco: 'R$ 47,00', pagamento: ['A definir'] },
+  { id: 's5', nome: 'Stylist Cerimonial', slug: 'cerimonial', descricao: 'Acompanhamento no dia do evento, do salão até a entrada (2 horas).',
+    inclui: ['Acompanha enquanto ela se arruma e se veste', 'Leva até a entrada do evento'], faixa_preco: 'R$ 497,00', pagamento: ['A definir'] },
+  { id: 's6', nome: 'My Personal Stylist', slug: 'my_personal_stylist', descricao: 'Pacote VIP completo.',
+    inclui: ['Raio X do Estilo + Personal Stylist + My Paleta', 'Curadoria de acessórios, cabelo e make'], faixa_preco: 'R$ 987,00', pagamento: ['A definir'] },
 ];
 
 // Conversas do WhatsApp agora vêm do Supabase (tabelas conversas_whatsapp + atendimento_whatsapp).
