@@ -7,7 +7,7 @@ import { Badge, Card, fmtDate } from './ui.jsx';
 const PROCESSOS = [
   { titulo: 'Atendimento', cor: '#0ea5e9', etapas: ['cliente', 'atendimento', 'agendamento', 'consultoria'] },
   { titulo: 'Orçamento e pagamento', cor: '#f97316', etapas: ['criacao', 'orcamento', 'aprovacao', 'venda'] },
-    { titulo: 'Oficina (produção)', cor: '#c4a45a', etapas: ['os', 'tecido', 'corte', 'montagem'] },
+    { titulo: 'Ateliê (produção)', cor: '#c4a45a', etapas: ['os', 'tecido', 'corte', 'montagem'] },
   { titulo: 'Provas e ajustes', cor: '#ec4899', etapas: ['prova1', 'ajuste1', 'prova2', 'ajuste2', 'prova_final', 'prova4'] },
   { titulo: 'Entrega, pós-venda e marketing', cor: '#16a34a', etapas: ['finalizacao', 'entrega', 'pos_venda', 'marketing'] },
 ];

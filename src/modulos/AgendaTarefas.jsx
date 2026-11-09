@@ -42,7 +42,7 @@ const TIPOS = {
 const DEPARTAMENTOS = {
   adm: { label: 'ADM', curto: 'ADM', cor: '#c4a45a' },
   clientes: { label: 'Clientes', curto: 'Clientes', cor: '#d97706' },
-  atelie: { label: 'Oficina', curto: 'Oficina', cor: '#0ea5e9' },
+  atelie: { label: 'Ateliê', curto: 'Ateliê', cor: '#0ea5e9' },
   marketing: { label: 'Marketing', curto: 'Marketing', cor: '#e11d48' },
   financeira: { label: 'Financeira 🔒', curto: 'Financeira', cor: '#0f766e' },
   tissu: { label: 'Das G Tissu (tecidos)', curto: 'Das G Tissu', cor: '#7c3aed' },
@@ -374,7 +374,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700 }}>Agenda e Tarefas</h1>
-          <p style={{ color: '#6b7280', marginTop: 4 }}>Cinco agendas — ADM/Clientes, Oficina, Marketing, Financeira (com senha) e Tissu. O ➤ envia a mensagem pronta e fica verde quando enviada.</p>
+          <p style={{ color: '#6b7280', marginTop: 4 }}>Cinco agendas — ADM/Clientes, Ateliê, Marketing, Financeira (com senha) e Tissu. O ➤ envia a mensagem pronta e fica verde quando enviada.</p>
         </div>
         {aba === 'agenda' ? <BtnPrimary onClick={() => novoEvento(cursor)}>Novo evento</BtnPrimary> : <BtnPrimary onClick={novaTarefa}>Nova tarefa</BtnPrimary>}
       </div>

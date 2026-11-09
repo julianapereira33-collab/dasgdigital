@@ -78,7 +78,7 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
   async function adicionar(fase) {
     const titulo = (novaTarefa[fase] || '').trim(); if (!titulo) return;
     const ordem = Math.max(0, ...tarefas.filter(t => t.fase === fase).map(t => t.ordem)) + 0.5;
-    const { data, error } = await supabase.from('os_producao').insert({ ordem_servico_id: osId, fase, titulo, ordem, responsavel: 'Oficina' }).select().single();
+    const { data, error } = await supabase.from('os_producao').insert({ ordem_servico_id: osId, fase, titulo, ordem, responsavel: 'Ateliê' }).select().single();
     if (error) { setErro(msgErro(error)); return; }
     setTarefas(ts => [...ts, data].sort((a, b) => a.ordem - b.ordem)); setNovaTarefa(n => ({ ...n, [fase]: '' }));
   }
@@ -120,7 +120,7 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
               <div style={{ height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}><div style={{ width: pct + '%', height: '100%', background: '#c4a45a' }} /></div>
             </div>
           </Card>
-          <TabBar active={aba} onChange={setAba} tabs={[{ id: 'producao', label: 'Etapas da oficina' }, { id: 'resumo', label: 'Resumo do pedido' }, { id: 'arquivos', label: 'Arquivos da OS' }]} />
+          <TabBar active={aba} onChange={setAba} tabs={[{ id: 'producao', label: 'Etapas do ateliê' }, { id: 'resumo', label: 'Resumo do pedido' }, { id: 'arquivos', label: 'Arquivos da OS' }]} />
 
           {aba === 'producao' && (
             <div>

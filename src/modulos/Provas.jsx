@@ -77,7 +77,7 @@ export default function Provas({ os, clientes, onRecarregar }) {
                   <label><div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', marginBottom: 3 }}>Resultado</div><select value={p.aprovado || ''} onChange={e => mudar(t, { aprovado: e.target.value })} style={inp}><option value="">—</option><option value="sim">Aprovado</option><option value="parcial">Aprovado c/ ajustes</option><option value="nao">Refazer</option></select></label>
                 </div>
                 <Campo label="Ajustes a fazer" type="textarea" rows={3} value={p.ajustes || ''} onChange={v => mudar(t, { ajustes: v })} />
-                <Campo label="Anotações da costureira / oficina" type="textarea" rows={2} value={p.notas_costureira || ''} onChange={v => mudar(t, { notas_costureira: v })} />
+                <Campo label="Anotações da costureira / ateliê" type="textarea" rows={2} value={p.notas_costureira || ''} onChange={v => mudar(t, { notas_costureira: v })} />
                 <BtnSecondary small onClick={() => salvarProva(t)}>Salvar {l}</BtnSecondary>
               </Card>); })}
           </div>
