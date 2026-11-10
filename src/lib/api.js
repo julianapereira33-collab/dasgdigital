@@ -54,17 +54,8 @@ const DEP_POR_ETAPA = {
   entrega: 'clientes', pos_venda: 'clientes', marketing: 'marketing',
 };
 
-export async function criarAtividadeDaEtapa({ os, cliente, slug }) {
-  const modelo = ATIVIDADE_POR_ETAPA[slug];
-  if (!modelo || !os?.id) return { data: null, error: null };
-  const titulo = modelo.replace('{c}', cliente?.nome || 'cliente');
-  const { data: jaTem } = await supabase.from('tarefas').select('id').eq('ordem_servico_id', os.id).eq('titulo', titulo).limit(1);
-  if (jaTem && jaTem.length) return { data: null, error: null };
-  return supabase.from('tarefas').insert({
-    titulo, status: 'pendente', prazo: emDias(2), prioridade: 'normal',
-    cliente_id: cliente?.id || null, ordem_servico_id: os.id, origem: 'fluxo', departamento: DEP_POR_ETAPA[slug] || 'clientes',
-  }).select().single();
-}
+// O fluxo NÃO gera mais tarefas: a Ju acompanha, aprova, edita e reagenda pelo Fluxo de Atendimento.
+export async function criarAtividadeDaEtapa() { return { data: null, error: null }; }
 
 export async function criarOS({ cliente, listaOS, descricao, data_evento, servico, canal, etapaInicial = 'atendimento', ocasiao, data_entrega_prevista, data_tecidos_medidas, valor_total, tipo_atendimento }) {
   const { data, error } = await supabase.from('ordens_servico').insert(limpar({

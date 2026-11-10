@@ -39,6 +39,7 @@ export default function Criacao({ os, clientes, quizEnvios, onRecarregar, onNave
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [pedido, setPedido] = useState('');
 
   const ativas = useMemo(() => os.filter(o => o.status_idx < TOTAL_ETAPAS), [os]);
   const osSel = os.find(o => o.id === osId) || null;
@@ -103,6 +104,17 @@ export default function Criacao({ os, clientes, quizEnvios, onRecarregar, onNave
     setOcupado(false);
   }
 
+  async function pedirAlteracaoIA() {
+    if (!dossie?.id) { setErro('Salve o dossiê antes de pedir alteração.'); return; }
+    if (!pedido.trim()) { setErro('Escreva o que a IA deve mudar.'); return; }
+    setOcupado(true); setErro(''); setAviso('');
+    const { data, error } = await supabase.from('dossies').update({ alteracao_pedida: pedido.trim(), ia_status: 'refazer' }).eq('id', dossie.id).select().single();
+    setOcupado(false);
+    if (error) { setErro(msgErro(error)); return; }
+    setDossie(data); setPedido('');
+    setAviso('Pedido enviado. A IA refaz o briefing, o dossiê e o croqui em poucos minutos e avisa no seu WhatsApp.');
+  }
+
   async function salvarFicha() {
     setOcupado(true); setErro(''); setAviso('');
     const linha = { ordem_servico_id: osSel.id, medidas: ficha.medidas, observacoes: ficha.observacoes || null };
@@ -163,7 +175,7 @@ export default function Criacao({ os, clientes, quizEnvios, onRecarregar, onNave
           {aba === 'dossie' && dossie && (
             <Card>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-                <h3 style={{ fontWeight: 700 }}>Dossiê do vestido</h3>
+                <h3 style={{ fontWeight: 700 }}>Dossiê do vestido {dossie.gerado_por_ia && <Badge label="Rascunho da IA, revise" color="#8b5cf6" />} {dossie.ia_status === 'refazer' && <Badge label="IA refazendo..." color="#f59e0b" />} {dossie.ia_status === 'erro' && <Badge label="IA não conseguiu, tente de novo" color="#dc2626" />}</h3>
                 <BtnSecondary small onClick={preencherDoBriefing}>Preencher com o briefing</BtnSecondary>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -172,6 +184,10 @@ export default function Criacao({ os, clientes, quizEnvios, onRecarregar, onNave
               <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
                 <BtnPrimary disabled={ocupado} onClick={() => salvarDossie(false)}>{ocupado ? 'Salvando...' : 'Salvar dossiê'}</BtnPrimary>
                 {osSel.status_idx < 5 && <BtnSecondary disabled={ocupado} onClick={() => salvarDossie(true)}>Salvar e avançar a OS para Criação</BtnSecondary>}
+              </div>
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #f3f4f6' }}>
+                <Campo label="Pedir alteração à IA (ela refaz briefing, dossiê e croqui)" type="textarea" rows={2} value={pedido} onChange={setPedido} placeholder="Ex.: manga longa em renda, cor verde esmeralda, decote mais fechado" />
+                <BtnSecondary disabled={ocupado || dossie.ia_status === 'refazer'} onClick={pedirAlteracaoIA}>Pedir alteração à IA</BtnSecondary>
               </div>
             </Card>
           )}
