@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { enviarWhatsApp, whatsappConfigurado } from '../lib/whatsapp.js';
 import { enviarMeta, metaConfigurado } from '../lib/meta.js';
@@ -10,6 +10,8 @@ const digitos = (t) => String(t || '').replace(/\D/g, '');
 const mesmoTel = (a, b) => { const x = digitos(a), y = digitos(b); return x.length >= 8 && y.length >= 8 && x.slice(-9) === y.slice(-9); };
 const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261102000000 no Supabase (tabela/coluna ainda não existe). ' + e.message : (e.message || String(e));
 const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const dataCurta = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+const dataDia = (iso) => { const d = new Date(iso), h = new Date(), o = new Date(Date.now() - 86400000); const igual = (a, b) => a.toDateString() === b.toDateString(); return igual(d, h) ? 'Hoje' : igual(d, o) ? 'Ontem' : d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }); };
 
 const CANAIS = [
   { id: 'whatsapp', nome: 'WhatsApp', cor: '#25D366', icone: '💬' },
@@ -251,7 +253,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {lista(conversas.filter(c => c.nao_lidas > 0).slice(0, 6).map(c => (
                   <div key={c.id} onClick={() => { setCanalSel(c.canal || 'whatsapp'); setAba('conversas'); setConvSel(c); }} style={{ cursor: 'pointer', padding: '8px 10px', background: '#fef9f0', borderRadius: 6 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{c.nome} <span style={{ color: '#9ca3af', fontWeight: 400 }}>· {c.tempo}</span></div>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{c.nome} <span style={{ color: '#9ca3af', fontWeight: 400 }}>· {c.ultima_em ? dataCurta(c.ultima_em) + ' ' + hora(c.ultima_em) : c.tempo}</span></div>
                     <div style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.ultima_msg}</div>
                   </div>
                 )), 'Tudo respondido.')}
@@ -304,7 +306,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
                       <span style={{ fontWeight: 700, fontSize: 14 }}><span title={iconeCanal(c.canal).nome} style={{ marginRight: 6 }}>{iconeCanal(c.canal).icone}</span>{c.nome}</span>
                       <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <span style={{ fontSize: 11, color: '#9ca3af' }}>{c.tempo}</span>
+                        <span style={{ fontSize: 11, color: '#9ca3af' }} title={c.ultima_em ? dataCurta(c.ultima_em) + ' ' + hora(c.ultima_em) : ''}>{c.ultima_em ? dataCurta(c.ultima_em) + ' · ' + hora(c.ultima_em) : c.tempo}</span>
                         {c.nao_lidas > 0 && <span style={{ background: '#c4a45a', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{c.nao_lidas}</span>}
                       </span>
                     </div>
@@ -342,15 +344,18 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
 
                 <div style={{ background: '#f9fafb', borderRadius: 8, padding: 14, minHeight: 220, maxHeight: '45vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {mensagens.length === 0 && <div style={{ color: '#9ca3af', fontSize: 14 }}>Sem mensagens registradas para este contato.</div>}
-                  {mensagens.map(m => (
-                    <div key={m.id} style={{ alignSelf: m.direcao === 'in' ? 'flex-start' : 'flex-end', background: m.direcao === 'in' ? '#fff' : (m.direcao === 'out_humano' ? '#fef3c7' : '#dcfce7'), border: '1px solid #e5e7eb', borderRadius: 10, padding: '8px 12px', maxWidth: '80%', fontSize: 13, whiteSpace: 'pre-wrap' }}>
+                  {mensagens.map((m, i) => (
+                    <React.Fragment key={m.id}>
+                    {(i === 0 || dataCurta(mensagens[i - 1].created_at) !== dataCurta(m.created_at)) && <div style={{ alignSelf: 'center', fontSize: 11, color: '#6b7280', background: '#e5e7eb', borderRadius: 10, padding: '2px 10px', margin: '4px 0', textTransform: 'capitalize' }}>{dataDia(m.created_at)}</div>}
+                    <div style={{ alignSelf: m.direcao === 'in' ? 'flex-start' : 'flex-end', background: m.direcao === 'in' ? '#fff' : (m.direcao === 'out_humano' ? '#fef3c7' : '#dcfce7'), border: '1px solid #e5e7eb', borderRadius: 10, padding: '8px 12px', maxWidth: '80%', fontSize: 13, whiteSpace: 'pre-wrap' }}>
                       {m.direcao !== 'in' && <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', marginBottom: 2 }}>{m.direcao === 'out_humano' ? 'Você' : 'Júlia (IA)'}</div>}
                       {m.mensagem}
                       {m.direcao === 'in' && m.tipo === 'comentario' && m.ref_id && (
                         <div><button onClick={() => setAlvoComentario(m)} style={{ marginTop: 4, border: 'none', background: 'none', padding: 0, color: '#c4a45a', fontSize: 11, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>Responder este comentário</button></div>
                       )}
-                      <div style={{ fontSize: 10, color: '#9ca3af', textAlign: 'right', marginTop: 2 }}>{hora(m.created_at)}</div>
+                      <div style={{ fontSize: 10, color: '#9ca3af', textAlign: 'right', marginTop: 2 }}>{dataCurta(m.created_at)} {hora(m.created_at)}</div>
                     </div>
+                    </React.Fragment>
                   ))}
                   <div ref={fimRef} />
                 </div>

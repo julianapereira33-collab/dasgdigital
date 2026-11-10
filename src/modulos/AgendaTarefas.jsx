@@ -8,10 +8,16 @@ import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, TabBar, Drawer, Campo
 
 // dep = departamento padrão do tipo (a Juliana pode trocar ao criar o evento)
 const TIPOS = {
-  consultoria_express: { label: 'Atendimento (consultoria)', cor: '#c4a45a', dep: 'clientes', meet: true },
-  personal_stylist: { label: 'Personal Stylist', cor: '#8b5cf6', dep: 'clientes', meet: true },
-  teste_colorimetria: { label: 'Teste de colorimetria', cor: '#a855f7', dep: 'clientes', meet: true },
-  orcamento: { label: 'Atendimento de orçamento', cor: '#f97316', dep: 'clientes' },
+  completo: { label: 'Personal Stylist', cor: '#8b5cf6', dep: 'clientes', meet: true },
+  consultivo: { label: 'My Consultora', cor: '#c4a45a', dep: 'clientes', meet: true },
+  orcamento: { label: 'My Orçamento', cor: '#f97316', dep: 'clientes' },
+  orientacao_tecido: { label: 'My Curadoria de Tecidos', cor: '#7c3aed', dep: 'clientes' },
+  cerimonial: { label: 'Stylist Cerimonial', cor: '#be185d', dep: 'clientes' },
+  my_personal_stylist: { label: 'My Personal Stylist', cor: '#6d28d9', dep: 'clientes', meet: true },
+  // tipos antigos: só para eventos já existentes, não aparecem ao criar
+  consultoria_express: { label: 'Atendimento (antigo)', cor: '#c4a45a', dep: 'clientes', meet: true, legado: true },
+  personal_stylist: { label: 'Personal Stylist (antigo)', cor: '#8b5cf6', dep: 'clientes', meet: true, legado: true },
+  teste_colorimetria: { label: 'Teste de colorimetria (antigo)', cor: '#a855f7', dep: 'clientes', meet: true, legado: true },
   entrega: { label: 'Entrega', cor: '#16a34a', dep: 'clientes' },
   retirada_locacao: { label: 'Retirada de locação', cor: '#15803d', dep: 'clientes' },
   devolucao_locacao: { label: 'Devolução de locação', cor: '#65a30d', dep: 'clientes' },
@@ -47,6 +53,7 @@ const DEPARTAMENTOS = {
   financeira: { label: 'Financeira 🔒', curto: 'Financeira', cor: '#0f766e' },
   tissu: { label: 'Das G Tissu (tecidos)', curto: 'Das G Tissu', cor: '#7c3aed' },
 };
+export const TIPOS_ATENDIMENTO_AGENDA = ['completo', 'consultivo', 'orcamento', 'orientacao_tecido', 'cerimonial', 'my_personal_stylist', 'consultoria_express', 'personal_stylist'];
 const depDe = (x) => DEPARTAMENTOS[x?.departamento] ? x.departamento : (TIPOS[x?.tipo]?.dep || 'adm');
 const primeiroTipoDe = (d) => ({ atelie: 'modelagem_corte' })[d] || Object.keys(TIPOS).find(k => TIPOS[k].dep === d) || 'outro';
 // Texto pronto por tipo (padrão do banco: agenda_modelos_msg). {nome} {tipo} {quando} {local} {meet}
@@ -247,7 +254,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
     if (error) { setSalvando(false); setErro(msgErro(error)); return; }
 
     // agendou uma consultoria? a OS vai para "Agendado" (se ainda estiver antes) e ganha a atividade da etapa
-    if (!evento.id && evento.ordem_servico_id && ['consultoria_express', 'personal_stylist'].includes(evento.tipo)) {
+    if (!evento.id && evento.ordem_servico_id && TIPOS_ATENDIMENTO_AGENDA.includes(evento.tipo)) {
       const o = os.find(x => x.id === evento.ordem_servico_id);
       if (o && o.status_idx < 3) {
         await supabase.from('ordens_servico').update({ status: 'agendamento' }).eq('id', o.id);
@@ -505,7 +512,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
       {!bloqueado(dep) && aba === 'mensagens' && (
         <div>
           <p style={{ color: '#6b7280', fontSize: 13, marginBottom: 12 }}>Texto pronto de cada tipo de evento. Use {'{nome}'}, {'{tipo}'}, {'{quando}'}, {'{local}'} e {'{meet}'} — o sistema troca pelos dados do evento.</p>
-          {Object.entries(TIPOS).filter(([, t]) => dep === 'todos' || t.dep === dep).filter(([, t]) => !bloqueado(t.dep)).map(([k, t]) => {
+          {Object.entries(TIPOS).filter(([, t]) => !t.legado).filter(([, t]) => dep === 'todos' || t.dep === dep).filter(([, t]) => !bloqueado(t.dep)).map(([k, t]) => {
             const atual = modelosEdit[k] ?? modelos[k]?.texto ?? '';
             return (
               <Card key={k} style={{ marginBottom: 10 }}>
@@ -530,7 +537,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
             {aviso && <Aviso tipo="ok">{aviso}</Aviso>}
             {evento.id && <div style={{ marginBottom: 14 }}><Badge label={(STATUS_EVENTO[evento.status] || STATUS_EVENTO.agendado).label} color={(STATUS_EVENTO[evento.status] || STATUS_EVENTO.agendado).cor} />{evento.confirmacao_enviada_em && <span style={{ fontSize: 12, color: '#9ca3af', marginLeft: 8 }}>confirmação enviada em {new Date(evento.confirmacao_enviada_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Campo label="Tipo" value={evento.tipo} onChange={v => editarEvento({ tipo: v })} options={Object.entries(TIPOS).filter(([, t]) => t.dep === evento.departamento).map(([value, t]) => ({ value, label: t.label }))} />
+              <Campo label="Tipo" value={evento.tipo} onChange={v => editarEvento({ tipo: v })} options={Object.entries(TIPOS).filter(([k, t]) => t.dep === evento.departamento && (!t.legado || k === evento.tipo)).map(([value, t]) => ({ value, label: t.label }))} />
               <Campo label="Agenda (departamento)" value={evento.departamento} onChange={v => editarEvento({ departamento: v })} options={Object.entries(DEPARTAMENTOS).filter(([k]) => !bloqueado(k)).map(([value, d]) => ({ value, label: d.label }))} />
             </div>
             <ClienteRapido clientes={clientes} value={evento.cliente_id} onChange={v => editarEvento({ cliente_id: v, ordem_servico_id: '' })} onRecarregar={onRecarregar} />

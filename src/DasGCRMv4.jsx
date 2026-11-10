@@ -1567,7 +1567,7 @@ export default function DasGCRM() {
     { titulo: 'Catálogo', ids: ['produtos'] },
   ].map(g => ({ ...g, itens: g.ids.map(id => nav.find(n => n.id === id)).filter(Boolean) }));
 
-  const COR_TIPO_AGENDA = { consultoria_express: '#c4a45a', personal_stylist: '#8b5cf6', prova1: '#ec4899', prova2: '#db2777', prova_final: '#be185d', entrega: '#16a34a', orcamento: '#f97316', reuniao: '#6b7280' };
+  const COR_TIPO_AGENDA = { completo: '#8b5cf6', consultivo: '#c4a45a', orientacao_tecido: '#7c3aed', cerimonial: '#be185d', my_personal_stylist: '#6d28d9', consultoria_express: '#c4a45a', personal_stylist: '#8b5cf6', prova1: '#ec4899', prova2: '#db2777', prova_final: '#be185d', entrega: '#16a34a', orcamento: '#f97316', reuniao: '#6b7280' };
   const agendaDashboard = agenda.map(a => ({ ...a, data: a.data_hora, cliente: clientes.find(c => c.id === a.cliente_id)?.nome || a.titulo || 'Compromisso', cor: COR_TIPO_AGENDA[a.tipo] || '#0ea5e9' }));
 
   const renderPagina = () => {

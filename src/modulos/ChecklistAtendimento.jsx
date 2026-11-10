@@ -9,7 +9,7 @@ import { Badge, Card, BtnPrimary, BtnSecondary, Campo, Aviso, fmtDateTime, erroD
 // Cada passo tem o botão que dispara a mensagem pelo WhatsApp e o status fica salvo na OS/agenda/quiz,
 // então aparece na ficha da cliente e na Consultoria.
 
-const TIPOS_CONSULTORIA = ['consultoria_express', 'personal_stylist'];
+const TIPOS_CONSULTORIA = ['completo', 'consultivo', 'orcamento', 'orientacao_tecido', 'cerimonial', 'my_personal_stylist', 'consultoria_express', 'personal_stylist'];
 const primeiroNome = (n) => (n || '').split(' ')[0] || 'tudo bem';
 const brl = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -62,13 +62,25 @@ export default function ChecklistAtendimento({ os, cliente, agenda, quizEnvios, 
     if (!r.ok) throw new Error(r.erro);
   }
 
+  // Reserva + pagamento na MESMA mensagem; quiz só depois do pagamento; horário confirma quando o quiz é respondido.
   const enviarConfirmacao = () => executar('conf', async () => {
     if (!s.ev) throw new Error('Agende o horário primeiro.');
-    const msg = msgConfirmacaoEvento({ nomeCliente: cliente?.nome, tipoLabel: 'consultoria', data: s.ev.data_hora, local: s.ev.local, linkMeet: s.ev.link_meet || meet });
+    const cobra = tipoDaOS(os).cobra;
+    if (cobra && !linkPg.trim()) throw new Error('Cole o link de pagamento: ele vai junto com a confirmação do horário.');
+    if (cobra) await salvarPagamento();
+    const quando = new Date(s.ev.data_hora).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const v = cobra && valor !== '' ? ` (investimento de ${brl(valor)})` : '';
+    const msg = cobra
+      ? `Olá, ${primeiroNome(cliente?.nome)}! 💛 Seu horário na Maison Das G está reservado: ${tipoDaOS(os).label} em ${quando}.\n\nPara confirmar, conclua o pagamento${v}:\n${linkPg.trim()}\n\nAssim que o pagamento for confirmado eu te envio o questionário do atendimento e, depois dele respondido, o horário fica confirmado.`
+      : msgConfirmacaoEvento({ nomeCliente: cliente?.nome, tipoLabel: tipoDaOS(os).label.toLowerCase(), data: s.ev.data_hora, local: s.ev.local, linkMeet: s.ev.link_meet || meet });
     await enviar(msg);
-    const { error } = await supabase.from('agenda').update({ confirmacao_enviada_em: new Date().toISOString(), confirmacao_mensagem: msg, status: 'aguardando_confirmacao' }).eq('id', s.ev.id);
+    const { error } = await supabase.from('agenda').update({ confirmacao_enviada_em: new Date().toISOString(), confirmacao_mensagem: msg, status: 'aguardando_confirmacao', lembrete_pagamento_em: new Date().toISOString() }).eq('id', s.ev.id);
     if (error) throw new Error(msgErro(error));
-    return 'Confirmação de horário enviada.';
+    if (cobra) {
+      const r2 = await supabase.from('ordens_servico').update({ pagamento_status: 'link_enviado', pagamento_link_enviado_em: new Date().toISOString() }).eq('id', os.id);
+      if (r2.error) throw new Error(msgErro(r2.error));
+    }
+    return cobra ? 'Reserva do horário + link de pagamento enviados.' : 'Confirmação do horário enviada.';
   });
   const marcarConfirmado = () => executar('conf2', async () => {
     const { error } = await supabase.from('agenda').update({ status: 'confirmado', confirmado_em: new Date().toISOString() }).eq('id', s.ev.id);
@@ -132,33 +144,34 @@ export default function ChecklistAtendimento({ os, cliente, agenda, quizEnvios, 
         {!s.agendado && <BtnSecondary small onClick={() => onNavegar && onNavegar('agenda')}>Ir para a agenda</BtnSecondary>}
       </Passo>
 
-      <Passo ok={s.confirmado} titulo="Cliente confirmou o horário" detalhe={s.ev?.confirmacao_enviada_em ? `Confirmação enviada em ${fmtDateTime(s.ev.confirmacao_enviada_em)}` : 'Confirmação ainda não enviada.'}>
-        {s.agendado && !s.confirmado && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <BtnPrimary small disabled={semZap || !!ocupado} onClick={enviarConfirmacao}>{ocupado === 'conf' ? 'Enviando...' : s.ev?.confirmacao_enviada_em ? 'Reenviar confirmação' : 'Enviar confirmação'}</BtnPrimary>
-            <BtnSecondary small disabled={!!ocupado} onClick={marcarConfirmado}>Ela confirmou</BtnSecondary>
-          </div>
-        )}
-      </Passo>
+      {tipoDaOS(os).cobra ? (
+        <Passo ok={s.pago} titulo={`1. Reserva + pagamento ${tipoDaOS(os).pagamento}`} detalhe={s.pago ? `Pagamento recebido em ${fmtDateTime(os.pago_em)}` : os.pagamento_status === 'link_enviado' ? `Reserva e link enviados em ${fmtDateTime(os.pagamento_link_enviado_em)}, aguardando o pagamento (o robô cobra a cada 24h)` : 'O link de pagamento vai junto com a confirmação do horário.'}>
+          {!s.pago ? (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10 }}>
+                <Campo label="Valor (R$)" type="number" value={valor} onChange={setValor} />
+                <Campo label="Link de pagamento" value={linkPg} onChange={setLinkPg} placeholder="https://pay.cakto.com.br/..." />
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <BtnPrimary small disabled={semZap || !s.agendado || !!ocupado} onClick={enviarConfirmacao}>{ocupado === 'conf' ? 'Enviando...' : os.pagamento_status === 'link_enviado' ? 'Reenviar reserva + link' : 'Enviar reserva + link de pagamento'}</BtnPrimary>
+                <BtnSecondary small disabled={!!ocupado} onClick={marcarPago}>Conferi: pagamento recebido</BtnSecondary>
+              </div>
+            </div>
+          ) : <BtnSecondary small disabled={!!ocupado} onClick={desfazerPago}>Desfazer pagamento</BtnSecondary>}
+        </Passo>
+      ) : (
+        <Passo ok={!!s.ev?.confirmacao_enviada_em} titulo="1. Confirmação do horário" detalhe={s.ev?.confirmacao_enviada_em ? `Enviada em ${fmtDateTime(s.ev.confirmacao_enviada_em)}` : 'Atendimento sem cobrança.'}>
+          {s.agendado && <BtnPrimary small disabled={semZap || !!ocupado} onClick={enviarConfirmacao}>{ocupado === 'conf' ? 'Enviando...' : s.ev?.confirmacao_enviada_em ? 'Reenviar confirmação' : 'Enviar confirmação'}</BtnPrimary>}
+        </Passo>
+      )}
 
-      {s.precisaQuiz && <Passo ok={s.respondeu} titulo="Quiz respondido" detalhe={s.quiz ? (s.respondeu ? `Respondido em ${fmtDateTime(s.quiz.respondido_em)}` : s.quiz.status === 'enviado' ? `Enviado em ${fmtDateTime(s.quiz.enviado_em)}, aguardando resposta` : 'Link criado, ainda não enviado') : 'Quiz ainda não enviado.'}>
-        {!s.respondeu && <BtnPrimary small disabled={semZap || !!ocupado} onClick={enviarQuiz}>{ocupado === 'quiz' ? 'Enviando...' : s.quiz ? 'Reenviar quiz' : 'Enviar quiz'}</BtnPrimary>}
+      {s.precisaQuiz && <Passo ok={s.respondeu} titulo="2. Quiz respondido (liberado após o pagamento)" detalhe={s.quiz ? (s.respondeu ? `Respondido em ${fmtDateTime(s.quiz.respondido_em)}` : s.quiz.status === 'enviado' ? `Enviado em ${fmtDateTime(s.quiz.enviado_em)}, aguardando resposta (o robô cobra antes do horário)` : 'Link criado, ainda não enviado') : s.pago ? 'Pagamento ok: o robô envia o quiz na próxima rodada.' : 'Só é enviado depois do pagamento.'}>
+        {!s.respondeu && s.pago && <BtnPrimary small disabled={semZap || !!ocupado} onClick={enviarQuiz}>{ocupado === 'quiz' ? 'Enviando...' : s.quiz ? 'Reenviar quiz' : 'Enviar quiz agora'}</BtnPrimary>}
       </Passo>}
 
-      {tipoDaOS(os).cobra && <Passo ok={s.pago} titulo={`Pagamento ${tipoDaOS(os).pagamento}`} detalhe={s.pago ? `Recebido em ${fmtDateTime(os.pago_em)}` : os.pagamento_status === 'link_enviado' ? `Link enviado em ${fmtDateTime(os.pagamento_link_enviado_em)}, aguardando pagamento` : 'Link de pagamento ainda não enviado.'}>
-        {!s.pago ? (
-          <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10 }}>
-              <Campo label="Valor (R$)" type="number" value={valor} onChange={setValor} />
-              <Campo label="Link de pagamento" value={linkPg} onChange={setLinkPg} placeholder="https://pay.cakto.com.br/..." />
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <BtnPrimary small disabled={semZap || !!ocupado} onClick={enviarPagamento}>{ocupado === 'pg' ? 'Enviando...' : os.pagamento_status === 'link_enviado' ? 'Reenviar link' : 'Enviar link de pagamento'}</BtnPrimary>
-              <BtnSecondary small disabled={!!ocupado} onClick={marcarPago}>Marcar como pago</BtnSecondary>
-            </div>
-          </div>
-        ) : <BtnSecondary small disabled={!!ocupado} onClick={desfazerPago}>Desfazer pagamento</BtnSecondary>}
-     </Passo>}
+      <Passo ok={s.confirmado} titulo="3. Horário confirmado (automático quando pago e quiz respondido)" detalhe={s.confirmado ? 'Horário confirmado.' : 'Fica confirmado sozinho depois do pagamento e do quiz.'}>
+        {s.agendado && !s.confirmado && <BtnSecondary small disabled={!!ocupado} onClick={marcarConfirmado}>Confirmar manualmente</BtnSecondary>}
+      </Passo>
 
       <Passo ok={!!os.meet_enviado_em} titulo="Link da videoconferência" detalhe={os.meet_enviado_em ? `Enviado em ${fmtDateTime(os.meet_enviado_em)}` : 'Ainda não enviado.'}>
         <Campo label="Link (Meet/Zoom)" value={meet} onChange={setMeet} placeholder="https://meet.google.com/..." />
