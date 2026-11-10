@@ -367,7 +367,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
                     </select>}
                     <button onClick={alternarJulia} title="Liga/desliga o atendimento automático da Júlia nesta conversa" style={{ padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: juliaAtiva ? '#dcfce7' : '#fee2e2', color: juliaAtiva ? '#16a34a' : '#dc2626' }}>{juliaAtiva ? '🟢 Júlia ativa' : '🔴 Júlia pausada'}</button>
                     {(convSel.canal || 'whatsapp') === 'whatsapp' && <a href={`https://wa.me/${digitos(convSel.telefone)}`} target="_blank" rel="noreferrer"><BtnSecondary small>Abrir no WhatsApp</BtnSecondary></a>}
-                    {statusDe(convSel) === 'lead_novo' && <BtnSecondary small onClick={() => leadDaConversa(convSel)}>Cadastrar lead</BtnSecondary>}
+                    {statusDe(convSel) === 'lead_novo' && <BtnSecondary small onClick={() => leadDaConversa(convSel)}>Abrir atendimento</BtnSecondary>}
                     {statusDe(convSel) === 'lead' && <BtnPrimary small disabled={ocupado} onClick={() => virarCliente(leads.find(l => mesmoTel(l.telefone, convSel.telefone)))}>Virar cliente + abrir OS</BtnPrimary>}
                     {statusDe(convSel) === 'cliente' && <BtnSecondary small onClick={() => onNavegar?.('agenda')}>Agendar</BtnSecondary>}
                   </div>
@@ -565,7 +565,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
       )}
 
       {/* ── drawers ── */}
-      <Drawer open={!!formLead} onClose={() => setFormLead(null)} title={formLead?.id ? 'Editar lead' : 'Novo lead'} width={500}>
+      <Drawer open={!!formLead} onClose={() => setFormLead(null)} title={formLead?.id ? 'Editar lead' : (formLead?.telefone ? 'Abrir atendimento' : 'Novo lead')} width={500}>
         {formLead && (
           <div>
             {erro && <Aviso tipo="erro">{erro}</Aviso>}
