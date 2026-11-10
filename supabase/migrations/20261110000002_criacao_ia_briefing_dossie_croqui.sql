@@ -63,11 +63,6 @@ begin
   end if;
   if p_quiz_id is not null then update consultoria_quiz_envios set ia_status = 'pronto', ia_gerado_em = now() where id = p_quiz_id; end if;
   update tarefas set status = 'concluida' where ordem_servico_id = p_os_id and status <> 'concluida' and titulo like 'Montar briefing, dossiê, croqui e ficha técnica de%';
-  titulo_tarefa := 'Revisar briefing, dossiê e croqui da IA de '||c.nome||' (editar ou pedir alteração)';
-  if not exists (select 1 from tarefas where ordem_servico_id = p_os_id and titulo = titulo_tarefa) then
-    insert into tarefas(titulo, status, prazo, prioridade, cliente_id, ordem_servico_id, origem, departamento)
-    values (titulo_tarefa, 'pendente', current_date + 1, 'normal', o.cliente_id, p_os_id, 'fluxo', 'clientes');
-  end if;
   return jsonb_build_object('ok', true, 'nome', c.nome);
 end $$;
 
