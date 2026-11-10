@@ -7,7 +7,7 @@ import ChecklistAtendimento, { statusChecklist } from './ChecklistAtendimento.js
 import { TIPOS_ATENDIMENTO, TIPO_PADRAO, tipoDaOS, brlTipo } from './tiposAtendimento.js';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Campo, SeletorCliente, Aviso, fmtDateTime, erroDeSchema } from './ui.jsx';
 
-// 2º passo do fluxo: Atendimento. Define o tipo (Estilista Express, Consultoria Express ou Atendimento),
+// 2º passo do fluxo: Atendimento. Define o tipo (Personal Stylist, My Consultora, My Orçamento, My Curadoria de Tecidos, Stylist Cerimonial ou My Personal Stylist),
 // dispara o link de pagamento, o quiz (quando o tipo pede), a confirmação e a videoconferência.
 const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261105000002 no Supabase. ' + e.message : (e.message || String(e));
 const opcoesTipo = (atual) => Object.entries(TIPOS_ATENDIMENTO).filter(([k, t]) => !t.legado || k === atual).map(([value, t]) => ({ value, label: `${t.label} · ${brlTipo(t)}` }));
@@ -86,7 +86,7 @@ export default function Atendimento({ canais = [], clientes, os, agenda, tarefas
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'end', marginTop: 10, flexWrap: 'wrap' }}>
-                  <div style={{ minWidth: 220 }}><Campo label="Tipo de atendimento" value={o.tipo_atendimento || 'consultoria_express'} onChange={v => v && mudarTipo(o, v)} options={opcoesTipo(o.tipo_atendimento || 'consultoria_express')} /></div>
+                  <div style={{ minWidth: 220 }}><Campo label="Tipo de atendimento" value={o.tipo_atendimento || 'completo'} onChange={v => v && mudarTipo(o, v)} options={opcoesTipo(o.tipo_atendimento || 'completo')} /></div>
                   <div style={{ marginBottom: 14 }}><BtnSecondary small onClick={() => setAberta(aberta === o.id ? null : o.id)}>{aberta === o.id ? 'Fechar passos' : 'Pagamento, quiz e confirmações'}</BtnSecondary></div>
                   {s.pronta && <div style={{ marginBottom: 14 }}><BtnPrimary small onClick={() => onNavegar('consultoria')}>Ir para a consultoria</BtnPrimary></div>}
                 </div>

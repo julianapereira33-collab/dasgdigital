@@ -35,7 +35,7 @@ export const TIPOS_ATENDIMENTO = {
 };
 export const TIPO_PADRAO = 'completo';
 export const tipoDaOS = (os) => {
-  const t = TIPOS_ATENDIMENTO[os?.tipo_atendimento] || TIPOS_ATENDIMENTO.consultoria_express;
+  const t = TIPOS_ATENDIMENTO[os?.tipo_atendimento] || TIPOS_ATENDIMENTO.completo;
   return { ...t, quiz: !!t.quiz, tipoQuiz: t.quiz };
 };
 export const brlTipo = (t) => t.preco ? Number(t.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'sem cobrança';
