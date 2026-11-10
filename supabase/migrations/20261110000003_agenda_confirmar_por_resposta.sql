@@ -1,0 +1,5 @@
+-- Confirma automaticamente a agenda quando a cliente responde afirmativamente no WhatsApp.
+-- Chamada pelo n8n (Júlia) logo após "Extrair Dados". Corpo aplicado no banco via MCP; ver função no Supabase.
+-- Regras: ignora negações/textos longos; pega o próximo horário pendente com confirmação enviada;
+-- fluxo novo exige pagamento + quiz respondido; repetições em 10 min respondem em silêncio.
+-- (função: public.agenda_confirmar_por_resposta(p_telefone text, p_texto text, p_nome text))

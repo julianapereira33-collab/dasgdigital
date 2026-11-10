@@ -205,7 +205,7 @@ const printOS = (os, clientes) => {
   const cli = clientes.find(c=>c.id===os.clienteId);
   const win = window.open('','_blank');
   win.document.write(`<html><head><title>OS ${os.id}</title><style>body{font-family:Georgia,serif;padding:40px;color:#111} h1{font-size:22px} table{width:100%;border-collapse:collapse} td,th{border:1px solid #ddd;padding:8px;font-size:13px} .gold{color:#B8972A}</style></head><body>
-    <div style="text-align:center;margin-bottom:30px"><h1 class="gold">Atelie Das G - Ordem de Servico</h1><h2>${os.id}</h2></div>
+    <div style="text-align:center;margin-bottom:30px"><h1 class="gold">Maison Das G - Ordem de Servico</h1><h2>${os.id}</h2></div>
     <table><tr><th>Cliente</th><td>${cli?.nome}</td><th>Telefone</th><td>${cli?.fone}</td></tr>
     <tr><th>Descricao</th><td colspan="3">${os.descricao}</td></tr>
     <tr><th>Status</th><td>${fluxoLabel(os.status)}</td><th>Data Evento</th><td>${os.dataEvento}</td></tr>
@@ -221,7 +221,7 @@ const printOrcamento = (orc, clientes) => {
   const total = subtotal * (1 + orc.overhead/100) * (1 + orc.margem/100);
   const win = window.open('','_blank');
   win.document.write(`<html><head><title>ORC ${orc.id}</title><style>body{font-family:Georgia,serif;padding:40px;color:#111} h1{font-size:20px} table{width:100%;border-collapse:collapse} td,th{border:1px solid #ddd;padding:8px;font-size:13px} .gold{color:#B8972A} .total{font-weight:bold;font-size:15px}</style></head><body>
-    <div style="text-align:center;margin-bottom:30px"><h1 class="gold">Atelie Das G - Orcamento</h1><h2>${orc.id} - ${cli?.nome}</h2></div>
+    <div style="text-align:center;margin-bottom:30px"><h1 class="gold">Maison Das G - Orcamento</h1><h2>${orc.id} - ${cli?.nome}</h2></div>
     <table><tr><th>Item</th><th>Valor</th></tr>
     ${orc.itens.map(i=>`<tr><td>${i.desc}</td><td style="text-align:right">${moeda(i.valor)}</td></tr>`).join('')}
     <tr><td>Overhead (${orc.overhead}%)</td><td style="text-align:right">${moeda(subtotal*orc.overhead/100)}</td></tr>
@@ -235,7 +235,7 @@ const printDossie = (b, clientes) => {
   const cli = clientes.find(c=>c.id===b.clienteId);
   const win = window.open('','_blank');
   win.document.write(`<html><head><title>Dossie ${cli?.nome}</title><style>body{font-family:Georgia,serif;padding:40px;color:#111} h1{font-size:20px} .gold{color:#B8972A} p{line-height:1.7} .label{font-weight:bold;margin-top:16px}</style></head><body>
-    <div style="text-align:center;margin-bottom:30px"><h1 class="gold">Atelie Das G - Dossie Criativo</h1><h2>${cli?.nome}</h2></div>
+    <div style="text-align:center;margin-bottom:30px"><h1 class="gold">Maison Das G - Dossie Criativo</h1><h2>${cli?.nome}</h2></div>
     <p class="label">Ocasiao:</p><p>${b.respostas.ocasiao}</p>
     <p class="label">Estilo:</p><p>${b.respostas.estilo}</p>
     <p class="label">Tecidos:</p><p>${b.respostas.tecidos}</p>
