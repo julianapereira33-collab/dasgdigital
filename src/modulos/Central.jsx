@@ -63,12 +63,28 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
     if (leads.some(l => mesmoTel(l.telefone, c.telefone) && l.status !== 'perdido')) return 'lead';
     return 'lead_novo';
   };
+  // Funil da conversa: atendimento marcado = lead convertido; sem atendimento e parada há dias = declinou.
+  const TEMPS = { quente: ['🔥', 'Quente', '#dc2626'], morno: ['🌤️', 'Morno', '#d97706'], frio: ['❄️', 'Frio', '#2563eb'], declinou: ['💤', 'Declinou', '#6b7280'] };
+  const funilDe = (c) => {
+    const cli = clientes.find(x => mesmoTel(x.telefone, c.telefone));
+    const marcado = !!cli && agenda.some(a => a.cliente_id === cli.id && a.status !== 'cancelado' && (a.departamento || 'clientes') === 'clientes');
+    const dias = c.ultima_em ? (Date.now() - new Date(c.ultima_em).getTime()) / 86400000 : 99;
+    let temp = c.temperatura || (dias < 1 ? 'quente' : dias < 4 ? 'morno' : 'frio');
+    if (!marcado && !c.temperatura && dias >= 7) temp = 'declinou';
+    const aguardaHumano = c.julia_ativa === false && c.ultima_dir === 'in';
+    return { marcado, temp: marcado ? null : temp, aguardaHumano };
+  };
   const conversasCanal = useMemo(() => conversas.filter(c => (c.canal || 'whatsapp') === canalSel), [conversas, canalSel]);
   const convsFiltradas = conversasCanal.filter(c => {
     const s = statusDe(c);
     if (filtro === 'leads') return s !== 'cliente';
     if (filtro === 'clientes') return s === 'cliente';
     if (filtro === 'sem_resposta') return c.nao_lidas > 0;
+    const f = funilDe(c);
+    if (filtro === 'humano') return f.aguardaHumano;
+    if (filtro === 'quentes') return f.temp === 'quente';
+    if (filtro === 'agendados') return f.marcado;
+    if (filtro === 'declinaram') return f.temp === 'declinou';
     return true;
   });
   const naoLidasTotal = conversas.filter(c => c.nao_lidas > 0).length;
@@ -92,6 +108,11 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
   }, [convSel?.telefone]);
   useEffect(() => { fimRef.current?.scrollIntoView({ block: 'end' }); }, [mensagens.length, convSel?.telefone]);
 
+  async function mudarTemperatura(v) {
+    setConvSel(c => ({ ...c, temperatura: v || null }));
+    await supabase.from('atendimento_whatsapp').upsert({ phone: convSel.telefone, nome: convSel.nome, temperatura: v || null }, { onConflict: 'phone' });
+    onRecarregar?.();
+  }
   async function alternarJulia() {
     const novo = !juliaAtiva; setJuliaAtiva(novo);
     await supabase.from('atendimento_whatsapp').upsert({ phone: convSel.telefone, nome: convSel.nome, julia_ativa: novo }, { onConflict: 'phone' });
@@ -241,6 +262,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
         <div>
           <TarefasPorAgenda tarefas={tarefas} onAbrir={() => onNavegar?.('tarefas')} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 24 }}>
+            {atalhosCard(conversas.filter(c => funilDe(c).aguardaHumano).length, '🙋 Aguardando humano', '#dc2626', () => { setAba('conversas'); setFiltro('humano'); })}
             {atalhosCard(naoLidasTotal, 'Conversas aguardando você', '#f59e0b', () => { setAba('conversas'); setFiltro('sem_resposta'); })}
             {atalhosCard(eventosHoje.length, 'Compromissos hoje', '#c4a45a', () => onNavegar?.('agenda'))}
             {atalhosCard(aguardandoConfirmacao.length, 'Aguardando confirmação', '#3b82f6', () => onNavegar?.('agenda'))}
@@ -294,7 +316,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
               })}
             </div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-              {[['todos', 'Todos'], ['leads', 'Leads'], ['clientes', 'Clientes'], ['sem_resposta', 'Sem resposta']].map(([f, l]) => (
+              {[['todos', 'Todos'], ['leads', 'Leads'], ['clientes', 'Clientes'], ['sem_resposta', 'Sem resposta'], ['humano', '🙋 Aguardando humano'], ['quentes', '🔥 Quentes'], ['agendados', '✅ Com atendimento'], ['declinaram', '💤 Declinaram']].map(([f, l]) => (
                 <button key={f} onClick={() => setFiltro(f)} style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: filtro === f ? '#111' : '#f3f4f6', color: filtro === f ? '#fff' : '#374151', border: 'none' }}>{l}</button>
               ))}
             </div>
@@ -304,14 +326,19 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
                 return (
                   <div key={c.id} onClick={() => { setConvSel(c); setErro(''); setTexto(''); }} style={{ padding: '12px 14px', cursor: 'pointer', borderBottom: i < convsFiltradas.length - 1 ? '1px solid #f3f4f6' : 'none', background: convSel?.id === c.id ? '#fef9f0' : '#fff' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                      <span style={{ fontWeight: 700, fontSize: 14 }}><span title={iconeCanal(c.canal).nome} style={{ marginRight: 6 }}>{iconeCanal(c.canal).icone}</span>{c.nome}</span>
+                      <span style={{ fontWeight: 700, fontSize: 14 }}><span title={iconeCanal(c.canal).nome} style={{ marginRight: 6 }}>{iconeCanal(c.canal).icone}</span>{c.nome}{(() => { const f = funilDe(c); return f.temp ? <span title={'Lead ' + TEMPS[f.temp][1].toLowerCase()} style={{ marginLeft: 6 }}>{TEMPS[f.temp][0]}</span> : <span title="Atendimento marcado (lead convertido)" style={{ marginLeft: 6 }}>✅</span>; })()}</span>
                       <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <span style={{ fontSize: 11, color: '#9ca3af' }} title={c.ultima_em ? dataCurta(c.ultima_em) + ' ' + hora(c.ultima_em) : ''}>{c.ultima_em ? dataCurta(c.ultima_em) + ' · ' + hora(c.ultima_em) : c.tempo}</span>
                         {c.nao_lidas > 0 && <span style={{ background: '#c4a45a', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>{c.nao_lidas}</span>}
                       </span>
                     </div>
                     <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.ultima_msg}</div>
-                    <Badge label={rot} color={cor} />
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <Badge label={rot} color={cor} />
+                      {funilDe(c).aguardaHumano && <Badge label="🙋 Aguardando humano" color="#dc2626" />}
+                      {funilDe(c).marcado && <Badge label="Atendimento marcado" color="#16a34a" />}
+                      {funilDe(c).temp === 'declinou' && <Badge label="Declinou" color="#6b7280" />}
+                    </div>
                   </div>
                 );
               })}
@@ -334,6 +361,10 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
                     <div style={{ color: '#6b7280', fontSize: 13 }}>{convSel.telefone}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    {!funilDe(convSel).marcado && <select value={convSel.temperatura || ''} onChange={e => mudarTemperatura(e.target.value)} title="Temperatura do lead (vazio = automática)" style={{ padding: '6px 8px', borderRadius: 20, border: '1px solid #e5e7eb', fontSize: 12 }}>
+                      <option value="">{TEMPS[funilDe(convSel).temp]?.[0]} Automática</option>
+                      {Object.entries(TEMPS).map(([k, t]) => <option key={k} value={k}>{t[0]} {t[1]}</option>)}
+                    </select>}
                     <button onClick={alternarJulia} title="Liga/desliga o atendimento automático da Júlia nesta conversa" style={{ padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: juliaAtiva ? '#dcfce7' : '#fee2e2', color: juliaAtiva ? '#16a34a' : '#dc2626' }}>{juliaAtiva ? '🟢 Júlia ativa' : '🔴 Júlia pausada'}</button>
                     {(convSel.canal || 'whatsapp') === 'whatsapp' && <a href={`https://wa.me/${digitos(convSel.telefone)}`} target="_blank" rel="noreferrer"><BtnSecondary small>Abrir no WhatsApp</BtnSecondary></a>}
                     {statusDe(convSel) === 'lead_novo' && <BtnSecondary small onClick={() => leadDaConversa(convSel)}>Cadastrar lead</BtnSecondary>}

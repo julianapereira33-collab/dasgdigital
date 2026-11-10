@@ -13,7 +13,7 @@ const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261105000
 const opcoesTipo = (atual) => Object.entries(TIPOS_ATENDIMENTO).filter(([k, t]) => !t.legado || k === atual).map(([value, t]) => ({ value, label: `${t.label} · ${brlTipo(t)}` }));
 const STATUS_QUIZ = { criado: ['Link criado', '#6b7280'], enviado: ['Enviado, aguardando', '#f59e0b'], respondido: ['Respondido', '#16a34a'] };
 
-export default function Atendimento({ canais = [], clientes, os, agenda, tarefas = [], quizEnvios, clienteFocoId = '', focoTick = 0, onRecarregar, onNavegar }) {
+export default function Atendimento({ clientes, os, agenda, quizEnvios, clienteFocoId = '', focoTick = 0, onRecarregar, onNavegar }) {
   const [aba, setAba] = useState('atendimentos');
   const [aberta, setAberta] = useState(null);
   const [filtroQuiz, setFiltroQuiz] = useState('todos');
@@ -22,6 +22,7 @@ export default function Atendimento({ canais = [], clientes, os, agenda, tarefas
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState('');
+  const [edit, setEdit] = useState(null);
 
   useEffect(() => { if (focoTick > 0 && clienteFocoId) { setAba('atendimentos'); setNovo({ cliente_id: clienteFocoId, tipo: TIPO_PADRAO, descricao: '' }); } }, [focoTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const cli = (id) => clientes.find(c => c.id === id);
@@ -31,6 +32,23 @@ export default function Atendimento({ canais = [], clientes, os, agenda, tarefas
     const { error } = await supabase.from('ordens_servico').update({ tipo_atendimento: tipo }).eq('id', o.id);
     if (error) { setErro(msgErro(error)); return; }
     await onRecarregar();
+  }
+  async function salvarEdicao() {
+    if (!edit) return;
+    setOcupado('ed'); setErro('');
+    const { error } = await supabase.from('ordens_servico').update({ descricao: edit.descricao || null, ocasiao: edit.ocasiao || null, data_evento: edit.data_evento || null, tipo_atendimento: edit.tipo_atendimento }).eq('id', edit.id);
+    setOcupado('');
+    if (error) { setErro(msgErro(error)); return; }
+    await onRecarregar(); setEdit(null); setAviso('Atendimento atualizado.');
+  }
+  async function excluirAtendimento(o) {
+    if (!window.confirm(`Excluir o atendimento ${o.numero} de ${cli(o.cliente_id)?.nome || 'cliente'}?\n\nIsso apaga também o horário na agenda, o quiz e as tarefas ligadas a ele. Não dá para desfazer.`)) return;
+    setOcupado('x' + o.id); setErro('');
+    const { data, error } = await supabase.rpc('atendimento_excluir', { p_os_id: o.id });
+    setOcupado('');
+    if (error) { setErro(msgErro(error)); return; }
+    if (data && data.ok === false) { setErro(data.erro); return; }
+    await onRecarregar(); setAberta(null); setAviso(`Atendimento ${o.numero} excluído.`);
   }
   async function criarAtendimento() {
     if (!novo?.cliente_id) { setErro('Escolha a cliente.'); return; }
@@ -52,13 +70,12 @@ export default function Atendimento({ canais = [], clientes, os, agenda, tarefas
   const quizzes = quizEnvios.filter(q => filtroQuiz === 'todos' || (filtroQuiz === 'respondidos' ? q.status === 'respondido' : q.status !== 'respondido'));
   const precisamQuiz = os.filter(o => tipoDaOS(o).quiz && o.status_idx <= 6 && !quizEnvios.some(q => q.ordem_servico_id === o.id));
   const proximos = agenda.filter(a => (a.departamento || 'clientes') === 'clientes' && a.status !== 'cancelado' && new Date(a.data_hora) >= new Date(Date.now() - 3600000)).sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora)).slice(0, 10);
-  const abertas = tarefas.filter(t => (t.departamento || 'clientes') === 'clientes' && t.status !== 'concluida').slice(0, 10);
 
   return (
     <div>
       <div style={{ marginBottom: 20 }}><h1 style={{ fontSize: 24, fontWeight: 700 }}>Atendimento</h1><p style={{ color: '#6b7280', marginTop: 4 }}>Defina o tipo de atendimento, envie o link de pagamento e o quiz, e acompanhe as respostas</p></div>
       {aviso && <Aviso tipo="ok">{aviso}</Aviso>}{erro && <Aviso tipo="erro">{erro}</Aviso>}
-      <TabBar active={aba} onChange={setAba} tabs={[{ id: 'atendimentos', label: 'Atendimentos', count: emAtendimento.length }, { id: 'quiz', label: 'Quiz (envios e respostas)', count: quizEnvios.filter(q => q.status === 'respondido').length }, { id: 'agenda', label: 'Agendamentos e tarefas' }]} />
+      <TabBar active={aba} onChange={setAba} tabs={[{ id: 'atendimentos', label: 'Atendimentos', count: emAtendimento.length }, { id: 'quiz', label: 'Quiz (envios e respostas)', count: quizEnvios.filter(q => q.status === 'respondido').length }, { id: 'agenda', label: 'Agenda' }]} />
 
       {aba === 'atendimentos' && (
         <div>
@@ -87,9 +104,25 @@ export default function Atendimento({ canais = [], clientes, os, agenda, tarefas
                 </div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'end', marginTop: 10, flexWrap: 'wrap' }}>
                   <div style={{ minWidth: 220 }}><Campo label="Tipo de atendimento" value={o.tipo_atendimento || 'completo'} onChange={v => v && mudarTipo(o, v)} options={opcoesTipo(o.tipo_atendimento || 'completo')} /></div>
+                  <div style={{ marginBottom: 14, display: 'flex', gap: 6 }}>
+                    <BtnSecondary small onClick={() => setEdit(edit?.id === o.id ? null : { id: o.id, descricao: o.descricao || '', ocasiao: o.ocasiao || '', data_evento: o.data_evento || '', tipo_atendimento: o.tipo_atendimento || 'completo' })}>{edit?.id === o.id ? 'Fechar edição' : 'Editar'}</BtnSecondary>
+                    <BtnSecondary small onClick={() => onNavegar && onNavegar('agenda')}>Reagendar</BtnSecondary>
+                    <BtnSecondary small disabled={!!ocupado} onClick={() => excluirAtendimento(o)}>{ocupado === 'x' + o.id ? 'Excluindo...' : 'Excluir'}</BtnSecondary>
+                  </div>
                   <div style={{ marginBottom: 14 }}><BtnSecondary small onClick={() => setAberta(aberta === o.id ? null : o.id)}>{aberta === o.id ? 'Fechar passos' : 'Pagamento, quiz e confirmações'}</BtnSecondary></div>
                   {s.pronta && <div style={{ marginBottom: 14 }}><BtnPrimary small onClick={() => onNavegar('consultoria')}>Ir para a consultoria</BtnPrimary></div>}
                 </div>
+                {edit?.id === o.id && (
+                  <div style={{ marginTop: 10, padding: 12, background: '#f9fafb', borderRadius: 8 }}>
+                    <Campo label="Do que se trata" value={edit.descricao} onChange={v => setEdit(e => ({ ...e, descricao: v }))} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                      <Campo label="Ocasião" value={edit.ocasiao} onChange={v => setEdit(e => ({ ...e, ocasiao: v }))} />
+                      <Campo label="Data do evento" type="date" value={edit.data_evento} onChange={v => setEdit(e => ({ ...e, data_evento: v }))} />
+                      <Campo label="Tipo de atendimento" value={edit.tipo_atendimento} onChange={v => v && setEdit(e => ({ ...e, tipo_atendimento: v }))} options={opcoesTipo(edit.tipo_atendimento)} />
+                    </div>
+                    <BtnPrimary small disabled={!!ocupado} onClick={salvarEdicao}>{ocupado === 'ed' ? 'Salvando...' : 'Salvar alterações'}</BtnPrimary>
+                  </div>
+                )}
                 {aberta === o.id && <ChecklistAtendimento os={o} cliente={c} agenda={agenda} quizEnvios={quizEnvios} onRecarregar={onRecarregar} onNavegar={onNavegar} />}
               </Card>);
           })}
@@ -130,23 +163,12 @@ export default function Atendimento({ canais = [], clientes, os, agenda, tarefas
       )}
 
       {aba === 'agenda' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <Card><h3 style={{ fontWeight: 700, marginBottom: 8 }}>Redes e canais</h3>
-            {[['whatsapp', 'WhatsApp', '#25D366'], ['instagram', 'Instagram', '#E1306C'], ['facebook', 'Facebook', '#1877F2'], ['tiktok', 'TikTok', '#111']].map(([id, nome, cor]) => { const c = canais.find(x => x.canal === id) || {}; const ok = c.status === 'conectado'; return (
-              <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}>
-                <span><b style={{ color: cor }}>●</b> {nome}{c.identificador ? <span style={{ color: '#9ca3af' }}> · {c.identificador}</span> : null}</span>
-                {ok ? <Badge label="Conectado" color="#22c55e" /> : <button onClick={() => onNavegar('central')} style={{ border: '1px solid #c4a45a', background: '#fffdf7', color: '#92400e', borderRadius: 6, padding: '2px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Conectar</button>}
-              </div>); })}
-            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 8 }}>"Conectar" abre a Central de Atendimento → aba Canais, com o passo a passo.</div></Card>
-          <Card><h3 style={{ fontWeight: 700, marginBottom: 8 }}>Próximos agendamentos</h3>
-            {proximos.length === 0 && <div style={{ color: '#9ca3af', fontSize: 13 }}>Nada agendado.</div>}
-            {proximos.map(a => <div key={a.id} style={{ fontSize: 13, padding: '5px 0', borderBottom: '1px solid #f3f4f6' }}><strong>{fmtDateTime(a.data_hora)}</strong> · {a.titulo || cli(a.cliente_id)?.nome} <Badge label={a.status || 'agendado'} color="#6b7280" /></div>)}
-            <div style={{ marginTop: 10 }}><BtnPrimary small onClick={() => onNavegar('agenda')}>Abrir Agenda e Tarefas</BtnPrimary></div></Card>
-          <Card><h3 style={{ fontWeight: 700, marginBottom: 8 }}>Tarefas do atendimento</h3>
-            {abertas.length === 0 && <div style={{ color: '#9ca3af', fontSize: 13 }}>Nenhuma tarefa aberta.</div>}
-            {abertas.map(t => <div key={t.id} style={{ fontSize: 13, padding: '5px 0', borderBottom: '1px solid #f3f4f6' }}>{t.titulo}{t.prazo ? <span style={{ color: '#9ca3af' }}> · prazo {new Date(t.prazo + 'T12:00:00').toLocaleDateString('pt-BR')}</span> : null}</div>)}
-            <div style={{ marginTop: 10 }}><BtnSecondary small onClick={() => onNavegar('agenda')}>Abrir tarefas</BtnSecondary></div></Card>
-        </div>
+        <Card><h3 style={{ fontWeight: 700, marginBottom: 8 }}>Próximos agendamentos</h3>
+          {proximos.length === 0 && <div style={{ color: '#9ca3af', fontSize: 13 }}>Nada agendado.</div>}
+          {proximos.map(a => <div key={a.id} style={{ fontSize: 13, padding: '5px 0', borderBottom: '1px solid #f3f4f6' }}><strong>{fmtDateTime(a.data_hora)}</strong> · {a.titulo || cli(a.cliente_id)?.nome}{cli(a.cliente_id)?.nome && a.titulo ? ` · ${cli(a.cliente_id).nome}` : ''} <Badge label={a.status === 'confirmado' ? 'Confirmado' : a.status === 'aguardando_confirmacao' ? 'Aguardando confirmação' : (a.status || 'agendado')} color={a.status === 'confirmado' ? '#16a34a' : '#f59e0b'} /></div>)}
+          <div style={{ marginTop: 10 }}><BtnPrimary small onClick={() => onNavegar('agenda')}>Abrir Agenda e Tarefas</BtnPrimary></div>
+          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 8 }}>Canais, tarefas e contadores ficam no Painel.</div>
+        </Card>
       )}
     </div>
   );

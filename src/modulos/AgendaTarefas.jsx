@@ -121,7 +121,7 @@ function ClienteRapido({ clientes, value, onChange, onRecarregar, label = 'Clien
   );
 }
 
-export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarregar }) {
+export default function AgendaTarefas({ agenda, tarefas, clientes, os, quizEnvios = [], onRecarregar, onNavegar }) {
   const [aba, setAba] = useState('agenda');
   const [view, setView] = useState('semana');
   const [cursor, setCursor] = useState(inicioDia(new Date()));
@@ -399,7 +399,7 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
 
       {bloqueado(dep) && <PortaoFinanceira onLiberar={async () => { setLiberada(true); await onRecarregar?.(); }} />}
       {dep === 'financeira' && liberada && <div style={{ marginBottom: 10 }}><BtnSecondary small onClick={() => { travarFinanceira(); setLiberada(false); setDep('todos'); }}>🔒 Travar Financeira</BtnSecondary></div>}
-      {!bloqueado(dep) && <TabBar tabs={[{ id: 'agenda', label: 'Agenda' }, { id: 'tarefas', label: 'Tarefas', count: tarefasLiberadas.filter(t => t.status !== 'concluida').length }, { id: 'mensagens', label: 'Mensagens prontas' }]} active={aba} onChange={setAba} />}
+      {!bloqueado(dep) && <TabBar tabs={[{ id: 'agenda', label: 'Agenda' }, { id: 'atendimentos', label: 'Atendimentos' }, { id: 'tarefas', label: 'Tarefas', count: tarefasLiberadas.filter(t => t.status !== 'concluida').length }, { id: 'mensagens', label: 'Mensagens prontas' }]} active={aba} onChange={setAba} />}
 
       {!bloqueado(dep) && aba === 'agenda' && (
         <div>
@@ -481,6 +481,27 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, onRecarre
             })}
             {eventos.filter(e => new Date(e.dt) >= hoje).length === 0 && <div style={{ color: '#9ca3af', fontSize: 14 }}>Nenhum compromisso futuro. Clique em "Novo evento" ou em um dia do calendário.</div>}
           </div>
+        </div>
+      )}
+
+      {!bloqueado(dep) && aba === 'atendimentos' && (
+        <div>
+          {os.filter(o => o.status_idx <= 8).length === 0 && <div style={{ color: '#9ca3af' }}>Nenhum atendimento em andamento.</div>}
+          {os.filter(o => o.status_idx <= 8).sort((a, b) => new Date(b.criado_em || 0) - new Date(a.criado_em || 0)).map(o => {
+            const c = cli(o.cliente_id);
+            const prox = agenda.filter(a => a.ordem_servico_id === o.id && a.status !== 'cancelado').sort((x, y) => new Date(x.data_hora) - new Date(y.data_hora))[0];
+            return (
+              <Card key={o.id} style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div><strong>{o.numero}</strong> · {c?.nome || '—'} <span style={{ color: '#9ca3af', fontSize: 12 }}>{o.descricao}</span>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{prox ? `Horário: ${new Date(prox.data_hora).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : 'Sem horário marcado'}</div></div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {prox && <Badge label={prox.status === 'confirmado' ? 'Confirmado' : 'Aguardando confirmação'} color={prox.status === 'confirmado' ? '#16a34a' : '#f59e0b'} />}
+                    <BtnSecondary small onClick={() => onNavegar && onNavegar('atendimento')}>Abrir atendimento</BtnSecondary>
+                  </div>
+                </div>
+              </Card>);
+          })}
         </div>
       )}
 

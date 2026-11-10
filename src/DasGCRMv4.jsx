@@ -1297,7 +1297,7 @@ export default function DasGCRM() {
   const abrirOS = (id) => { setOsFocoId(id); setPagina('os'); };
   const [foco, setFoco] = useState({ clienteId: '', tick: 0 });
   const abrirCom = (pagina, clienteId) => { setFoco(f => ({ clienteId, tick: f.tick + 1 })); setPagina(pagina); };
-  const [gruposAbertos, setGruposAbertos] = useState({ 'Entrada': true, '1 · Cadastro': true, '2 · Atendimento': true });
+  const [gruposAbertos, setGruposAbertos] = useState({ 'Painel': true, '1 · Atendimento': true });
   const [clientes, setClientes] = useState([]);
   const [os, setOs] = useState([]);
   const [leads, setLeads] = useState([]);
@@ -1397,9 +1397,10 @@ export default function DasGCRM() {
         .order('created_at', { ascending: false });
       const { data: status } = await supabase
         .from('atendimento_whatsapp')
-        .select('phone, julia_ativa');
+        .select('phone, julia_ativa, temperatura');
       if (!mounted) return;
       const statusPorTelefone = Object.fromEntries((status || []).map(s => [s.phone, s.julia_ativa]));
+      const tempPorTelefone = Object.fromEntries((status || []).map(s => [s.phone, s.temperatura]));
       const porTelefone = {};
       for (const m of msgs || []) {
         if (!porTelefone[m.phone]) {
@@ -1407,7 +1408,7 @@ export default function DasGCRM() {
             id: m.phone, nome: m.nome || m.phone, telefone: m.phone,
             ultima_msg: m.mensagem, ultima_em: m.created_at, tempo: tempoRelativo(m.created_at),
             nao_lidas: 0, status: 'lead_novo', canal: m.canal || 'whatsapp',
-            julia_ativa: statusPorTelefone[m.phone] !== false,
+            julia_ativa: statusPorTelefone[m.phone] !== false, ultima_dir: m.direcao, temperatura: tempPorTelefone[m.phone] || null,
           };
         }
         if (m.direcao === 'in' && !m.lida) porTelefone[m.phone].nao_lidas += 1;
@@ -1557,7 +1558,7 @@ export default function DasGCRM() {
     { id: 'produtos', label: 'Cadastro de Produto', dot: produtos.filter(p => (p.status_geral || 'em_aprovacao') === 'em_aprovacao').length },
   ];
   const GRUPOS = [
-    { titulo: 'Entrada', ids: ['central', 'fluxo', 'tarefas'] },
+    { titulo: 'Painel', ids: ['central', 'fluxo', 'tarefas'] },
     { titulo: '1 · Atendimento', ids: ['atendimento', 'agenda'] },
     { titulo: '2 · Cadastro', ids: ['clientes'] },
     { titulo: '3 · Consultoria e Criação', ids: ['consultoria', 'criacao'] },
@@ -1579,7 +1580,7 @@ export default function DasGCRM() {
         onAprovar={aprovarProduto} onRefazerFotos={refazerFotosProduto} onSalvarProduto={salvarProduto}
         onSalvarVariante={salvarVariante} onRemoverVariante={removerVariante} onEscolherMosaico={escolherMosaico} />;
       case 'dashboard': return <Dashboard clientes={clientes} os={os} agenda={agendaDashboard} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} onNavegar={setPagina} />;
-      case 'agenda': return <AgendaTarefas agenda={agenda} tarefas={tarefas} clientes={clientes} os={os} onRecarregar={recarregar} />;
+      case 'agenda': return <AgendaTarefas agenda={agenda} tarefas={tarefas} clientes={clientes} os={os} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'tarefas': return <CentralTarefas tarefas={tarefas} clientes={clientes} onRecarregar={recarregar} />;
       case 'fluxo': return <FluxoPainel os={os} clientes={clientes} provas={provas} agenda={agenda} quizEnvios={quizEnvios} tarefas={tarefas} onAbrirOS={abrirOS} />;
       case 'clientes': return <Clientes clientes={clientes} os={os} quizEnvios={quizEnvios} agenda={agenda} onRecarregar={recarregar} onSalvar={salvarCliente} onIrFluxo={() => setPagina('fluxo')} onNavegar={setPagina} onAbrirOS={abrirOS} onAbrirCom={abrirCom} produtos={produtos} />;
