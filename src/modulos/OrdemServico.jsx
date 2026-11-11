@@ -17,7 +17,7 @@ const brl = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', c
 const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261105000001 no Supabase. ' + e.message : (e.message || String(e));
 const COR = { pendente: '#9ca3af', andamento: '#f59e0b', concluida: '#16a34a' };
 
-export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], agenda = [], onRecarregar, onNavegar }) {
+export default function OrdemServico({ os, clientes, colaboradores = [], osFocoId, quizEnvios = [], agenda = [], onRecarregar, onNavegar }) {
   const [osId, setOsId] = useState(osFocoId || '');
   const [aba, setAba] = useState('producao');
   const [tarefas, setTarefas] = useState([]);
@@ -25,6 +25,7 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
   const [atend, setAtend] = useState({ por: '', em: '' });
   const [painel, setPainel] = useState(null);
   const [tempos, setTempos] = useState([]);
+  const [feito, setFeito] = useState({});
   const [novoTempo, setNovoTempo] = useState({});
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
@@ -57,6 +58,8 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
   }, [osId]);
   useEffect(() => { setErro(''); setAviso(''); carregar(); }, [carregar]);
   useEffect(() => { setAtend({ por: osSel?.atendido_por || '', em: osSel?.atendido_em || '' }); }, [osId, osSel?.atendido_por, osSel?.atendido_em]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setFeito(Object.fromEntries(resumo.provas.map(p => [p.tipo, p.notas_costureira || '']))); }, [resumo.provas]);
+  const mudarFeito = (tipo, v) => { setFeito(f => ({ ...f, [tipo]: v })); setSujos(x => new Set(x).add('__feito')); };
   const mudarAtend = (patch) => { setAtend(a => ({ ...a, ...patch })); setSujos(s => new Set(s).add('__os')); };
   const paraInput = (iso) => { if (!iso) return ''; const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 
@@ -73,6 +76,12 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
     setSalvando(true); setErro(''); setAviso('');
     try {
       const alteradas = tarefas.filter(t => sujos.has(t.id));
+      if (sujos.has('__feito')) {
+        for (const [tipo, texto] of Object.entries(feito)) {
+          const orig = resumo.provas.find(p => p.tipo === tipo)?.notas_costureira || '';
+          if (texto !== orig) { const { error } = await supabase.from('provas').update({ notas_costureira: texto || null }).eq('ordem_servico_id', osId).eq('tipo', tipo); if (error) throw error; }
+        }
+      }
       if (sujos.has('__os')) {
         const { error } = await supabase.from('ordens_servico').update({ atendido_por: atend.por || null, atendido_em: atend.em || null }).eq('id', osId);
         if (error) throw error;
@@ -166,8 +175,8 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
     tecido: [['Tecidos e medidas', fmtDate(osSel?.data_tecidos_medidas)], ['Materiais', `${resumo.materiais.length} item(ns) · ${resumo.materiais.filter(m => m.comprado).length} comprado(s)`], ['Medidas', cli?.busto || cli?.cintura ? 'registradas na ficha' : 'pendentes']],
     corte: [['Materiais comprados', `${resumo.materiais.filter(m => m.comprado).length}/${resumo.materiais.length}`]],
     montagem: [['Entrega prevista', fmtDate(osSel?.data_entrega_prevista)]],
-    prova1: [['1ª prova', provaTxt('prova1')]], ajuste1: [['Ajustes da 1ª prova', ajusteTxt('prova1')]],
-    prova2: [['2ª prova', provaTxt('prova2')]], ajuste2: [['Ajustes da 2ª prova', ajusteTxt('prova2')]],
+    prova1: [['1ª prova (data na agenda)', provaTxt('prova1')], ['O que fazer (anotado na prova)', ajusteTxt('prova1')]], ajuste1: [['O que fazer (anotado na 1ª prova)', ajusteTxt('prova1')]],
+    prova2: [['2ª prova (data na agenda)', provaTxt('prova2')], ['O que fazer (anotado na prova)', ajusteTxt('prova2')]], ajuste2: [['O que fazer (anotado na 2ª prova)', ajusteTxt('prova2')]],
     prova_final: [['3ª prova', provaTxt('prova_final')]], prova4: [['4ª prova', provaTxt('prova4')]],
     finalizacao: [['Entrega prevista', fmtDate(osSel?.data_entrega_prevista)]],
     entrega: [['Entrega prevista', fmtDate(osSel?.data_entrega_prevista)], ['Saldo a receber', brl(aReceber)], ['Registro da entrega', arq(['prova', 'gravacao_prova']) + ' arquivo(s)']],
@@ -188,6 +197,10 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
           {fase === 'cliente' && <BtnSecondary small onClick={() => onNavegar('clientes')}>Abrir ficha da cliente</BtnSecondary>}
         </div>
       )}
+      {(fase === 'ajuste1' || fase === 'ajuste2') && (() => { const tipo = fase === 'ajuste1' ? 'prova1' : 'prova2'; const existe = resumo.provas.some(p => p.tipo === tipo); return (
+        <label style={{ display: 'block', marginTop: 8, fontSize: 10, color: '#9ca3af', textTransform: 'uppercase' }}>O que foi feito nos ajustes
+          <textarea rows={2} disabled={!existe} value={feito[tipo] || ''} onChange={e => mudarFeito(tipo, e.target.value)} placeholder={existe ? 'Descreva o que a costureira executou' : 'Abra a prova (botão abaixo) para criar o registro da prova primeiro'} style={{ ...inp, width: '100%', boxSizing: 'border-box', textTransform: 'none', fontFamily: 'inherit' }} />
+        </label>); })()}
       {abrirEm[fase] && <div style={{ marginTop: 8 }}><BtnSecondary small onClick={() => setPainel(fase)}>Abrir e editar aqui: {abrirEm[fase]}</BtnSecondary></div>}
     </div>
   );
@@ -232,7 +245,7 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
           <input type="date" value={f.data || hoje()} onChange={e => setF({ data: e.target.value })} style={inp} />
           <input type="time" value={f.ini || ''} onChange={e => setF({ ini: e.target.value })} title="Hora inicial" style={inp} />
           <input type="time" value={f.fim || ''} onChange={e => setF({ fim: e.target.value })} title="Hora de término" style={inp} />
-          <input placeholder="Quem trabalhou" value={f.quem || ''} onChange={e => setF({ quem: e.target.value })} style={{ ...inp, width: 150 }} />
+          <input list="colabs-os" placeholder="Quem trabalhou" value={f.quem || ''} onChange={e => setF({ quem: e.target.value })} style={{ ...inp, width: 150 }} />
           <BtnSecondary small onClick={() => lancarTempo(fase)}>Lançar tempo</BtnSecondary>
         </div>
       </div>
@@ -249,6 +262,7 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
 
   return (
     <div>
+      <datalist id="colabs-os">{colaboradores.filter(c => c.ativo !== false).map(c => <option key={c.id} value={c.nome}>{[c.funcao, c.departamento].filter(Boolean).join(' · ')}</option>)}</datalist>
       <div style={{ marginBottom: 20 }}><h1 style={{ fontSize: 24, fontWeight: 700 }}>Ordem de Serviço</h1><p style={{ color: '#6b7280', marginTop: 4 }}>Acompanhamento completo da confecção: medidas, modelagem, corte, costura, provas, ajustes e entrega</p></div>
       <select value={osId} onChange={e => { setOsId(e.target.value); setAba('producao'); }} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, minWidth: 300, marginBottom: 16 }}>
         <option value="">Escolha a OS...</option>
@@ -313,7 +327,7 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
                                 <option value="">Departamento...</option>
                                 {Object.entries(AGENDAS).map(([k, a]) => <option key={k} value={k}>{a.label}</option>)}
                               </select>
-                              <input placeholder="Quem vai executar" value={t.responsavel || ''} onChange={e => mudar(t.id, { responsavel: e.target.value })} style={inp} />
+                              <input list="colabs-os" placeholder="Quem vai executar" value={t.responsavel || ''} onChange={e => mudar(t.id, { responsavel: e.target.value })} style={inp} />
                               <input type="date" value={t.prazo || ''} onChange={e => mudar(t.id, { prazo: e.target.value })} style={inp} />
                               <button title="Em andamento" onClick={() => marcar(t, t.status === 'andamento' ? 'pendente' : 'andamento')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: COR[t.status] }}>●</button>
                               <button title="Remover tarefa" onClick={() => { if (window.confirm('Remover esta tarefa da OS?')) remover(t.id); }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 14 }}>✕</button>

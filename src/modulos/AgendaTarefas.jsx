@@ -45,7 +45,7 @@ const TIPOS = {
   entrega_tecido: { label: 'Entrega de tecido', cor: '#6d28d9', dep: 'tissu' },
   reuniao_fornecedor: { label: 'Reunião com fornecedor', cor: '#5b21b6', dep: 'tissu', meet: true },
 };
-const DEPARTAMENTOS = {
+export const DEPARTAMENTOS = {
   adm: { label: 'ADM', curto: 'ADM', cor: '#c4a45a' },
   clientes: { label: 'Clientes', curto: 'Clientes', cor: '#d97706' },
   atelie: { label: 'Ateliê', curto: 'Ateliê', cor: '#0ea5e9' },

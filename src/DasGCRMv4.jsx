@@ -1,8 +1,10 @@
 ﻿import { ETAPAS, SLUGS_ETAPA, FASES_FLUXO, TOTAL_ETAPAS } from './lib/etapas.js';
 import AssistenteChat from './modulos/AssistenteChat.jsx';
-import CentralTarefas, { TarefasPorAgenda } from './modulos/CentralTarefas.jsx';
+import CentralTarefas, { TarefasPorAgenda, AGENDAS } from './modulos/CentralTarefas.jsx';
 import Atendimento from './modulos/Atendimento.jsx';
 import OrdemServico from './modulos/OrdemServico.jsx';
+import Cadastros from './modulos/Cadastros.jsx';
+import { aplicarDepartamentos } from './lib/cadastros.js';
 import FluxoPainel from './modulos/FluxoPainel.jsx';
 import OrcamentosOS from './modulos/Orcamentos.jsx';
 import ProvasOS from './modulos/Provas.jsx';
@@ -14,7 +16,7 @@ import { supabase } from './lib/supabaseClient.js';
 import CadastroProduto from './modulos/CadastroProduto.jsx';
 import Central from './modulos/Central.jsx';
 import Infoprodutos from './modulos/Infoprodutos.jsx';
-import AgendaTarefas from './modulos/AgendaTarefas.jsx';
+import AgendaTarefas, { DEPARTAMENTOS as DEPARTAMENTOS_AGENDA } from './modulos/AgendaTarefas.jsx';
 import Clientes from './modulos/Clientes.jsx';
 import Consultoria from './modulos/Consultoria.jsx';
 import { criarAtividadeDaEtapa } from './lib/api.js';
@@ -1321,13 +1323,15 @@ export default function DasGCRM() {
   const [canais, setCanais] = useState([]);
   const [promptPrincipal, setPromptPrincipal] = useState(null);
   const [quizEnvios, setQuizEnvios] = useState([]);
+  const [departamentos, setDepartamentos] = useState([]);
+  const [colaboradores, setColaboradores] = useState([]);
   const [bancoPendente, setBancoPendente] = useState(false);
 
   // Recarrega tudo que as telas de Central/Clientes/Agenda/Consultoria usam. Os módulos chamam isto
   // depois de cada gravação. Se a migração 20261102000000 ainda não foi aplicada, as tabelas novas
   // devolvem erro -> bancoPendente liga o aviso na Central em vez de quebrar a tela.
   const recarregar = async () => {
-    const [rLeads, rClientes, rOs, rAgenda, rProvas, rTarefas, rResp, rBase, rCanais, rPrompt, rQuiz] = await Promise.all([
+    const [rLeads, rClientes, rOs, rAgenda, rProvas, rTarefas, rResp, rBase, rCanais, rPrompt, rQuiz, rDeps, rCols] = await Promise.all([
       supabase.from('leads').select('*').order('created_at', { ascending: false }),
       supabase.from('clientes').select('*').order('created_at', { ascending: false }),
       supabase.from('ordens_servico').select('*').order('created_at', { ascending: false }),
@@ -1339,7 +1343,11 @@ export default function DasGCRM() {
       supabase.from('canais_conexao').select('*'),
       supabase.from('prompts_ia').select('*').eq('nome', 'julia_instrucoes_principais').limit(1),
       supabase.from('consultoria_quiz_envios').select('*').order('criado_em', { ascending: false }),
+      supabase.from('departamentos').select('*').order('ordem'),
+      supabase.from('colaboradores').select('*').order('nome'),
     ]);
+    aplicarDepartamentos(rDeps.data, [AGENDAS, DEPARTAMENTOS_AGENDA]);
+    setDepartamentos(rDeps.data || []); setColaboradores(rCols.data || []);
     setLeads((rLeads.data || []).map(l => ({ ...l, criado_em: l.created_at })));
     setClientes(rClientes.data || []);
     setOs((rOs.data || []).map(o => ({ ...o, status_idx: DB_STATUS_SLUGS.indexOf(o.status) + 1, ultima_atualizacao: o.updated_at, criado_em: o.created_at })));
@@ -1544,6 +1552,7 @@ export default function DasGCRM() {
     { id: 'atendimento', label: 'Atendimento (tipo, pagamento, quiz)', dot: quizEnvios.filter(q => q.status === 'respondido' && Date.now() - new Date(q.respondido_em).getTime() < 3 * 86400000).length },
     { id: 'clientes', label: 'Clientes' },
     { id: 'infoprodutos', label: 'Infoprodutos' },
+    { id: 'cadastros', label: 'Departamentos e colaboradores' },
     { id: 'consultoria', label: 'Consultoria', dot: quizEnvios.filter(q => q.status === 'respondido' && Date.now() - new Date(q.respondido_em).getTime() < 3 * 86400000).length },
     { id: 'criacao', label: 'Criação' },
     { id: 'orcamentos', label: 'Orçamentos' },
@@ -1562,7 +1571,7 @@ export default function DasGCRM() {
   const GRUPOS = [
     { titulo: 'Painel', ids: ['central', 'fluxo', 'tarefas'] },
     { titulo: '1 · Atendimento', ids: ['atendimento', 'agenda'] },
-    { titulo: '2 · Cadastro', ids: ['clientes', 'infoprodutos'] },
+    { titulo: '2 · Cadastro', ids: ['clientes', 'infoprodutos', 'cadastros'] },
     { titulo: '3 · Consultoria e Criação', ids: ['consultoria', 'criacao'] },
     { titulo: '4 · Orçamento e Venda', ids: ['orcamentos', 'pedidosvenda'] },
     { titulo: '5 · Ordem de Serviço', ids: ['os', 'provas', 'compras'] },
@@ -1586,12 +1595,13 @@ export default function DasGCRM() {
       case 'tarefas': return <CentralTarefas tarefas={tarefas} clientes={clientes} onRecarregar={recarregar} />;
       case 'fluxo': return <FluxoPainel os={os} clientes={clientes} provas={provas} agenda={agenda} quizEnvios={quizEnvios} tarefas={tarefas} onAbrirOS={abrirOS} />;
       case 'clientes': return <Clientes clientes={clientes} os={os} quizEnvios={quizEnvios} agenda={agenda} onRecarregar={recarregar} onSalvar={salvarCliente} onIrFluxo={() => setPagina('fluxo')} onNavegar={setPagina} onAbrirOS={abrirOS} onAbrirCom={abrirCom} produtos={produtos} />;
+      case 'cadastros': return <Cadastros departamentos={departamentos} colaboradores={colaboradores} onRecarregar={recarregar} />;
       case 'infoprodutos': return <Infoprodutos clientes={clientes} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'consultoria': return <Consultoria clientes={clientes} os={os} agenda={agenda} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'criacao': return <CriacaoOS os={os} clientes={clientes} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'orcamentos': return <OrcamentosOS os={os} clientes={clientes} onRecarregar={recarregar} />;
       case 'atendimento': return <Atendimento canais={canais} clienteFocoId={foco.clienteId} focoTick={foco.tick} clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
-      case 'os': return <OrdemServico os={os} clientes={clientes} osFocoId={osFocoId} quizEnvios={quizEnvios} agenda={agenda} onRecarregar={recarregar} onNavegar={setPagina} />;
+      case 'os': return <OrdemServico os={os} clientes={clientes} colaboradores={colaboradores} osFocoId={osFocoId} quizEnvios={quizEnvios} agenda={agenda} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'pedidosvenda': return <PedidosVenda clientes={clientes} os={os} produtos={produtos} clienteNovoId={foco.clienteId} abrirTick={foco.tick} onRecarregar={recarregar} />;
       case 'processos': return <Processos os={os} clientes={clientes} onAbrirCliente={(o) => abrirOS(o.id)} />;
       case 'provas': return <ProvasOS os={os} clientes={clientes} onRecarregar={recarregar} />;
