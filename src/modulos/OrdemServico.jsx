@@ -6,6 +6,7 @@ import { FASES_OS, GRUPOS_OS, ROTULO_FASE, gerarEtapasAtelie } from '../lib/prod
 import { AGENDAS } from './CentralTarefas.jsx';
 import Arquivos from './Arquivos.jsx';
 import Orcamentos from './Orcamentos.jsx';
+import { ConteudoEtapa, carregarConteudo } from './Conteudo.jsx';
 import Provas from './Provas.jsx';
 import Criacao from './Criacao.jsx';
 import Consultoria from './Consultoria.jsx';
@@ -25,6 +26,7 @@ export default function OrdemServico({ os, clientes, colaboradores = [], osFocoI
   const [atend, setAtend] = useState({ por: '', em: '' });
   const [painel, setPainel] = useState(null);
   const [tempos, setTempos] = useState([]);
+  const [conteudo, setConteudo] = useState({ lista: [], urls: {} });
   const [feito, setFeito] = useState({});
   const [novoTempo, setNovoTempo] = useState({});
   const [erro, setErro] = useState('');
@@ -53,6 +55,7 @@ export default function OrdemServico({ os, clientes, colaboradores = [], osFocoI
     ]);
     const e = t.error; if (e) { setErro(msgErro(e)); return; }
     setTempos(tm.data || []);
+    carregarConteudo({ osId }).then(r => { if (!r.error) setConteudo({ lista: r.lista, urls: r.urls }); });
     setTarefas((t.data || []).map(r => r.responsavel === 'Ateliê' ? { ...r, responsavel: null } : r)); setSujos(new Set());
     setResumo({ materiais: m.data || [], orc: (o.data || []).find(x => x.aprovado_em) || (o.data || [])[0] || null, provas: p.data || [], fin: f.data || [], arquivos: (a.data || []).length, arqs: a.data || [], orcs: o.data || [], pedidos: pv.data || [] });
   }, [osId]);
@@ -181,7 +184,7 @@ export default function OrdemServico({ os, clientes, colaboradores = [], osFocoI
     finalizacao: [['Entrega prevista', fmtDate(osSel?.data_entrega_prevista)]],
     entrega: [['Entrega prevista', fmtDate(osSel?.data_entrega_prevista)], ['Saldo a receber', brl(aReceber)], ['Registro da entrega', arq(['prova', 'gravacao_prova']) + ' arquivo(s)']],
     pos_venda: [['Comprovantes e arquivos', resumo.arquivos + ' arquivo(s) na OS']],
-    marketing: [['Fotos e vídeos', arq(['prova', 'gravacao_prova', 'foto_cliente']) + ' arquivo(s)']],
+    marketing: [['Conteúdo registrado', conteudo.lista.length + ' foto(s)/vídeo(s) em todas as etapas'], ['Aprovado ou publicado', conteudo.lista.filter(a => ['aprovado', 'publicado'].includes(a.marketing_status)).length + '']],
   };
   const abrirEm = { consultoria: 'Consultoria', criacao: 'Criação', orcamento: 'Orçamento', aprovacao: 'Orçamento', venda: 'Financeiro do orçamento', tecido: 'Medidas e provas', prova1: 'Provas', ajuste1: 'Provas', prova2: 'Provas', ajuste2: 'Provas', prova_final: 'Provas', prova4: 'Provas', finalizacao: 'Entrega', entrega: 'Entrega' };
   const fecharPainel = async () => { setPainel(null); await carregar(); await onRecarregar(); };
@@ -317,6 +320,7 @@ export default function OrdemServico({ os, clientes, colaboradores = [], osFocoI
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><h3 style={{ fontWeight: 700, fontSize: 14 }}>{ROTULO_FASE[fase]}</h3>{ok ? <Badge label="Concluída" color="#16a34a" /> : atual ? <Badge label="Etapa atual" color="#c4a45a" /> : null}</div>
                           {fichaEtapa(fase)}
                           {blocoTempo(fase)}
+                          <ConteudoEtapa osId={osId} clienteId={osSel.cliente_id} fase={fase} itens={conteudo.lista.filter(a => a.fase === fase)} urls={conteudo.urls} onMudou={carregar} onErro={setErro} />
                           {ts.length === 0 && <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Sem tarefas nesta etapa.</div>}
                           {ts.map(t => (
                             <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '24px minmax(160px,1fr) 130px 130px 130px 24px 24px', gap: 8, alignItems: 'start', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>

@@ -4,6 +4,7 @@ import CentralTarefas, { TarefasPorAgenda, AGENDAS } from './modulos/CentralTare
 import Atendimento from './modulos/Atendimento.jsx';
 import OrdemServico from './modulos/OrdemServico.jsx';
 import Cadastros from './modulos/Cadastros.jsx';
+import Marketing from './modulos/Marketing.jsx';
 import { aplicarDepartamentos } from './lib/cadastros.js';
 import FluxoPainel from './modulos/FluxoPainel.jsx';
 import OrcamentosOS from './modulos/Orcamentos.jsx';
@@ -1136,30 +1137,6 @@ function CentralCompras({ listas, clientes, os }) {
   );
 }
 
-// ── MÓDULO: MARKETING ─────────────────────────────────────
-function Marketing() {
-  return (
-    <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Marketing</h1>
-      <p style={{ color: '#6b7280', marginBottom: 24 }}>Registro de conteudo, depoimentos e calendario editorial</p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
-        {[['Posts este mes', '12', '#6366f1'], ['Depoimentos', '5', '#22c55e'], ['Alcance estimado', '4.200', '#f59e0b']].map(([l, v, c]) => (
-          <Card key={l} style={{ borderTop: `4px solid ${c}` }}>
-            <div style={{ fontSize: 24, fontWeight: 700, color: c }}>{v}</div>
-            <div style={{ fontSize: 13, color: '#6b7280' }}>{l}</div>
-          </Card>
-        ))}
-      </div>
-      <Card>
-        <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Calendario editorial</h3>
-        <div style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', padding: 40 }}>
-          Calendario de conteudo disponivel em breve. Conecte com Google Agenda para sincronizar.
-        </div>
-      </Card>
-    </div>
-  );
-}
-
 // ── MÓDULO: FEEDBACK ──────────────────────────────────────
 function FeedbackMod({ feedbacks, clientes, os }) {
   const nps = feedbacks.length > 0 ? Math.round(feedbacks.reduce((a, f) => a + (f.indicaria ? 1 : 0), 0) / feedbacks.length * 100) : 0;
@@ -1563,7 +1540,7 @@ export default function DasGCRM() {
     { id: 'provas', label: 'Provas e Entrega' },
     { id: 'financeiro', label: 'Financeiro' },
     { id: 'compras', label: 'Central de Compras' },
-    { id: 'marketing', label: 'Marketing' },
+    { id: 'marketing', label: 'Central de Marketing' },
     { id: 'feedback', label: 'Feedback' },
     { id: 'relatorios', label: 'Relatórios' },
     { id: 'produtos', label: 'Cadastro de Produto', dot: produtos.filter(p => (p.status_geral || 'em_aprovacao') === 'em_aprovacao').length },
@@ -1607,7 +1584,7 @@ export default function DasGCRM() {
       case 'provas': return <ProvasOS os={os} clientes={clientes} onRecarregar={recarregar} />;
       case 'financeiro': return <Financeiro pedidos={pedidos} clientes={clientes} os={os} contasPagar={contasPagar} />;
       case 'compras': return <CentralCompras listas={listas} clientes={clientes} os={os} />;
-      case 'marketing': return <Marketing />;
+      case 'marketing': return <Marketing os={os} clientes={clientes} />;
       case 'feedback': return <FeedbackMod feedbacks={feedbacks} clientes={clientes} os={os} />;
       case 'relatorios': return <Relatorios pedidos={pedidos} os={os} clientes={clientes} feedbacks={feedbacks} />;
       default: return <Dashboard clientes={clientes} os={os} agenda={agendaDashboard} tarefas={tarefas} pedidos={pedidos} contasPagar={contasPagar} />;

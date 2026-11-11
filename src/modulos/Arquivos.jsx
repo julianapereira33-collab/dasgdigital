@@ -12,6 +12,7 @@ export const CATEGORIAS_ARQUIVO = {
   tecido: 'Tecido / material',
   prova: 'Foto de prova',
   gravacao_prova: 'Gravação da prova (vídeo/áudio)',
+  conteudo: 'Conteúdo para marketing',
   imagem_ia: 'Arquivo gerado por IA',
   colorimetria: 'Teste de colorimetria',
   comprovante: 'Comprovante de pagamento',
