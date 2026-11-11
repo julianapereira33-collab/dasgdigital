@@ -2,7 +2,8 @@ import { TOTAL_ETAPAS } from '../lib/etapas.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { criarAtividadeDaEtapa, ROTULO_ETAPA, SLUGS_ETAPA } from '../lib/api.js';
-import { FASES_ATELIE, ROTULO_FASE, gerarEtapasAtelie } from '../lib/producao.js';
+import { FASES_OS, GRUPOS_OS, ROTULO_FASE, gerarEtapasAtelie } from '../lib/producao.js';
+import { AGENDAS } from './CentralTarefas.jsx';
 import Arquivos from './Arquivos.jsx';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
 
@@ -19,6 +20,9 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [novaTarefa, setNovaTarefa] = useState({});
+  const [sujos, setSujos] = useState(() => new Set());
+  const [salvando, setSalvando] = useState(false);
+  const [novaParcela, setNovaParcela] = useState({ descricao: '', valor: '', data_vencimento: '', forma: '' });
 
   useEffect(() => { if (osFocoId) setOsId(osFocoId); }, [osFocoId]);
   const osSel = os.find(o => o.id === osId) || null;
@@ -32,11 +36,11 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
       supabase.from('os_materiais').select('comprado').eq('ordem_servico_id', osId),
       supabase.from('orcamentos').select('*').eq('ordem_servico_id', osId).order('created_at', { ascending: false }),
       supabase.from('provas').select('tipo,status,aprovado').eq('ordem_servico_id', osId),
-      supabase.from('financeiro_receber').select('valor,status').eq('ordem_servico_id', osId),
+      supabase.from('financeiro_receber').select('*').order('data_vencimento').eq('ordem_servico_id', osId),
       supabase.from('os_arquivos').select('id', { count: 'exact', head: true }).eq('ordem_servico_id', osId),
     ]);
     const e = t.error; if (e) { setErro(msgErro(e)); return; }
-    setTarefas(t.data || []);
+    setTarefas((t.data || []).map(r => r.responsavel === 'Ateliê' ? { ...r, responsavel: null } : r)); setSujos(new Set());
     setResumo({ materiais: m.data || [], orc: (o.data || []).find(x => x.aprovado_em) || (o.data || [])[0] || null, provas: p.data || [], fin: f.data || [], arquivos: a.count || 0 });
   }, [osId]);
   useEffect(() => { setErro(''); setAviso(''); carregar(); }, [carregar]);
@@ -46,27 +50,44 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
     if (r.error) { setErro(msgErro(r.error)); return; }
     carregar();
   }
-  const mudar = (id, patch) => setTarefas(ts => ts.map(t => t.id === id ? { ...t, ...patch } : t));
-  async function salvar(id, patch) {
-    const { error } = await supabase.from('os_producao').update(patch).eq('id', id);
-    if (error) setErro(msgErro(error));
-  }
-  async function marcar(t, status) {
-    const patch = { status, concluida_em: status === 'concluida' ? new Date().toISOString() : null };
-    mudar(t.id, patch); await salvar(t.id, patch);
-    // se a fase inteira foi concluída, a OS avança para a etapa seguinte do Fluxo
-    const daFase = tarefas.map(x => x.id === t.id ? { ...x, status } : x).filter(x => x.fase === t.fase);
-    if (status === 'concluida' && daFase.every(x => x.status === 'concluida')) {
-      const idx = SLUGS_ETAPA.indexOf(t.fase), atual = SLUGS_ETAPA.indexOf(osSel.status);
-      const prox = SLUGS_ETAPA[idx + 1];
-      if (idx >= 0 && prox && atual <= idx) {
-        await supabase.from('ordens_servico').update({ status: prox }).eq('id', osId);
-        await criarAtividadeDaEtapa({ os: osSel, cliente: cli, slug: prox });
-        await onRecarregar();
-        setAviso(`Fase "${ROTULO_FASE[t.fase]}" concluída. A OS avançou para "${ROTULO_ETAPA[prox]}".`);
+  const mudar = (id, patch) => { setTarefas(ts => ts.map(t => t.id === id ? { ...t, ...patch } : t)); setSujos(s => new Set(s).add(id)); };
+  const marcar = (t, status) => mudar(t.id, { status, concluida_em: status === 'concluida' ? new Date().toISOString() : null });
+
+  // grava as linhas alteradas e mantém a Central de Tarefas / Agenda em sincronia
+  async function salvarTudo() {
+    setSalvando(true); setErro(''); setAviso('');
+    try {
+      const alteradas = tarefas.filter(t => sujos.has(t.id));
+      for (const t of alteradas) {
+        const { error } = await supabase.from('os_producao').update({ titulo: t.titulo, notas: t.notas || null, responsavel: t.responsavel || null, departamento: t.departamento || null, prazo: t.prazo || null, status: t.status, concluida_em: t.concluida_em || null }).eq('id', t.id);
+        if (error) throw error;
+        const { data: ex } = await supabase.from('tarefas').select('id').eq('os_producao_id', t.id).maybeSingle();
+        if (t.departamento) {
+          const linha = { titulo: `${osSel.numero || 'OS'} · ${cli?.nome || ''} — ${t.titulo}`, descricao: t.notas || null, responsavel: t.responsavel || null, departamento: t.departamento, prazo: t.prazo || null, status: t.status === 'concluida' ? 'concluida' : 'pendente', concluida_em: t.status === 'concluida' ? (t.concluida_em || new Date().toISOString()) : null, cliente_id: osSel.cliente_id, ordem_servico_id: osId, os_producao_id: t.id };
+          const r = ex ? await supabase.from('tarefas').update(linha).eq('id', ex.id) : await supabase.from('tarefas').insert({ ...linha, origem: 'os', prioridade: 'normal' });
+          if (r.error) throw r.error;
+        } else if (ex) {
+          const { error: e2 } = await supabase.from('tarefas').delete().eq('id', ex.id); if (e2) throw e2;
+        }
       }
-    }
+      // fase inteira concluída → a OS avança para a etapa seguinte do Fluxo
+      let msg = `${alteradas.length} alteração(ões) salva(s). Tarefas com departamento já aparecem na Central de Tarefas e na Agenda.`;
+      const concluidas = FASES_OS.map(([f]) => f).filter(f => { const ts = tarefas.filter(x => x.fase === f); return ts.length && ts.every(x => x.status === 'concluida') && alteradas.some(x => x.fase === f); });
+      if (concluidas.length) {
+        const atual = SLUGS_ETAPA.indexOf(osSel.status);
+        const idx = Math.max(...concluidas.map(f => SLUGS_ETAPA.indexOf(f)));
+        const prox = SLUGS_ETAPA[idx + 1];
+        if (prox && atual <= idx) {
+          await supabase.from('ordens_servico').update({ status: prox }).eq('id', osId);
+          await criarAtividadeDaEtapa({ os: osSel, cliente: cli, slug: prox });
+          msg += ` A OS avançou para "${ROTULO_ETAPA[prox]}".`;
+        }
+      }
+      setSujos(new Set()); await onRecarregar(); setAviso(msg);
+    } catch (e) { setErro(msgErro(e)); }
+    setSalvando(false);
   }
+  async function descartar() { setSujos(new Set()); await carregar(); }
   async function mudarEtapa(slug) {
     if (!slug || slug === osSel.status) return;
     const { error } = await supabase.from('ordens_servico').update({ status: slug }).eq('id', osId);
@@ -77,12 +98,25 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
   }
   async function adicionar(fase) {
     const titulo = (novaTarefa[fase] || '').trim(); if (!titulo) return;
-    const ordem = Math.max(0, ...tarefas.filter(t => t.fase === fase).map(t => t.ordem)) + 0.5;
-    const { data, error } = await supabase.from('os_producao').insert({ ordem_servico_id: osId, fase, titulo, ordem, responsavel: 'Ateliê' }).select().single();
+    const ordem = Math.max(FASES_OS.findIndex(f => f[0] === fase) * 100, ...tarefas.filter(t => t.fase === fase).map(t => t.ordem)) + 0.5;
+    const { data, error } = await supabase.from('os_producao').insert({ ordem_servico_id: osId, fase, titulo, ordem }).select().single();
     if (error) { setErro(msgErro(error)); return; }
     setTarefas(ts => [...ts, data].sort((a, b) => a.ordem - b.ordem)); setNovaTarefa(n => ({ ...n, [fase]: '' }));
   }
-  async function remover(id) { await supabase.from('os_producao').delete().eq('id', id); setTarefas(ts => ts.filter(t => t.id !== id)); }
+  async function remover(id) { await supabase.from('os_producao').delete().eq('id', id); setTarefas(ts => ts.filter(t => t.id !== id)); await onRecarregar(); }
+
+  // financeiro da OS: parcelas em contas a receber
+  async function lancarParcela() {
+    const v = Number(String(novaParcela.valor).replace(',', '.')); if (!v || v <= 0) { setErro('Informe o valor da parcela.'); return; }
+    const { error } = await supabase.from('financeiro_receber').insert({ cliente_id: osSel.cliente_id, ordem_servico_id: osId, descricao: novaParcela.descricao || `Parcela da ${osSel.numero || 'OS'}`, valor: v, data_vencimento: novaParcela.data_vencimento || null, forma: novaParcela.forma || null, status: 'pendente' });
+    if (error) { setErro(msgErro(error)); return; }
+    setNovaParcela({ descricao: '', valor: '', data_vencimento: '', forma: '' }); await carregar(); await onRecarregar(); setAviso('Parcela lançada no Financeiro (contas a receber).');
+  }
+  async function receberParcela(p) {
+    const { error } = await supabase.from('financeiro_receber').update({ status: 'pago', pago_em: new Date().toISOString(), valor_pago: p.valor }).eq('id', p.id);
+    if (error) { setErro(msgErro(error)); return; }
+    await carregar(); await onRecarregar(); setAviso('Pagamento registrado no Financeiro.');
+  }
 
   const feitas = tarefas.filter(t => t.status === 'concluida').length;
   const pct = tarefas.length ? Math.round(feitas / tarefas.length * 100) : 0;
@@ -120,35 +154,85 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
               <div style={{ height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}><div style={{ width: pct + '%', height: '100%', background: '#c4a45a' }} /></div>
             </div>
           </Card>
-          <TabBar active={aba} onChange={setAba} tabs={[{ id: 'producao', label: 'Etapas do ateliê' }, { id: 'resumo', label: 'Resumo do pedido' }, { id: 'arquivos', label: 'Arquivos da OS' }]} />
+          <TabBar active={aba} onChange={setAba} tabs={[{ id: 'producao', label: 'Todas as etapas' }, { id: 'financeiro', label: 'Financeiro da OS' }, { id: 'resumo', label: 'Resumo do pedido' }, { id: 'arquivos', label: 'Arquivos da OS' }]} />
 
           {aba === 'producao' && (
             <div>
-              {tarefas.length === 0 && <Card style={{ textAlign: 'center', padding: 30 }}><p style={{ color: '#6b7280', marginBottom: 12 }}>Esta OS ainda não tem as etapas de produção.</p><BtnPrimary onClick={gerar}>Gerar etapas padrão do ateliê</BtnPrimary></Card>}
-              {FASES_ATELIE.map(([fase, rotulo]) => {
-                const ts = tarefas.filter(t => t.fase === fase); if (!ts.length) return null;
-                const ok = ts.every(t => t.status === 'concluida');
-                const atual = osSel.status === fase;
+              <div style={{ position: 'sticky', top: 0, zIndex: 5, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: sujos.size ? '#fffbeb' : '#f9fafb', border: `1px solid ${sujos.size ? '#f59e0b' : '#e5e7eb'}`, borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>
+                <div style={{ flex: 1, fontSize: 13, color: '#374151', minWidth: 220 }}>{sujos.size ? <b>{sujos.size} alteração(ões) ainda não salva(s)</b> : 'Nada pendente de salvar.'} Escolha o departamento de cada etapa para ela aparecer nas Tarefas.</div>
+                {sujos.size > 0 && <BtnSecondary small onClick={descartar}>Descartar</BtnSecondary>}
+                <BtnPrimary small onClick={salvarTudo} disabled={!sujos.size || salvando}>{salvando ? 'Salvando...' : 'Salvar alterações'}</BtnPrimary>
+              </div>
+              {FASES_OS.some(([f]) => !tarefas.some(t => t.fase === f)) && <div style={{ marginBottom: 12 }}><BtnSecondary small onClick={gerar}>Completar etapas padrão que faltam</BtnSecondary></div>}
+              {GRUPOS_OS.map(([grupo, fases]) => {
+                const doGrupo = tarefas.filter(t => fases.includes(t.fase));
+                const feitasG = doGrupo.filter(t => t.status === 'concluida').length;
                 return (
-                  <Card key={fase} style={{ marginBottom: 12, borderLeft: `4px solid ${ok ? '#16a34a' : atual ? '#c4a45a' : '#e5e7eb'}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}><h3 style={{ fontWeight: 700, fontSize: 15 }}>{rotulo}</h3>{ok ? <Badge label="Concluída" color="#16a34a" /> : atual ? <Badge label="Etapa atual" color="#c4a45a" /> : null}</div>
-                    {ts.map(t => (
-                      <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '24px 1fr 110px 130px 28px', gap: 8, alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #f3f4f6' }}>
-                        <input type="checkbox" checked={t.status === 'concluida'} onChange={e => marcar(t, e.target.checked ? 'concluida' : 'pendente')} />
-                        <div><div style={{ fontSize: 13, textDecoration: t.status === 'concluida' ? 'line-through' : 'none', color: t.status === 'concluida' ? '#9ca3af' : '#111' }}>{t.titulo}</div>
-                          <input placeholder="Anotações" value={t.notas || ''} onChange={e => mudar(t.id, { notas: e.target.value })} onBlur={() => salvar(t.id, { notas: t.notas || null })} style={{ ...inp, width: '100%', boxSizing: 'border-box', marginTop: 3 }} /></div>
-                        <input placeholder="Quem" value={t.responsavel || ''} onChange={e => mudar(t.id, { responsavel: e.target.value })} onBlur={() => salvar(t.id, { responsavel: t.responsavel || null })} style={inp} />
-                        <input type="date" value={t.prazo || ''} onChange={e => { mudar(t.id, { prazo: e.target.value }); salvar(t.id, { prazo: e.target.value || null }); }} style={inp} />
-                        <button title="Em andamento" onClick={() => marcar(t, t.status === 'andamento' ? 'pendente' : 'andamento')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: COR[t.status] }}>●</button>
-                      </div>
-                    ))}
-                    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                      <input placeholder="Nova tarefa nesta etapa..." value={novaTarefa[fase] || ''} onChange={e => setNovaTarefa(n => ({ ...n, [fase]: e.target.value }))} onKeyDown={e => e.key === 'Enter' && adicionar(fase)} style={{ ...inp, flex: 1 }} />
-                      <BtnSecondary small onClick={() => adicionar(fase)}>Adicionar</BtnSecondary>
+                  <div key={grupo} style={{ marginBottom: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '2px solid #c4a45a', paddingBottom: 4, marginBottom: 10 }}>
+                      <h2 style={{ fontSize: 16, fontWeight: 800 }}>{grupo}</h2><span style={{ fontSize: 12, color: '#6b7280' }}>{feitasG}/{doGrupo.length} concluídas</span>
                     </div>
-                  </Card>
+                    {fases.map(fase => {
+                      const ts = tarefas.filter(t => t.fase === fase);
+                      const ok = ts.length > 0 && ts.every(t => t.status === 'concluida');
+                      const atual = osSel.status === fase;
+                      return (
+                        <Card key={fase} style={{ marginBottom: 10, borderLeft: `4px solid ${ok ? '#16a34a' : atual ? '#c4a45a' : '#e5e7eb'}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><h3 style={{ fontWeight: 700, fontSize: 14 }}>{ROTULO_FASE[fase]}</h3>{ok ? <Badge label="Concluída" color="#16a34a" /> : atual ? <Badge label="Etapa atual" color="#c4a45a" /> : null}</div>
+                          {ts.length === 0 && <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Sem tarefas nesta etapa.</div>}
+                          {ts.map(t => (
+                            <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '24px minmax(160px,1fr) 130px 130px 130px 24px 24px', gap: 8, alignItems: 'start', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+                              <input type="checkbox" checked={t.status === 'concluida'} onChange={e => marcar(t, e.target.checked ? 'concluida' : 'pendente')} style={{ marginTop: 6 }} />
+                              <div><input value={t.titulo} onChange={e => mudar(t.id, { titulo: e.target.value })} style={{ ...inp, width: '100%', boxSizing: 'border-box', fontSize: 13, textDecoration: t.status === 'concluida' ? 'line-through' : 'none' }} />
+                                <input placeholder="Anotações" value={t.notas || ''} onChange={e => mudar(t.id, { notas: e.target.value })} style={{ ...inp, width: '100%', boxSizing: 'border-box', marginTop: 3 }} /></div>
+                              <select value={t.departamento || ''} onChange={e => mudar(t.id, { departamento: e.target.value || null })} title="Departamento responsável pela execução" style={inp}>
+                                <option value="">Departamento...</option>
+                                {Object.entries(AGENDAS).map(([k, a]) => <option key={k} value={k}>{a.label}</option>)}
+                              </select>
+                              <input placeholder="Quem vai executar" value={t.responsavel || ''} onChange={e => mudar(t.id, { responsavel: e.target.value })} style={inp} />
+                              <input type="date" value={t.prazo || ''} onChange={e => mudar(t.id, { prazo: e.target.value })} style={inp} />
+                              <button title="Em andamento" onClick={() => marcar(t, t.status === 'andamento' ? 'pendente' : 'andamento')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: COR[t.status] }}>●</button>
+                              <button title="Remover tarefa" onClick={() => { if (window.confirm('Remover esta tarefa da OS?')) remover(t.id); }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 14 }}>✕</button>
+                            </div>
+                          ))}
+                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                            <input placeholder="Nova tarefa nesta etapa..." value={novaTarefa[fase] || ''} onChange={e => setNovaTarefa(n => ({ ...n, [fase]: e.target.value }))} onKeyDown={e => e.key === 'Enter' && adicionar(fase)} style={{ ...inp, flex: 1 }} />
+                            <BtnSecondary small onClick={() => adicionar(fase)}>Adicionar</BtnSecondary>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
                 );
               })}
+            </div>
+          )}
+
+          {aba === 'financeiro' && (
+            <div>
+              <Card style={{ marginBottom: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 12 }}>
+                  {[['Valor da OS', brl(osSel.valor_total)], ['Lançado', brl(resumo.fin.reduce((s, f) => s + Number(f.valor || 0), 0))], ['Recebido', brl(pago)], ['A receber', brl(aReceber)]].map(([k, v]) => <div key={k} style={{ background: '#f9fafb', borderRadius: 6, padding: '6px 10px' }}><div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase' }}>{k}</div><div style={{ fontWeight: 600, fontSize: 13 }}>{v}</div></div>)}
+                </div>
+                {resumo.fin.length === 0 && <div style={{ color: '#9ca3af', fontSize: 13 }}>Nenhuma parcela lançada nesta OS.</div>}
+                {resumo.fin.map(p => (
+                  <div key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13, flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 180 }}>{p.descricao || 'Parcela'}{p.forma ? ' · ' + p.forma : ''}</div>
+                    <div>{brl(p.valor)}</div><div style={{ color: '#6b7280' }}>vence {fmtDate(p.data_vencimento)}</div>
+                    {p.status === 'pago' ? <Badge label="Pago" color="#16a34a" /> : <BtnSecondary small onClick={() => receberParcela(p)}>Marcar como recebido</BtnSecondary>}
+                  </div>
+                ))}
+              </Card>
+              <Card>
+                <h3 style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Lançar parcela (vai para o Financeiro e a Agenda)</h3>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <input placeholder="Descrição (ex.: Entrada)" value={novaParcela.descricao} onChange={e => setNovaParcela(n => ({ ...n, descricao: e.target.value }))} style={{ ...inp, flex: 1, minWidth: 180 }} />
+                  <input placeholder="Valor" value={novaParcela.valor} onChange={e => setNovaParcela(n => ({ ...n, valor: e.target.value }))} style={{ ...inp, width: 100 }} />
+                  <input type="date" value={novaParcela.data_vencimento} onChange={e => setNovaParcela(n => ({ ...n, data_vencimento: e.target.value }))} style={inp} />
+                  <input placeholder="Forma (Pix, cartão...)" value={novaParcela.forma} onChange={e => setNovaParcela(n => ({ ...n, forma: e.target.value }))} style={{ ...inp, width: 140 }} />
+                  <BtnPrimary small onClick={lancarParcela}>Lançar</BtnPrimary>
+                </div>
+              </Card>
             </div>
           )}
 

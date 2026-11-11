@@ -121,7 +121,7 @@ export default function CentralTarefas({ tarefas, clientes, onRecarregar }) {
                   ) : (
                     <div onClick={() => setEditando({ id: t.id, titulo: t.titulo })} title="Clique para editar" style={{ fontWeight: 600, fontSize: 14, cursor: 'text', textDecoration: t.status === 'concluida' ? 'line-through' : 'none', color: t.status === 'concluida' ? '#9ca3af' : '#111' }}>{t.titulo}</div>
                   )}
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>{[cliNome(t.cliente_id), t.origem === 'fluxo' ? 'criada pelo fluxo' : null].filter(Boolean).join(' · ')}</div>
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>{[cliNome(t.cliente_id), t.responsavel ? 'executa: ' + t.responsavel : null, t.os_producao_id ? 'vem da OS' : null, t.origem === 'fluxo' ? 'criada pelo fluxo' : null].filter(Boolean).join(' · ')}</div>
                 </div>
                 <select value={t.prioridade || 'normal'} onChange={e => atualizar(t.id, { prioridade: e.target.value })} style={{ ...inp, padding: '4px 6px', color: PRIO[t.prioridade] || '#f59e0b', fontWeight: 600 }}><option value="alta">Alta</option><option value="normal">Normal</option><option value="baixa">Baixa</option></select>
                 <input type="date" value={t.prazo || ''} onChange={e => atualizar(t.id, { prazo: e.target.value || null })} style={{ ...inp, padding: '4px 6px', color: atrasada(t) ? '#ef4444' : undefined }} />
