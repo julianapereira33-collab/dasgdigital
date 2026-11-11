@@ -5,18 +5,25 @@ import { criarAtividadeDaEtapa, ROTULO_ETAPA, SLUGS_ETAPA } from '../lib/api.js'
 import { FASES_OS, GRUPOS_OS, ROTULO_FASE, gerarEtapasAtelie } from '../lib/producao.js';
 import { AGENDAS } from './CentralTarefas.jsx';
 import Arquivos from './Arquivos.jsx';
-import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Aviso, fmtDate, erroDeSchema } from './ui.jsx';
+import Orcamentos from './Orcamentos.jsx';
+import Provas from './Provas.jsx';
+import Criacao from './Criacao.jsx';
+import Consultoria from './Consultoria.jsx';
+import { TIPOS_ATENDIMENTO } from './tiposAtendimento.js';
+import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Aviso, Drawer, fmtDate, fmtDateTime, erroDeSchema } from './ui.jsx';
 
 // Ordem de Serviço: acompanha toda a confecção, do pedido à entrega, com as etapas de um ateliê.
 const brl = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261105000001 no Supabase. ' + e.message : (e.message || String(e));
 const COR = { pendente: '#9ca3af', andamento: '#f59e0b', concluida: '#16a34a' };
 
-export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onNavegar }) {
+export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], agenda = [], onRecarregar, onNavegar }) {
   const [osId, setOsId] = useState(osFocoId || '');
   const [aba, setAba] = useState('producao');
   const [tarefas, setTarefas] = useState([]);
-  const [resumo, setResumo] = useState({ materiais: [], orc: null, provas: [], fin: [], arquivos: 0 });
+  const [resumo, setResumo] = useState({ materiais: [], orc: null, orcs: [], provas: [], fin: [], arquivos: 0, arqs: [], pedidos: [] });
+  const [atend, setAtend] = useState({ por: '', em: '' });
+  const [painel, setPainel] = useState(null);
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [novaTarefa, setNovaTarefa] = useState({});
@@ -31,19 +38,23 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
 
   const carregar = useCallback(async () => {
     if (!osId) { setTarefas([]); return; }
-    const [t, m, o, p, f, a] = await Promise.all([
+    const [t, m, o, p, f, a, pv] = await Promise.all([
       supabase.from('os_producao').select('*').eq('ordem_servico_id', osId).order('ordem'),
-      supabase.from('os_materiais').select('comprado').eq('ordem_servico_id', osId),
+      supabase.from('os_materiais').select('comprado,descricao,escolhida').eq('ordem_servico_id', osId),
       supabase.from('orcamentos').select('*').eq('ordem_servico_id', osId).order('created_at', { ascending: false }),
-      supabase.from('provas').select('tipo,status,aprovado').eq('ordem_servico_id', osId),
+      supabase.from('provas').select('*').eq('ordem_servico_id', osId),
       supabase.from('financeiro_receber').select('*').order('data_vencimento').eq('ordem_servico_id', osId),
-      supabase.from('os_arquivos').select('id', { count: 'exact', head: true }).eq('ordem_servico_id', osId),
+      supabase.from('os_arquivos').select('id,categoria').eq('ordem_servico_id', osId),
+      supabase.from('pedidos_venda').select('numero,total,status,entrega_em').eq('ordem_servico_id', osId),
     ]);
     const e = t.error; if (e) { setErro(msgErro(e)); return; }
     setTarefas((t.data || []).map(r => r.responsavel === 'Ateliê' ? { ...r, responsavel: null } : r)); setSujos(new Set());
-    setResumo({ materiais: m.data || [], orc: (o.data || []).find(x => x.aprovado_em) || (o.data || [])[0] || null, provas: p.data || [], fin: f.data || [], arquivos: a.count || 0 });
+    setResumo({ materiais: m.data || [], orc: (o.data || []).find(x => x.aprovado_em) || (o.data || [])[0] || null, provas: p.data || [], fin: f.data || [], arquivos: (a.data || []).length, arqs: a.data || [], orcs: o.data || [], pedidos: pv.data || [] });
   }, [osId]);
   useEffect(() => { setErro(''); setAviso(''); carregar(); }, [carregar]);
+  useEffect(() => { setAtend({ por: osSel?.atendido_por || '', em: osSel?.atendido_em || '' }); }, [osId, osSel?.atendido_por, osSel?.atendido_em]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mudarAtend = (patch) => { setAtend(a => ({ ...a, ...patch })); setSujos(s => new Set(s).add('__os')); };
+  const paraInput = (iso) => { if (!iso) return ''; const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 
   async function gerar() {
     const r = await gerarEtapasAtelie(osId);
@@ -58,6 +69,10 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
     setSalvando(true); setErro(''); setAviso('');
     try {
       const alteradas = tarefas.filter(t => sujos.has(t.id));
+      if (sujos.has('__os')) {
+        const { error } = await supabase.from('ordens_servico').update({ atendido_por: atend.por || null, atendido_em: atend.em || null }).eq('id', osId);
+        if (error) throw error;
+      }
       for (const t of alteradas) {
         const { error } = await supabase.from('os_producao').update({ titulo: t.titulo, notas: t.notas || null, responsavel: t.responsavel || null, departamento: t.departamento || null, prazo: t.prazo || null, status: t.status, concluida_em: t.concluida_em || null }).eq('id', t.id);
         if (error) throw error;
@@ -71,7 +86,7 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
         }
       }
       // fase inteira concluída → a OS avança para a etapa seguinte do Fluxo
-      let msg = `${alteradas.length} alteração(ões) salva(s). Tarefas com departamento já aparecem na Central de Tarefas e na Agenda.`;
+      let msg = `${sujos.size} alteração(ões) salva(s). Tarefas com departamento já aparecem na Central de Tarefas e na Agenda.`;
       const concluidas = FASES_OS.map(([f]) => f).filter(f => { const ts = tarefas.filter(x => x.fase === f); return ts.length && ts.every(x => x.status === 'concluida') && alteradas.some(x => x.fase === f); });
       if (concluidas.length) {
         const atual = SLUGS_ETAPA.indexOf(osSel.status);
@@ -123,6 +138,62 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
   const pago = resumo.fin.filter(f => f.status === 'pago').reduce((s, f) => s + Number(f.valor || 0), 0);
   const aReceber = resumo.fin.filter(f => f.status !== 'pago').reduce((s, f) => s + Number(f.valor || 0), 0);
   const inp = { padding: '4px 6px', border: '1px solid #e5e7eb', borderRadius: 4, fontSize: 12 };
+
+  // ficha de cada etapa: o que já aconteceu, vindo dos outros módulos
+  const orcP = resumo.orc;
+  const quizOS = quizEnvios.filter(q => q.ordem_servico_id === osId || (!q.ordem_servico_id && q.cliente_id === osSel?.cliente_id)).sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em))[0];
+  const eventos = agenda.filter(a => a.ordem_servico_id === osId).sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora));
+  const nProva = (t) => resumo.provas.find(x => x.tipo === t);
+  const arq = (cats) => resumo.arqs.filter(a => cats.includes(a.categoria)).length;
+  const provaTxt = (t) => { const p = nProva(t); return p ? `${fmtDateTime(p.data_agendada)} · ${p.status || 'pendente'}${p.aprovado ? ' · ' + ({ sim: 'aprovada', parcial: 'aprovada c/ ajustes', nao: 'refazer' }[p.aprovado] || p.aprovado) : ''}` : 'não agendada'; };
+  const ajusteTxt = (t) => nProva(t)?.ajustes || 'sem ajustes anotados';
+  const parcelas = resumo.fin;
+  const pagas = parcelas.filter(f => f.status === 'pago').length;
+  const dados = {
+    cliente: [['Cadastrada em', fmtDateTime(cli?.created_at)], ['Origem', cli?.origem || '—'], ['Telefone', cli?.telefone || '—']],
+    atendimento: [['Serviço', (TIPOS_ATENDIMENTO[osSel?.tipo_atendimento] || {}).label || osSel?.servico || '—'], ['Canal', osSel?.canal || '—'], ['OS aberta em', fmtDateTime(osSel?.created_at)]],
+    agendamento: eventos.length ? eventos.slice(0, 3).map(e => [e.titulo || e.tipo, `${fmtDateTime(e.data_hora)} · ${e.status || ''}${e.confirmado_em ? ' · confirmado' : ''}`]) : [['Agenda', 'nada agendado para esta OS']],
+    consultoria: [['Questionário', quizOS ? `${quizOS.status}${quizOS.respondido_em ? ' · respondido em ' + fmtDateTime(quizOS.respondido_em) : quizOS.enviado_em ? ' · enviado em ' + fmtDateTime(quizOS.enviado_em) : ''}` : 'não enviado'], ['Pagamento', osSel?.pagamento_status || '—'], ['Valor da consultoria', brl(osSel?.consultoria_valor)], ['Meet', osSel?.link_meet ? 'link criado' : '—']],
+    criacao: [['Dossiê / imagens IA', quizOS?.ia_status ? `${quizOS.ia_status}${quizOS.ia_gerado_em ? ' · ' + fmtDateTime(quizOS.ia_gerado_em) : ''}` : '—'], ['Croquis e imagens', arq(['croqui', 'imagem_ia']) + ' arquivo(s)'], ['Referências', arq(['referencia']) + ' arquivo(s)']],
+    orcamento: orcP ? [['Orçamento', orcP.numero || '—'], ['Preço final', brl(orcP.preco_final || orcP.valor)], ['À vista', brl(orcP.preco_dinheiro)], ['Parcelas', orcP.parcelas ? orcP.parcelas + 'x' : '—'], ['Custo total', brl(orcP.custo_total)], ['Lucro estimado', brl(orcP.lucro_estimado)], ['Validade', fmtDate(orcP.validade)], ['Enviado', orcP.enviado_em ? fmtDateTime(orcP.enviado_em) : 'ainda não']] : [['Orçamento', 'ainda não feito']],
+    aprovacao: [['Situação', orcP?.aprovado_em ? 'aprovado em ' + fmtDateTime(orcP.aprovado_em) : 'aguardando aprovação'], ['Valor aprovado', brl(orcP?.preco_final || orcP?.valor)]],
+    venda: [['Pedido de venda', resumo.pedidos[0] ? `${resumo.pedidos[0].numero} · ${brl(resumo.pedidos[0].total)} · ${resumo.pedidos[0].status}` : 'ainda não gerado'], ['Parcelas pagas', `${pagas}/${parcelas.length}`], ['Recebido', brl(pago)], ['A receber', brl(aReceber)]],
+    os: [['Número', osSel?.numero || '—'], ['Ocasião', osSel?.ocasiao || '—'], ['Evento', fmtDate(osSel?.data_evento)], ['Valor da OS', brl(osSel?.valor_total)]],
+    tecido: [['Tecidos e medidas', fmtDate(osSel?.data_tecidos_medidas)], ['Materiais', `${resumo.materiais.length} item(ns) · ${resumo.materiais.filter(m => m.comprado).length} comprado(s)`], ['Medidas', cli?.busto || cli?.cintura ? 'registradas na ficha' : 'pendentes']],
+    corte: [['Materiais comprados', `${resumo.materiais.filter(m => m.comprado).length}/${resumo.materiais.length}`]],
+    montagem: [['Entrega prevista', fmtDate(osSel?.data_entrega_prevista)]],
+    prova1: [['1ª prova', provaTxt('prova1')]], ajuste1: [['Ajustes da 1ª prova', ajusteTxt('prova1')]],
+    prova2: [['2ª prova', provaTxt('prova2')]], ajuste2: [['Ajustes da 2ª prova', ajusteTxt('prova2')]],
+    prova_final: [['3ª prova', provaTxt('prova_final')]], prova4: [['4ª prova', provaTxt('prova4')]],
+    finalizacao: [['Entrega prevista', fmtDate(osSel?.data_entrega_prevista)]],
+    entrega: [['Entrega prevista', fmtDate(osSel?.data_entrega_prevista)], ['Saldo a receber', brl(aReceber)], ['Registro da entrega', arq(['prova', 'gravacao_prova']) + ' arquivo(s)']],
+    pos_venda: [['Comprovantes e arquivos', resumo.arquivos + ' arquivo(s) na OS']],
+    marketing: [['Fotos e vídeos', arq(['prova', 'gravacao_prova', 'foto_cliente']) + ' arquivo(s)']],
+  };
+  const abrirEm = { consultoria: 'Consultoria', criacao: 'Criação', orcamento: 'Orçamento', aprovacao: 'Orçamento', venda: 'Financeiro do orçamento', tecido: 'Medidas e provas', prova1: 'Provas', ajuste1: 'Provas', prova2: 'Provas', ajuste2: 'Provas', prova_final: 'Provas', prova4: 'Provas', finalizacao: 'Entrega', entrega: 'Entrega' };
+  const fecharPainel = async () => { setPainel(null); await carregar(); await onRecarregar(); };
+  const fichaEtapa = (fase) => (
+    <div style={{ background: '#f9fafb', borderRadius: 8, padding: '8px 12px', marginBottom: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '4px 16px' }}>
+        {(dados[fase] || []).map(([k, v]) => <div key={k} style={{ fontSize: 12 }}><span style={{ color: '#9ca3af', textTransform: 'uppercase', fontSize: 10 }}>{k}</span><div style={{ fontWeight: 600, color: '#111' }}>{String(v)}</div></div>)}
+      </div>
+      {(fase === 'cliente' || fase === 'atendimento') && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8, alignItems: 'end' }}>
+          <label style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase' }}>Quem atendeu<br /><input value={atend.por} onChange={e => mudarAtend({ por: e.target.value })} placeholder="Nome ou Júlia (IA)" style={{ ...inp, width: 180, textTransform: 'none' }} /></label>
+          <label style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase' }}>Data e hora do atendimento<br /><input type="datetime-local" value={paraInput(atend.em)} onChange={e => mudarAtend({ em: e.target.value ? new Date(e.target.value).toISOString() : '' })} style={inp} /></label>
+          {fase === 'cliente' && <BtnSecondary small onClick={() => onNavegar('clientes')}>Abrir ficha da cliente</BtnSecondary>}
+        </div>
+      )}
+      {abrirEm[fase] && <div style={{ marginTop: 8 }}><BtnSecondary small onClick={() => setPainel(fase)}>Abrir e editar aqui: {abrirEm[fase]}</BtnSecondary></div>}
+    </div>
+  );
+  const embutido = () => {
+    const f = painel;
+    if (['orcamento', 'aprovacao', 'venda'].includes(f)) return <Orcamentos os={os} clientes={clientes} onRecarregar={onRecarregar} osFixoId={osId} abaInicial={f === 'venda' ? 'financeiro' : 'planilha'} />;
+    if (f === 'consultoria') return <Consultoria clientes={clientes} os={os} quizEnvios={quizEnvios} agenda={agenda} onRecarregar={onRecarregar} onNavegar={onNavegar} osFixoId={osId} />;
+    if (f === 'criacao') return <Criacao os={os} clientes={clientes} quizEnvios={quizEnvios} onRecarregar={onRecarregar} onNavegar={onNavegar} osFixoId={osId} />;
+    return <Provas os={os} clientes={clientes} onRecarregar={onRecarregar} osFixoId={osId} />;
+  };
   const link = (rot, pagina) => <button onClick={() => onNavegar(pagina)} style={{ border: 'none', background: 'none', color: '#c4a45a', textDecoration: 'underline', cursor: 'pointer', fontSize: 13 }}>{rot}</button>;
 
   return (
@@ -179,6 +250,7 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
                       return (
                         <Card key={fase} style={{ marginBottom: 10, borderLeft: `4px solid ${ok ? '#16a34a' : atual ? '#c4a45a' : '#e5e7eb'}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><h3 style={{ fontWeight: 700, fontSize: 14 }}>{ROTULO_FASE[fase]}</h3>{ok ? <Badge label="Concluída" color="#16a34a" /> : atual ? <Badge label="Etapa atual" color="#c4a45a" /> : null}</div>
+                          {fichaEtapa(fase)}
                           {ts.length === 0 && <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Sem tarefas nesta etapa.</div>}
                           {ts.map(t => (
                             <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '24px minmax(160px,1fr) 130px 130px 130px 24px 24px', gap: 8, alignItems: 'start', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
@@ -266,6 +338,7 @@ export default function OrdemServico({ os, clientes, osFocoId, onRecarregar, onN
           {aba === 'arquivos' && <Arquivos osId={osId} clienteId={osSel.cliente_id} categorias={Object.keys({ referencia: 1, foto_cliente: 1, croqui: 1, tecido: 1, prova: 1, gravacao_prova: 1, imagem_ia: 1, comprovante: 1, outro: 1 })} titulo="Arquivos desta OS" ajuda="Inspirações, fotos, croquis, gravações das provas, arquivos gerados por IA e comprovantes." />}
         </>
       )}
+      <Drawer open={!!painel} onClose={fecharPainel} title={`${ROTULO_FASE[painel] || ''} · ${osSel?.numero || ''} ${cli?.nome || ''}`} width={1000}>{painel ? embutido() : null}</Drawer>
     </div>
   );
 }

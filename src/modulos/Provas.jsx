@@ -10,8 +10,8 @@ const TIPOS = [['prova1', '1ª prova'], ['prova2', '2ª prova'], ['prova_final',
 const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração. ' + e.message : (e.message || String(e));
 const paraInput = (d) => d ? new Date(new Date(d).getTime() - new Date(d).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
 
-export default function Provas({ os, clientes, onRecarregar }) {
-  const [osId, setOsId] = useState('');
+export default function Provas({ os, clientes, onRecarregar, osFixoId = '' }) {
+  const [osId, setOsId] = useState(osFixoId);
   const [provas, setProvas] = useState([]);
   const [datas, setDatas] = useState({ data_tecidos_medidas: '', data_entrega_prevista: '' });
   const [erro, setErro] = useState('');
@@ -51,11 +51,11 @@ export default function Provas({ os, clientes, onRecarregar }) {
   const inp = { width: '100%', padding: '6px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' };
   return (
     <div>
-      <div style={{ marginBottom: 20 }}><h1 style={{ fontSize: 24, fontWeight: 700 }}>Provas e Entrega</h1><p style={{ color: '#6b7280', marginTop: 4 }}>Medidas, 1ª/2ª/3ª provas, ajustes e data de entrega</p></div>
-      <select value={osId} onChange={e => setOsId(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, minWidth: 280, marginBottom: 16 }}>
+      {!osFixoId && <div style={{ marginBottom: 20 }}><h1 style={{ fontSize: 24, fontWeight: 700 }}>Provas e Entrega</h1><p style={{ color: '#6b7280', marginTop: 4 }}>Medidas, 1ª/2ª/3ª provas, ajustes e data de entrega</p></div>}
+      {!osFixoId && <select value={osId} onChange={e => setOsId(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, minWidth: 280, marginBottom: 16 }}>
         <option value="">Escolha a OS...</option>
         {ativas.map(o => <option key={o.id} value={o.id}>{o.numero || 'OS'} — {clientes.find(c => c.id === o.cliente_id)?.nome} ({ROTULO_ETAPA[o.status] || o.status})</option>)}
-      </select>
+      </select>}
       {aviso && <Aviso tipo="ok">{aviso}</Aviso>}{erro && <Aviso tipo="erro">{erro}</Aviso>}
       {!osSel ? <Card style={{ textAlign: 'center', color: '#9ca3af', padding: 40 }}>Escolha uma OS.</Card> : (
         <>

@@ -37,12 +37,12 @@ function textoWhats(o, cli, osSel, c) {
     `\nPara aprovar, é só me responder aqui. Assim que confirmar, já reservamos seus tecidos e agendamos as medidas. ✨`;
 }
 
-export default function Orcamentos({ os, clientes, onRecarregar }) {
-  const [osId, setOsId] = useState('');
+export default function Orcamentos({ os, clientes, onRecarregar, osFixoId = '', abaInicial = 'planilha' }) {
+  const [osId, setOsId] = useState(osFixoId);
   const [lista, setLista] = useState([]);
   const [orc, setOrc] = useState(null);
   const [materiais, setMateriais] = useState([]);
-  const [aba, setAba] = useState('planilha');
+  const [aba, setAba] = useState(abaInicial);
   const [parcelasFin, setParcelasFin] = useState([]);
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
@@ -69,7 +69,7 @@ export default function Orcamentos({ os, clientes, onRecarregar }) {
     setParcelasFin(data || []);
   }, [osId]);
 
-  useEffect(() => { setOrc(null); setErro(''); setAviso(''); setAba('planilha'); carregarMateriais(); carregarLista(); carregarFin(); }, [osId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setOrc(null); setErro(''); setAviso(''); setAba(abaInicial); carregarMateriais(); carregarLista(); carregarFin(); }, [osId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const custoMateriais = materiais.reduce((s, m) => s + custoMaterial(m), 0);
   const calc = orc ? calcular(orc, custoMateriais) : null;
@@ -164,15 +164,15 @@ export default function Orcamentos({ os, clientes, onRecarregar }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
+      {!osFixoId && <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700 }}>Orçamentos</h1>
         <p style={{ color: '#6b7280', marginTop: 4 }}>Planilha de formação de preço, texto para WhatsApp, aprovação e recebimentos</p>
-      </div>
+      </div>}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <select value={osId} onChange={e => setOsId(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, minWidth: 280 }}>
+        {!osFixoId && <select value={osId} onChange={e => setOsId(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, minWidth: 280 }}>
           <option value="">Escolha a OS...</option>
           {ativas.map(o => <option key={o.id} value={o.id}>{o.numero || 'OS'} — {clientes.find(c => c.id === o.cliente_id)?.nome} ({ROTULO_ETAPA[o.status] || o.status})</option>)}
-        </select>
+        </select>}
         {osSel && <BtnSecondary small onClick={novo}>Novo orçamento</BtnSecondary>}
         {lista.map(q => <button key={q.id} onClick={() => { setOrc(q); setAviso(''); setErro(''); }} style={{ border: '1px solid #d1d5db', borderRadius: 16, padding: '4px 12px', background: orc?.id === q.id ? '#111' : '#fff', color: orc?.id === q.id ? '#c4a45a' : '#374151', fontSize: 12, cursor: 'pointer' }}>{q.numero || 'Orç.'} · {brl(q.preco_final || q.valor)} {q.aprovado_em ? '✔' : ''}</button>)}
       </div>

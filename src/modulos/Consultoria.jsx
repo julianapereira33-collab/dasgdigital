@@ -37,10 +37,10 @@ export function BriefingQuiz({ respostas, compacto }) {
   );
 }
 
-export default function Consultoria({ clientes, os, quizEnvios, agenda = [], onRecarregar, onNavegar }) {
-  const [aba, setAba] = useState('acompanhamento');
+export default function Consultoria({ clientes, os, quizEnvios, agenda = [], onRecarregar, onNavegar, osFixoId = '' }) {
+  const [aba, setAba] = useState(osFixoId ? 'sessao' : 'acompanhamento');
   const [sub, setSub] = useState('anotacoes');
-  const [osSel, setOsSel] = useState(null);
+  const [osSel, setOsSel] = useState(() => os.find(o => o.id === osFixoId) || null);
   const [verBriefing, setVerBriefing] = useState(null); // quiz selecionado na aba acompanhamento
   const [mostrarQ, setMostrarQ] = useState(false);
   const [notas, setNotas] = useState('');
@@ -201,10 +201,10 @@ export default function Consultoria({ clientes, os, quizEnvios, agenda = [], onR
       {aba === 'sessao' && (
         <div>
           <div style={{ background: '#111', padding: '12px 20px', borderRadius: 10, marginBottom: 20, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-            <select value={osSel?.id || ''} onChange={e => setOsSel(os.find(o => o.id === e.target.value) || null)} style={{ padding: '6px 10px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 600 }}>
+            {!osFixoId && <select value={osSel?.id || ''} onChange={e => setOsSel(os.find(o => o.id === e.target.value) || null)} style={{ padding: '6px 10px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 600 }}>
               <option value="">Selecionar OS...</option>
               {osAtivas.map(o => <option key={o.id} value={o.id}>{o.numero || 'OS'} — {clientes.find(c => c.id === o.cliente_id)?.nome}</option>)}
-            </select>
+            </select>}
             {osSel?.link_meet && <a href={osSel.link_meet} target="_blank" rel="noreferrer" style={{ background: '#1a73e8', color: '#fff', padding: '6px 14px', borderRadius: 6, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>Abrir Meet</a>}
             {cli?.telefone && <a href={`https://wa.me/55${cli.telefone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ background: '#25D366', color: '#fff', padding: '6px 14px', borderRadius: 6, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>WhatsApp</a>}
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>

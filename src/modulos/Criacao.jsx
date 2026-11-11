@@ -29,8 +29,8 @@ function respostaDoQuiz(quiz, id) {
   return p && quiz?.respostas?.[id] ? respostaLegivel(p, quiz.respostas[id]) : '';
 }
 
-export default function Criacao({ os, clientes, quizEnvios, onRecarregar, onNavegar }) {
-  const [osId, setOsId] = useState('');
+export default function Criacao({ os, clientes, quizEnvios, onRecarregar, onNavegar, osFixoId = '' }) {
+  const [osId, setOsId] = useState(osFixoId);
   const [aba, setAba] = useState('briefing');
   const [briefing, setBriefing] = useState(null);
   const [dossie, setDossie] = useState(null);
@@ -134,15 +134,15 @@ export default function Criacao({ os, clientes, quizEnvios, onRecarregar, onNave
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
+      {!osFixoId && <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700 }}>Criação</h1>
         <p style={{ color: '#6b7280', marginTop: 4 }}>Briefing completo, dossiê, imagens do vestido e ficha técnica</p>
-      </div>
+      </div>}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <select value={osId} onChange={e => { setOsId(e.target.value); setAba('briefing'); }} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, minWidth: 280 }}>
+        {!osFixoId && <select value={osId} onChange={e => { setOsId(e.target.value); setAba('briefing'); }} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, minWidth: 280 }}>
           <option value="">Escolha a OS...</option>
           {ativas.map(o => <option key={o.id} value={o.id}>{o.numero || 'OS'} — {clientes.find(c => c.id === o.cliente_id)?.nome} ({ROTULO_ETAPA[o.status] || o.status})</option>)}
-        </select>
+        </select>}
         {osSel && <Badge label={ROTULO_ETAPA[osSel.status] || osSel.status} color="#c4a45a" />}
       </div>
       {aviso && <Aviso tipo="ok">{aviso}</Aviso>}

@@ -1591,7 +1591,7 @@ export default function DasGCRM() {
       case 'criacao': return <CriacaoOS os={os} clientes={clientes} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'orcamentos': return <OrcamentosOS os={os} clientes={clientes} onRecarregar={recarregar} />;
       case 'atendimento': return <Atendimento canais={canais} clienteFocoId={foco.clienteId} focoTick={foco.tick} clientes={clientes} os={os} agenda={agenda} tarefas={tarefas} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
-      case 'os': return <OrdemServico os={os} clientes={clientes} osFocoId={osFocoId} onRecarregar={recarregar} onNavegar={setPagina} />;
+      case 'os': return <OrdemServico os={os} clientes={clientes} osFocoId={osFocoId} quizEnvios={quizEnvios} agenda={agenda} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'pedidosvenda': return <PedidosVenda clientes={clientes} os={os} produtos={produtos} clienteNovoId={foco.clienteId} abrirTick={foco.tick} onRecarregar={recarregar} />;
       case 'processos': return <Processos os={os} clientes={clientes} onAbrirCliente={(o) => abrirOS(o.id)} />;
       case 'provas': return <ProvasOS os={os} clientes={clientes} onRecarregar={recarregar} />;
