@@ -8,9 +8,9 @@ import { Badge, Card, BtnPrimary, BtnSecondary, BtnDanger, TabBar, Drawer, Campo
 
 // dep = departamento padrão do tipo (a Juliana pode trocar ao criar o evento)
 const TIPOS = {
-  completo: { label: 'Personal Stylist', cor: '#8b5cf6', dep: 'clientes', meet: true },
-  consultivo: { label: 'My Consultora', cor: '#c4a45a', dep: 'clientes', meet: true },
-  orcamento: { label: 'My Orçamento', cor: '#f97316', dep: 'clientes' },
+  completo: { label: 'Estilista com Ju Pereira', cor: '#8b5cf6', dep: 'clientes', meet: true },
+  consultivo: { label: 'Curadoria Consultiva', cor: '#c4a45a', dep: 'clientes', meet: true },
+  orcamento: { label: 'Orçamento Couture', cor: '#f97316', dep: 'clientes' },
   orientacao_tecido: { label: 'My Curadoria de Tecidos', cor: '#7c3aed', dep: 'clientes' },
   cerimonial: { label: 'Stylist Cerimonial', cor: '#be185d', dep: 'clientes' },
   my_personal_stylist: { label: 'My Personal Stylist', cor: '#6d28d9', dep: 'clientes', meet: true },

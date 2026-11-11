@@ -604,7 +604,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
           <div>
             {erro && <Aviso tipo="erro">{erro}</Aviso>}
             <Campo label="Categoria" value={baseEdit.categoria} onChange={v => setBaseEdit(p => ({ ...p, categoria: v }))} options={CATEGORIAS_BASE.map(([value, label]) => ({ value, label }))} />
-            <Campo label="Título *" value={baseEdit.titulo} onChange={v => setBaseEdit(p => ({ ...p, titulo: v }))} placeholder="Ex.: Personal Stylist" />
+            <Campo label="Título *" value={baseEdit.titulo} onChange={v => setBaseEdit(p => ({ ...p, titulo: v }))} placeholder="Ex.: Estilista com Ju Pereira" />
             <Campo label="Conteúdo *" type="textarea" rows={10} value={baseEdit.conteudo} onChange={v => setBaseEdit(p => ({ ...p, conteudo: v }))} />
             <label style={{ display: 'block', marginBottom: 16, fontSize: 14 }}><input type="checkbox" checked={baseEdit.ativo !== false} onChange={e => setBaseEdit(p => ({ ...p, ativo: e.target.checked }))} /> Ativa (a Júlia pode usar)</label>
             <div style={{ display: 'flex', gap: 10 }}><BtnPrimary onClick={salvarBase} disabled={ocupado}>Salvar</BtnPrimary><BtnSecondary onClick={() => setBaseEdit(null)}>Cancelar</BtnSecondary>{baseEdit.id && <BtnDanger onClick={excluirBase}>Excluir</BtnDanger>}</div>

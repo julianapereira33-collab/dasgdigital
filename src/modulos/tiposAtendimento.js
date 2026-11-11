@@ -1,17 +1,17 @@
-// Os 4 atendimentos da Ju Pereira. "quiz" diz qual questionário a cliente recebe (null = sem quiz).
+// Serviços DAS G Stylist / Couture da Ju Pereira. "quiz" diz qual questionário a cliente recebe (null = sem quiz).
 // "cobra" = tem pagamento antes do atendimento. Os tipos antigos continuam válidos para OS já criadas.
 export const TIPOS_ATENDIMENTO = {
   completo: {
-    label: 'Personal Stylist', preco: 397, cobra: true, quiz: 'completo', pagamento: 'do Personal Stylist',
+    label: 'Estilista com Ju Pereira', preco: 397, cobra: true, quiz: 'completo', pagamento: 'da Estilista com Ju Pereira',
     duracao: 'Online (apoio de IA + 30 min com a Ju) ou presencial',
-    inclui: ['Questionário aprofundado + videochamada de 30 min com a Ju', 'Análise de biotipo, estilo, colorimetria e dress code', 'Criação do vestido com técnicas de harmonização', 'Croqui, dossiê e ficha técnica do vestido', 'Orçamento para confecção', 'Fechando o vestido: upgrade para My Personal Stylist sem pagar a diferença'],
+    inclui: ['Questionário aprofundado + videochamada de 30 min com a Ju', 'Análise de biotipo, estilo, colorimetria e dress code', 'Criação do vestido com técnicas de harmonização', 'Croqui, dossiê e ficha técnica do vestido', 'Orçamento para confecção', 'Fechando o vestido: benefício My Personal Stylist completo, sem cobrança adicional'],
   },
   consultivo: {
-    label: 'My Consultora', preco: 147, cobra: true, quiz: 'consultivo', pagamento: 'da My Consultora',
+    label: 'Curadoria Consultiva', preco: 147, cobra: true, quiz: 'consultivo', pagamento: 'da Curadoria Consultiva',
     inclui: ['Questionário objetivo do evento e do vestido', 'Interpretação das referências e orientação de modelo', '1 croqui e 1 proposta', 'Orçamento para confecção'],
   },
   orcamento: {
-    label: 'My Orçamento (gratuito)', preco: 0, cobra: false, quiz: 'orcamento', pagamento: 'do orçamento',
+    label: 'Orçamento Couture (gratuito)', preco: 0, cobra: false, quiz: 'orcamento', pagamento: 'do orçamento',
     inclui: ['Para quem já tem foto, desenho ou referência do vestido', 'Avaliação de viabilidade e orçamento'],
   },
   orientacao_tecido: {
@@ -24,8 +24,8 @@ export const TIPOS_ATENDIMENTO = {
     inclui: ['Acompanhamento no dia do evento, enquanto ela se arruma e se veste', 'Leva a cliente até a entrada (não permanece no evento)'],
   },
   my_personal_stylist: {
-    label: 'My Personal Stylist (pacote VIP)', preco: 987, cobra: true, quiz: 'completo', pagamento: 'do My Personal Stylist',
-    inclui: ['Raio X do Estilo + Personal Stylist + My Paleta', 'Curadoria de acessórios, cabelo e make'],
+    label: 'My Personal Stylist (pacote VIP)', preco: 947, cobra: true, quiz: 'completo', pagamento: 'do My Personal Stylist',
+    inclui: ['Raio X do Estilo + Minha Paleta + Estilista com Ju Pereira', 'Curadoria de acessórios, cabelo e make'],
   },
   // tipos antigos (OS já existentes): seguem funcionando, não aparecem para novas OS
   consultoria_express: { label: 'Consultoria Express (antigo)', legado: true, preco: 297, cobra: true, quiz: 'completo', pagamento: 'da consultoria' },

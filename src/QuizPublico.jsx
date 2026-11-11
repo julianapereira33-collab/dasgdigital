@@ -5,7 +5,7 @@ import { secoesDoQuiz } from './modulos/quizConsultoria.js';
 import { CampoAnexo } from './modulos/AnexosQuiz.jsx';
 
 const dourado = '#c4a45a';
-const TITULO_POR_TIPO = { completo: 'Personal Stylist · Questionário', consultivo: 'My Consultora · Questionário', orcamento: 'My Orçamento', tecido: 'My Curadoria de Tecidos' };
+const TITULO_POR_TIPO = { completo: 'Estilista com Ju Pereira · Questionário', consultivo: 'Curadoria Consultiva · Questionário', orcamento: 'Orçamento Couture', tecido: 'My Curadoria de Tecidos' };
 const chaveRascunho = (t) => 'dasg_quiz_' + t;
 
 export default function QuizPublico({ token }) {

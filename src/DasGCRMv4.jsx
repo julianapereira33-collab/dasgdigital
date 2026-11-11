@@ -301,18 +301,18 @@ const MOCK_FEEDBACK = [
 ];
 
 const MOCK_SERVICOS = [
-  { id: 's1', nome: 'Personal Stylist', slug: 'completo', descricao: 'Consultoria completa com criação autoral: online (IA + 30 min com a Ju) ou presencial.',
+  { id: 's1', nome: 'Estilista com Ju Pereira', slug: 'completo', descricao: 'Consultoria completa com criação autoral: online (IA + 30 min com a Ju) ou presencial.',
     inclui: ['Questionário aprofundado e videochamada de 30 min', 'Análise de biotipo, estilo, colorimetria e dress code', 'Criação com harmonização, croqui, dossiê e ficha técnica', 'Orçamento para confecção'], faixa_preco: 'R$ 397,00', pagamento: ['A definir'] },
-  { id: 's2', nome: 'My Consultora', slug: 'consultivo', descricao: 'Com a Ju, direcionada a um evento: referências, modelo e harmonização.',
+  { id: 's2', nome: 'Curadoria Consultiva', slug: 'consultivo', descricao: 'Com a Ju, direcionada a um evento: referências, modelo e harmonização.',
     inclui: ['Questionário objetivo', 'Orientação de modelo e harmonização', '1 croqui e 1 proposta', 'Orçamento'], faixa_preco: 'R$ 147,00', pagamento: ['A definir'] },
-  { id: 's3', nome: 'My Orçamento', slug: 'orcamento', descricao: 'Gratuito. Para quem já tem o modelo e quer que a DAS G faça.',
+  { id: 's3', nome: 'Orçamento Couture', slug: 'orcamento', descricao: 'Gratuito. Para quem já tem o modelo e quer que a DAS G faça.',
     inclui: ['Avaliação de viabilidade', 'Orçamento com descrição técnica'], faixa_preco: 'Gratuito', pagamento: ['—'] },
   { id: 's4', nome: 'My Curadoria de Tecidos', slug: 'orientacao_tecido', descricao: 'Consultoria técnica na Das G Tissu: tecido e metragem para o modelo.',
     inclui: ['Tecido, caimento e estrutura', 'Estimativa de metragem', 'Croqui simplificado e harmonização'], faixa_preco: 'R$ 47,00', pagamento: ['A definir'] },
   { id: 's5', nome: 'Stylist Cerimonial', slug: 'cerimonial', descricao: 'Acompanhamento no dia do evento, do salão até a entrada (2 horas).',
     inclui: ['Acompanha enquanto ela se arruma e se veste', 'Leva até a entrada do evento'], faixa_preco: 'R$ 497,00', pagamento: ['A definir'] },
   { id: 's6', nome: 'My Personal Stylist', slug: 'my_personal_stylist', descricao: 'Pacote VIP completo.',
-    inclui: ['Raio X do Estilo + Personal Stylist + My Paleta', 'Curadoria de acessórios, cabelo e make'], faixa_preco: 'R$ 987,00', pagamento: ['A definir'] },
+    inclui: ['Raio X do Estilo + Minha Paleta + Estilista com Ju Pereira', 'Curadoria de acessórios, cabelo e make'], faixa_preco: 'R$ 947,00', pagamento: ['A definir'] },
 ];
 
 // Conversas do WhatsApp agora vêm do Supabase (tabelas conversas_whatsapp + atendimento_whatsapp).

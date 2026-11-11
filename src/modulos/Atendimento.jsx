@@ -7,7 +7,7 @@ import ChecklistAtendimento, { statusChecklist } from './ChecklistAtendimento.js
 import { TIPOS_ATENDIMENTO, TIPO_PADRAO, tipoDaOS, brlTipo } from './tiposAtendimento.js';
 import { Badge, Card, BtnPrimary, BtnSecondary, TabBar, Campo, SeletorCliente, Aviso, fmtDateTime, erroDeSchema } from './ui.jsx';
 
-// 2º passo do fluxo: Atendimento. Define o tipo (Personal Stylist, My Consultora, My Orçamento, My Curadoria de Tecidos, Stylist Cerimonial ou My Personal Stylist),
+// 2º passo do fluxo: Atendimento. Define o tipo (Estilista com Ju Pereira, Curadoria Consultiva, Orçamento Couture, My Curadoria de Tecidos, Stylist Cerimonial ou My Personal Stylist),
 // dispara o link de pagamento, o quiz (quando o tipo pede), a confirmação e a videoconferência.
 const msgErro = (e) => erroDeSchema(e) ? 'Falta aplicar a migração 20261105000002 no Supabase. ' + e.message : (e.message || String(e));
 const opcoesTipo = (atual) => Object.entries(TIPOS_ATENDIMENTO).filter(([k, t]) => !t.legado || k === atual).map(([value, t]) => ({ value, label: `${t.label} · ${brlTipo(t)}` }));
