@@ -532,7 +532,7 @@ export default function Central({ conversas, leads, agenda, tarefas, clientes, o
           <Card style={{ marginBottom: 18 }}>
             <h3 style={{ fontSize: 16, marginBottom: 4 }}>Instruções principais da Júlia</h3>
             <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>Quem ela é, como fala, o que nunca deve fazer e quando deve chamar você.</p>
-            <textarea value={instrucoes} onChange={e => setInstrucoes(e.target.value)} rows={7} placeholder="Ex.: Você é a Júlia, secretária da Maison Das G. Fale de forma acolhedora e objetiva..." style={{ width: '100%', padding: 10, border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
+            <textarea value={instrucoes} onChange={e => setInstrucoes(e.target.value)} rows={7} placeholder="Ex.: Você é a Júlia, secretária da DAS G. Fale de forma acolhedora e objetiva..." style={{ width: '100%', padding: 10, border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
             <div style={{ marginTop: 10 }}><BtnPrimary small disabled={ocupado} onClick={salvarInstrucoes}>Salvar instruções</BtnPrimary></div>
           </Card>
 

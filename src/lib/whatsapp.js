@@ -38,7 +38,7 @@ export async function enviarWhatsApp({ telefone, nome, mensagem }) {
 export function msgConfirmacaoEvento({ nomeCliente, tipoLabel, data, local, linkMeet }) {
   const primeiro = (nomeCliente || '').split(' ')[0] || 'tudo bem';
   const quando = new Date(data).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  let m = `Olá, ${primeiro}! Aqui é da Maison Das G. Seu horário de *${tipoLabel}* está reservado para *${quando}*.`;
+  let m = `Olá, ${primeiro}! Aqui é da DAS G. Seu horário de *${tipoLabel}* está reservado para *${quando}*.`;
   if (local) m += `\nLocal: ${local}.`;
   if (linkMeet) m += `\nLink da videochamada: ${linkMeet}`;
   m += '\n\nPode me confirmar respondendo *SIM*? Se precisar remarcar, é só avisar.';
@@ -47,7 +47,7 @@ export function msgConfirmacaoEvento({ nomeCliente, tipoLabel, data, local, link
 
 export function msgAvisoTarefa({ nomeCliente, titulo, prazo }) {
   const primeiro = (nomeCliente || '').split(' ')[0] || 'tudo bem';
-  let m = `Olá, ${primeiro}! Aqui é da Maison Das G. ${titulo}.`;
+  let m = `Olá, ${primeiro}! Aqui é da DAS G. ${titulo}.`;
   if (prazo) m += `\nPrazo: ${new Date(prazo + 'T12:00:00').toLocaleDateString('pt-BR')}.`;
   m += '\n\nQualquer dúvida é só me chamar por aqui.';
   return m;

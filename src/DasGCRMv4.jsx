@@ -305,7 +305,7 @@ const MOCK_SERVICOS = [
     inclui: ['Questionário aprofundado e videochamada de 30 min', 'Análise de biotipo, estilo, colorimetria e dress code', 'Criação com harmonização, croqui, dossiê e ficha técnica', 'Orçamento para confecção'], faixa_preco: 'R$ 397,00', pagamento: ['A definir'] },
   { id: 's2', nome: 'My Consultora', slug: 'consultivo', descricao: 'Com a Ju, direcionada a um evento: referências, modelo e harmonização.',
     inclui: ['Questionário objetivo', 'Orientação de modelo e harmonização', '1 croqui e 1 proposta', 'Orçamento'], faixa_preco: 'R$ 147,00', pagamento: ['A definir'] },
-  { id: 's3', nome: 'My Orçamento', slug: 'orcamento', descricao: 'Gratuito. Para quem já tem o modelo e quer que a Maison Das G faça.',
+  { id: 's3', nome: 'My Orçamento', slug: 'orcamento', descricao: 'Gratuito. Para quem já tem o modelo e quer que a DAS G faça.',
     inclui: ['Avaliação de viabilidade', 'Orçamento com descrição técnica'], faixa_preco: 'Gratuito', pagamento: ['—'] },
   { id: 's4', nome: 'My Curadoria de Tecidos', slug: 'orientacao_tecido', descricao: 'Consultoria técnica na Das G Tissu: tecido e metragem para o modelo.',
     inclui: ['Tecido, caimento e estrutura', 'Estimativa de metragem', 'Croqui simplificado e harmonização'], faixa_preco: 'R$ 47,00', pagamento: ['A definir'] },
@@ -452,7 +452,7 @@ function Dashboard({ clientes, os, agenda, tarefas, pedidos, contasPagar, onNave
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Dashboard</h1>
-      <p style={{ color: '#6b7280', marginBottom: 24 }}>Visão geral da Maison Das G — {hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+      <p style={{ color: '#6b7280', marginBottom: 24 }}>Visão geral da DAS G — {hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
 
       <TarefasPorAgenda tarefas={tarefas} onAbrir={() => onNavegar?.('tarefas')} />
 

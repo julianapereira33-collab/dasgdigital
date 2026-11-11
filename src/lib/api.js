@@ -101,7 +101,7 @@ export async function criarQuizEnvio({ cliente, os }) {
 
 export function msgQuiz(nome, token) {
   const primeiro = (nome || '').split(' ')[0] || 'tudo bem';
-  return `Olá, ${primeiro}! Aqui é da Maison Das G. Para a nossa consultoria ser bem aproveitada, preparei um questionário rápido (uns 5 minutos) sobre o seu estilo, a ocasião e suas medidas:\n\n${linkDoQuiz(token)}\n\nPode responder pelo celular mesmo. Obrigada!`;
+  return `Olá, ${primeiro}! Aqui é da DAS G. Para a nossa consultoria ser bem aproveitada, preparei um questionário rápido (uns 5 minutos) sobre o seu estilo, a ocasião e suas medidas:\n\n${linkDoQuiz(token)}\n\nPode responder pelo celular mesmo. Obrigada!`;
 }
 
 export async function enviarQuizPorWhatsApp({ cliente, os }) {
