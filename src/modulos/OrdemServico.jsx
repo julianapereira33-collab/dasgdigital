@@ -24,6 +24,8 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
   const [resumo, setResumo] = useState({ materiais: [], orc: null, orcs: [], provas: [], fin: [], arquivos: 0, arqs: [], pedidos: [] });
   const [atend, setAtend] = useState({ por: '', em: '' });
   const [painel, setPainel] = useState(null);
+  const [tempos, setTempos] = useState([]);
+  const [novoTempo, setNovoTempo] = useState({});
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [novaTarefa, setNovaTarefa] = useState({});
@@ -38,7 +40,7 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
 
   const carregar = useCallback(async () => {
     if (!osId) { setTarefas([]); return; }
-    const [t, m, o, p, f, a, pv] = await Promise.all([
+    const [t, m, o, p, f, a, pv, tm] = await Promise.all([
       supabase.from('os_producao').select('*').eq('ordem_servico_id', osId).order('ordem'),
       supabase.from('os_materiais').select('comprado,descricao,escolhida').eq('ordem_servico_id', osId),
       supabase.from('orcamentos').select('*').eq('ordem_servico_id', osId).order('created_at', { ascending: false }),
@@ -46,8 +48,10 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
       supabase.from('financeiro_receber').select('*').order('data_vencimento').eq('ordem_servico_id', osId),
       supabase.from('os_arquivos').select('id,categoria').eq('ordem_servico_id', osId),
       supabase.from('pedidos_venda').select('numero,total,status,entrega_em').eq('ordem_servico_id', osId),
+      supabase.from('os_tempos').select('*').eq('ordem_servico_id', osId).order('inicio'),
     ]);
     const e = t.error; if (e) { setErro(msgErro(e)); return; }
+    setTempos(tm.data || []);
     setTarefas((t.data || []).map(r => r.responsavel === 'Ateliê' ? { ...r, responsavel: null } : r)); setSujos(new Set());
     setResumo({ materiais: m.data || [], orc: (o.data || []).find(x => x.aprovado_em) || (o.data || [])[0] || null, provas: p.data || [], fin: f.data || [], arquivos: (a.data || []).length, arqs: a.data || [], orcs: o.data || [], pedidos: pv.data || [] });
   }, [osId]);
@@ -187,6 +191,53 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
       {abrirEm[fase] && <div style={{ marginTop: 8 }}><BtnSecondary small onClick={() => setPainel(fase)}>Abrir e editar aqui: {abrirEm[fase]}</BtnSecondary></div>}
     </div>
   );
+
+  // controle de horas trabalhadas por etapa (quem, dia, hora de início e de término)
+  const TEMPO_FASES = ['consultoria', 'criacao', 'tecido', 'corte', 'montagem', 'prova1', 'ajuste1', 'prova2', 'ajuste2', 'prova_final', 'prova4', 'finalizacao'];
+  const ROTULO_TEMPO = { tecido: 'Tempo de modelagem', corte: 'Tempo de corte', montagem: 'Tempo de montagem (costura)', consultoria: 'Tempo de consultoria', criacao: 'Tempo de criação', finalizacao: 'Tempo de finalização' };
+  const PREVISTO = { tecido: 'horas_molde', corte: 'horas_corte', montagem: 'horas_montagem', prova1: 'horas_provas', ajuste1: 'horas_provas', prova2: 'horas_provas', ajuste2: 'horas_provas', prova_final: 'horas_provas', prova4: 'horas_provas' };
+  const hm = (min) => `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+  const minDe = (fase) => tempos.filter(t => t.fase === fase).reduce((a, t) => a + (t.minutos || 0), 0);
+  const totalMin = tempos.reduce((a, t) => a + (t.minutos || 0), 0);
+  const hoje = () => new Date().toISOString().slice(0, 10);
+  async function lancarTempo(fase) {
+    const f = novoTempo[fase] || {};
+    if (!f.ini || !f.fim) { setErro('Informe a hora de início e a de término.'); return; }
+    const dia = f.data || hoje();
+    const inicio = new Date(`${dia}T${f.ini}`); let fim = new Date(`${dia}T${f.fim}`);
+    if (fim <= inicio) fim = new Date(fim.getTime() + 86400000);
+    const { error } = await supabase.from('os_tempos').insert({ ordem_servico_id: osId, fase, responsavel: f.quem || null, inicio: inicio.toISOString(), fim: fim.toISOString() });
+    if (error) { setErro(msgErro(error)); return; }
+    setNovoTempo(n => ({ ...n, [fase]: { data: dia, quem: f.quem } })); setErro(''); await carregar();
+  }
+  async function removerTempo(id) { await supabase.from('os_tempos').delete().eq('id', id); setTempos(ts => ts.filter(t => t.id !== id)); }
+  const horaLocal = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const blocoTempo = (fase) => {
+    if (!TEMPO_FASES.includes(fase)) return null;
+    const lista = tempos.filter(t => t.fase === fase);
+    const f = novoTempo[fase] || {};
+    const prev = orcP && PREVISTO[fase] ? Number(orcP[PREVISTO[fase]] || 0) : 0;
+    const setF = (patch) => setNovoTempo(n => ({ ...n, [fase]: { ...(n[fase] || {}), ...patch } }));
+    return (
+      <div style={{ border: '1px dashed #c4a45a', borderRadius: 8, padding: '8px 12px', marginBottom: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+          <span>⏱ {ROTULO_TEMPO[fase] || 'Tempo de execução'}</span>
+          <span>{hm(minDe(fase))} trabalhadas{prev && ['tecido', 'corte', 'montagem'].includes(fase) ? ` · previsto no orçamento ${prev}h` : ''}</span>
+        </div>
+        {lista.map(t => <div key={t.id} style={{ display: 'flex', gap: 10, fontSize: 12, padding: '2px 0', alignItems: 'center' }}>
+          <span>{fmtDate(t.inicio)}</span><span>{horaLocal(t.inicio)} → {horaLocal(t.fim)}</span><b>{hm(t.minutos)}</b><span style={{ color: '#6b7280', flex: 1 }}>{t.responsavel || 'sem nome'}</span>
+          <button title="Remover lançamento" onClick={() => { if (window.confirm('Remover este lançamento de tempo?')) removerTempo(t.id); }} style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer' }}>✕</button>
+        </div>)}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
+          <input type="date" value={f.data || hoje()} onChange={e => setF({ data: e.target.value })} style={inp} />
+          <input type="time" value={f.ini || ''} onChange={e => setF({ ini: e.target.value })} title="Hora inicial" style={inp} />
+          <input type="time" value={f.fim || ''} onChange={e => setF({ fim: e.target.value })} title="Hora de término" style={inp} />
+          <input placeholder="Quem trabalhou" value={f.quem || ''} onChange={e => setF({ quem: e.target.value })} style={{ ...inp, width: 150 }} />
+          <BtnSecondary small onClick={() => lancarTempo(fase)}>Lançar tempo</BtnSecondary>
+        </div>
+      </div>
+    );
+  };
   const embutido = () => {
     const f = painel;
     if (['orcamento', 'aprovacao', 'venda'].includes(f)) return <Orcamentos os={os} clientes={clientes} onRecarregar={onRecarregar} osFixoId={osId} abaInicial={f === 'venda' ? 'financeiro' : 'planilha'} />;
@@ -218,7 +269,7 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
                 </select></label>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginTop: 12 }}>
-              {[['Evento', fmtDate(osSel.data_evento)], ['Tecidos e medidas', fmtDate(osSel.data_tecidos_medidas)], ['Entrega prevista', fmtDate(osSel.data_entrega_prevista)], ['Valor', brl(osSel.valor_total)], ['Recebido', brl(pago)], ['A receber', brl(aReceber)]].map(([k, v]) => <div key={k} style={{ background: '#f9fafb', borderRadius: 6, padding: '6px 10px' }}><div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase' }}>{k}</div><div style={{ fontWeight: 600, fontSize: 13 }}>{v}</div></div>)}
+              {[['Evento', fmtDate(osSel.data_evento)], ['Tecidos e medidas', fmtDate(osSel.data_tecidos_medidas)], ['Entrega prevista', fmtDate(osSel.data_entrega_prevista)], ['Valor', brl(osSel.valor_total)], ['Recebido', brl(pago)], ['A receber', brl(aReceber)], ['Horas trabalhadas', hm(totalMin)]].map(([k, v]) => <div key={k} style={{ background: '#f9fafb', borderRadius: 6, padding: '6px 10px' }}><div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase' }}>{k}</div><div style={{ fontWeight: 600, fontSize: 13 }}>{v}</div></div>)}
             </div>
             <div style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6b7280' }}><span>Produção</span><span>{feitas}/{tarefas.length} tarefas · {pct}%</span></div>
@@ -251,6 +302,7 @@ export default function OrdemServico({ os, clientes, osFocoId, quizEnvios = [], 
                         <Card key={fase} style={{ marginBottom: 10, borderLeft: `4px solid ${ok ? '#16a34a' : atual ? '#c4a45a' : '#e5e7eb'}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><h3 style={{ fontWeight: 700, fontSize: 14 }}>{ROTULO_FASE[fase]}</h3>{ok ? <Badge label="Concluída" color="#16a34a" /> : atual ? <Badge label="Etapa atual" color="#c4a45a" /> : null}</div>
                           {fichaEtapa(fase)}
+                          {blocoTempo(fase)}
                           {ts.length === 0 && <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Sem tarefas nesta etapa.</div>}
                           {ts.map(t => (
                             <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '24px minmax(160px,1fr) 130px 130px 130px 24px 24px', gap: 8, alignItems: 'start', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
