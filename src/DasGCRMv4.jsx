@@ -13,6 +13,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient.js';
 import CadastroProduto from './modulos/CadastroProduto.jsx';
 import Central from './modulos/Central.jsx';
+import Infoprodutos from './modulos/Infoprodutos.jsx';
 import AgendaTarefas from './modulos/AgendaTarefas.jsx';
 import Clientes from './modulos/Clientes.jsx';
 import Consultoria from './modulos/Consultoria.jsx';
@@ -1542,6 +1543,7 @@ export default function DasGCRM() {
     { id: 'fluxo', label: 'Fluxo de Atendimento' },
     { id: 'atendimento', label: 'Atendimento (tipo, pagamento, quiz)', dot: quizEnvios.filter(q => q.status === 'respondido' && Date.now() - new Date(q.respondido_em).getTime() < 3 * 86400000).length },
     { id: 'clientes', label: 'Clientes' },
+    { id: 'infoprodutos', label: 'Infoprodutos' },
     { id: 'consultoria', label: 'Consultoria', dot: quizEnvios.filter(q => q.status === 'respondido' && Date.now() - new Date(q.respondido_em).getTime() < 3 * 86400000).length },
     { id: 'criacao', label: 'Criação' },
     { id: 'orcamentos', label: 'Orçamentos' },
@@ -1560,7 +1562,7 @@ export default function DasGCRM() {
   const GRUPOS = [
     { titulo: 'Painel', ids: ['central', 'fluxo', 'tarefas'] },
     { titulo: '1 · Atendimento', ids: ['atendimento', 'agenda'] },
-    { titulo: '2 · Cadastro', ids: ['clientes'] },
+    { titulo: '2 · Cadastro', ids: ['clientes', 'infoprodutos'] },
     { titulo: '3 · Consultoria e Criação', ids: ['consultoria', 'criacao'] },
     { titulo: '4 · Orçamento e Venda', ids: ['orcamentos', 'pedidosvenda'] },
     { titulo: '5 · Ordem de Serviço', ids: ['os', 'provas', 'compras'] },
@@ -1584,6 +1586,7 @@ export default function DasGCRM() {
       case 'tarefas': return <CentralTarefas tarefas={tarefas} clientes={clientes} onRecarregar={recarregar} />;
       case 'fluxo': return <FluxoPainel os={os} clientes={clientes} provas={provas} agenda={agenda} quizEnvios={quizEnvios} tarefas={tarefas} onAbrirOS={abrirOS} />;
       case 'clientes': return <Clientes clientes={clientes} os={os} quizEnvios={quizEnvios} agenda={agenda} onRecarregar={recarregar} onSalvar={salvarCliente} onIrFluxo={() => setPagina('fluxo')} onNavegar={setPagina} onAbrirOS={abrirOS} onAbrirCom={abrirCom} produtos={produtos} />;
+      case 'infoprodutos': return <Infoprodutos clientes={clientes} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'consultoria': return <Consultoria clientes={clientes} os={os} agenda={agenda} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'criacao': return <CriacaoOS os={os} clientes={clientes} quizEnvios={quizEnvios} onRecarregar={recarregar} onNavegar={setPagina} />;
       case 'orcamentos': return <OrcamentosOS os={os} clientes={clientes} onRecarregar={recarregar} />;
