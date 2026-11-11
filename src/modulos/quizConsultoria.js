@@ -30,6 +30,7 @@ const QUIZ_COMPLETO = [
     perguntas: [
       { id: 'estilo', tipo: 'escolha', label: 'Qual destes estilos mais combina com você?', ficha: true, opcoes: [['classico', 'Clássico — elegante e atemporal'], ['romantico', 'Romântico — delicado, fluido, feminino'], ['dramatico', 'Dramático — marcante, impactante'], ['esportivo', 'Esportivo — prático e descontraído'], ['criativo', 'Criativo — diferente, cheio de personalidade'], ['natural', 'Natural — simples e leve'], ['', 'Não sei dizer']] },
       { id: 'referencias', tipo: 'anexo', label: 'Referências de look que você ama: anexe fotos ou prints (Pinterest, Instagram) e/ou descreva.' },
+      { id: 'como_lembrada', tipo: 'longo', label: 'Como você quer ser lembrada nesse evento? (três palavras ou uma frase)' },
       { id: 'evitar', tipo: 'longo', label: 'O que você NÃO quer de jeito nenhum? (decotes, comprimentos, detalhes, cores, tecidos que incomodam ou dão alergia...)' },
     ],
   },
@@ -37,6 +38,7 @@ const QUIZ_COMPLETO = [
     id: 'cores', titulo: 'Cores e tecidos', intro: 'Ajuda a gente a escolher o que valoriza você.',
     perguntas: [
       { id: 'colorimetria', tipo: 'escolha', label: 'Você já sabe a sua cartela de cores?', ficha: true, opcoes: [['primavera', 'Primavera'], ['verao', 'Verão'], ['outono', 'Outono'], ['inverno', 'Inverno'], ['', 'Ainda não sei']] },
+      { id: 'foto_colorimetria', tipo: 'anexo', label: 'Para eu indicar suas cores: anexe uma foto do rosto, de dia, sem maquiagem e sem filtro (opcional).' },
       { id: 'tecidos_cores', tipo: 'longo', label: 'Quais cores e tecidos você ama usar?', ficha: true },
     ],
   },
@@ -44,7 +46,7 @@ const QUIZ_COMPLETO = [
     id: 'corpo', titulo: 'Corpo e conforto', intro: 'Para a modelagem ficar perfeita e confortável em você.',
     perguntas: [
       { id: 'biotipo', tipo: 'escolha', label: 'Qual formato mais parece com o seu corpo?', ficha: true, opcoes: [['ampulheta', 'Ampulheta — busto e quadril parecidos, cintura marcada'], ['triangulo', 'Triângulo — quadril mais largo que os ombros'], ['triangulo_invertido', 'Triângulo invertido — ombros/busto mais largos que o quadril'], ['retangulo', 'Retângulo — ombros, cintura e quadril parecidos'], ['oval', 'Oval — mais volume na região da barriga'], ['', 'Não sei']] },
-      { id: 'restricoes_modelagem', tipo: 'longo', label: 'O que você gosta de valorizar no seu corpo? E o que prefere disfarçar ou costuma incomodar nas roupas? (braços, barriga, costas, alças, zíper...)', ficha: true },
+      { id: 'restricoes_modelagem', tipo: 'longo', label: 'O que você gosta de valorizar no seu corpo? E o que prefere não destacar ou costuma incomodar nas roupas? (braços, barriga, costas, alças, zíper...)', ficha: true },
       { id: 'calcado', tipo: 'texto', label: 'Que sapato pretende usar com a peça? (altura do salto)' },
     ],
   },
@@ -147,13 +149,26 @@ const QUIZ_ORCAMENTO = [
   },
 ];
 
-export const QUIZ_POR_TIPO = { completo: QUIZ_COMPLETO, consultivo: QUIZ_CONSULTIVO, tecido: QUIZ_TECIDO, orcamento: QUIZ_ORCAMENTO };
+// My Personal Stylist: o quiz completo + a parte de acessórios, cabelo e make
+const QUIZ_MPS = [...QUIZ_COMPLETO.slice(0, -1), {
+  id: 'producao', titulo: 'Acessórios, cabelo e make', intro: 'A produção completa: do sapato à maquiagem.',
+  perguntas: [
+    { id: 'joias_acessorios', tipo: 'longo', label: 'Joias, bolsas e acessórios que você já tem e gostaria de usar (ou que ama)' },
+    { id: 'foto_acessorios', tipo: 'anexo', label: 'Anexe fotos de acessórios, sapatos ou bolsas que já tem (opcional).' },
+    { id: 'cabelo_pref', tipo: 'escolha', label: 'Como imagina o cabelo?', opcoes: [['solto', 'Solto'], ['preso', 'Preso / coque'], ['semi', 'Semipreso'], ['', 'Não sei, quero uma indicação']] },
+    { id: 'cabelo_obs', tipo: 'longo', label: 'Seu cabelo hoje (comprimento, cor, química) e o que não abre mão. Se quiser, descreva ou anexe referências.' },
+    { id: 'make_pref', tipo: 'escolha', label: 'Maquiagem', opcoes: [['natural', 'Natural e leve'], ['marcante', 'Marcante'], ['classica', 'Clássica / elegante'], ['', 'Não sei, quero uma indicação']] },
+    { id: 'make_obs', tipo: 'longo', label: 'Algum cuidado com a pele ou a maquiagem que a gente precisa saber? (sensibilidade, produtos que não usa)' },
+  ],
+}, QUIZ_COMPLETO[QUIZ_COMPLETO.length - 1]];
+
+export const QUIZ_POR_TIPO = { completo: QUIZ_COMPLETO, consultivo: QUIZ_CONSULTIVO, tecido: QUIZ_TECIDO, orcamento: QUIZ_ORCAMENTO, mps: QUIZ_MPS };
 export const QUIZ_SECOES = QUIZ_COMPLETO; // compatibilidade: o quiz completo
 export const secoesDoQuiz = (tipo) => QUIZ_POR_TIPO[tipo] || QUIZ_COMPLETO;
 // todas as seções de todos os quizzes, sem repetir pergunta (para exibir o briefing de qualquer um)
 export function secoesParaBriefing() {
   const vistos = new Set();
-  return [...QUIZ_COMPLETO, ...QUIZ_CONSULTIVO, ...QUIZ_TECIDO, ...QUIZ_ORCAMENTO].map(sec => ({ ...sec, perguntas: sec.perguntas.filter(p => { if (vistos.has(p.id)) return false; vistos.add(p.id); return true; }) })).filter(sec => sec.perguntas.length);
+  return [...QUIZ_MPS, ...QUIZ_CONSULTIVO, ...QUIZ_TECIDO, ...QUIZ_ORCAMENTO].map(sec => ({ ...sec, perguntas: sec.perguntas.filter(p => { if (vistos.has(p.id)) return false; vistos.add(p.id); return true; }) })).filter(sec => sec.perguntas.length);
 }
 
 // Perguntas de versões anteriores do quiz: quem já respondeu continua com essas respostas visíveis no briefing.

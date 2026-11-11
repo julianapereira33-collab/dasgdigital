@@ -24,7 +24,7 @@ export const TIPOS_ATENDIMENTO = {
     inclui: ['Acompanhamento no dia do evento, enquanto ela se arruma e se veste', 'Leva a cliente até a entrada (não permanece no evento)'],
   },
   my_personal_stylist: {
-    label: 'My Personal Stylist (pacote VIP)', preco: 947, cobra: true, quiz: 'completo', pagamento: 'do My Personal Stylist',
+    label: 'My Personal Stylist (pacote VIP)', preco: 947, cobra: true, quiz: 'mps', pagamento: 'do My Personal Stylist',
     inclui: ['Raio X do Estilo + Minha Paleta + Estilista com Ju Pereira', 'Curadoria de acessórios, cabelo e make'],
   },
   // tipos antigos (OS já existentes): seguem funcionando, não aparecem para novas OS
