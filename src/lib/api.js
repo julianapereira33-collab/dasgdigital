@@ -99,6 +99,24 @@ export async function criarQuizEnvio({ cliente, os }) {
   }).select().single();
 }
 
+// Link avulso de um quiz (sem OS): serve para mandar ao cliente quando a Juliana quiser.
+export async function criarQuizAvulso({ cliente, tipoQuiz }) {
+  if (cliente?.id) {
+    const { data: ex } = await supabase.from('consultoria_quiz_envios').select('*').eq('cliente_id', cliente.id).eq('tipo_quiz', tipoQuiz).is('ordem_servico_id', null).neq('status', 'respondido').order('criado_em', { ascending: false }).limit(1);
+    if (ex && ex.length) return { data: ex[0], error: null };
+  }
+  return supabase.from('consultoria_quiz_envios').insert({ cliente_id: cliente?.id || null, ordem_servico_id: null, tipo_quiz: tipoQuiz, nome_cliente: cliente?.nome || null, telefone: cliente?.telefone || null }).select().single();
+}
+
+export async function enviarQuizAvulsoPorWhatsApp({ cliente, tipoQuiz }) {
+  const { data: envio, error } = await criarQuizAvulso({ cliente, tipoQuiz });
+  if (error) return { error: error.message };
+  const r = await enviarWhatsApp({ telefone: cliente?.telefone, nome: cliente?.nome, mensagem: msgQuiz(cliente?.nome, envio.token) });
+  if (!r.ok) return { error: r.erro, envio };
+  await supabase.from('consultoria_quiz_envios').update({ status: 'enviado', enviado_em: new Date().toISOString() }).eq('id', envio.id);
+  return { envio, error: null };
+}
+
 export function msgQuiz(nome, token) {
   const primeiro = (nome || '').split(' ')[0] || 'tudo bem';
   return `Olá, ${primeiro}! Aqui é da DAS G. Para a nossa consultoria ser bem aproveitada, preparei um questionário rápido (uns 5 minutos) sobre o seu estilo, a ocasião e suas medidas:\n\n${linkDoQuiz(token)}\n\nPode responder pelo celular mesmo. Obrigada!`;

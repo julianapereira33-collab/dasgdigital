@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
-import { criarOS, enviarQuizPorWhatsApp, ROTULO_ETAPA } from '../lib/api.js';
+import { criarOS, enviarQuizPorWhatsApp, criarQuizAvulso, enviarQuizAvulsoPorWhatsApp, ROTULO_ETAPA } from '../lib/api.js';
 import { linkDoQuiz } from './quizConsultoria.js';
 import { BriefingQuiz } from './Consultoria.jsx';
 import ChecklistAtendimento, { statusChecklist } from './ChecklistAtendimento.jsx';
@@ -23,6 +23,9 @@ export default function Atendimento({ clientes, os, agenda, quizEnvios, clienteF
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState('');
   const [edit, setEdit] = useState(null);
+  const [qCli, setQCli] = useState('');
+  const [qBusca, setQBusca] = useState('');
+  const [qLinks, setQLinks] = useState({});
 
   useEffect(() => { if (focoTick > 0 && clienteFocoId) { setAba('atendimentos'); setNovo({ cliente_id: clienteFocoId, tipo: TIPO_PADRAO, descricao: '' }); } }, [focoTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const cli = (id) => clientes.find(c => c.id === id);
@@ -65,6 +68,25 @@ export default function Atendimento({ clientes, os, agenda, quizEnvios, clienteF
     if (r.error) { setErro(r.error); return; }
     await onRecarregar(); setAviso('Link do quiz enviado pelo WhatsApp.');
   }
+  const QUIZZES = [['completo', 'Estilista com Ju Pereira'], ['consultivo', 'Curadoria Consultiva'], ['orcamento', 'Orçamento Couture'], ['tecido', 'My Curadoria de Tecidos'], ['mps', 'My Personal Stylist']];
+  async function linkAvulso(tipo, acao) {
+    setOcupado('l' + tipo); setErro(''); setAviso('');
+    const c = qCli ? cli(qCli) : null;
+    if (acao === 'whats') {
+      const r = await enviarQuizAvulsoPorWhatsApp({ cliente: c, tipoQuiz: tipo });
+      setOcupado('');
+      if (r.error) { setErro(r.error); return; }
+      setQLinks(l => ({ ...l, [tipo]: linkDoQuiz(r.envio.token) })); await onRecarregar(); setAviso(`Quiz enviado para ${c?.nome} pelo WhatsApp.`); return;
+    }
+    const { data, error } = await criarQuizAvulso({ cliente: c, tipoQuiz: tipo });
+    setOcupado('');
+    if (error) { setErro(msgErro(error)); return; }
+    const url = linkDoQuiz(data.token);
+    setQLinks(l => ({ ...l, [tipo]: url }));
+    try { await navigator.clipboard.writeText(url); setAviso('Link copiado. Cole na conversa com a cliente.'); } catch { setAviso('Link gerado abaixo. Copie e cole na conversa.'); }
+    await onRecarregar();
+  }
+  const clientesFiltrados = clientes.filter(c => !qBusca || (c.nome || '').toLowerCase().includes(qBusca.toLowerCase()) || (c.telefone || '').includes(qBusca)).slice(0, 50);
   async function copiar(q) { try { await navigator.clipboard.writeText(linkDoQuiz(q.token)); setAviso('Link copiado.'); } catch { setAviso(linkDoQuiz(q.token)); } }
 
   const quizzes = quizEnvios.filter(q => filtroQuiz === 'todos' || (filtroQuiz === 'respondidos' ? q.status === 'respondido' : q.status !== 'respondido'));
@@ -131,6 +153,28 @@ export default function Atendimento({ clientes, os, agenda, quizEnvios, clienteF
 
       {aba === 'quiz' && (
         <div>
+          <Card style={{ marginBottom: 16 }}>
+            <h3 style={{ fontWeight: 700, marginBottom: 4 }}>Links dos quizzes</h3>
+            <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 10 }}>Escolha a cliente (opcional) e gere o link do quiz para copiar ou enviar pelo WhatsApp. Com a cliente escolhida, as respostas já caem na ficha dela.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              <input placeholder="Buscar cliente por nome ou telefone" value={qBusca} onChange={e => setQBusca(e.target.value)} style={{ padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, minWidth: 220 }} />
+              <select value={qCli} onChange={e => setQCli(e.target.value)} style={{ padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, minWidth: 240 }}>
+                <option value="">Sem cliente (link avulso)</option>
+                {clientesFiltrados.map(c => <option key={c.id} value={c.id}>{c.nome}{c.telefone ? ' · ' + c.telefone : ''}</option>)}
+              </select>
+            </div>
+            {QUIZZES.map(([tipo, rotulo]) => (
+              <div key={tipo} style={{ padding: '8px 0', borderTop: '1px solid #f3f4f6' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <b style={{ flex: 1, minWidth: 180, fontSize: 14 }}>{rotulo}</b>
+                  <BtnSecondary small disabled={!!ocupado} onClick={() => linkAvulso(tipo, 'copiar')}>{ocupado === 'l' + tipo ? 'Gerando...' : 'Gerar e copiar link'}</BtnSecondary>
+                  <BtnPrimary small disabled={!!ocupado || !qCli || !cli(qCli)?.telefone} onClick={() => linkAvulso(tipo, 'whats')} title={qCli ? '' : 'Escolha uma cliente com telefone'}>Enviar pelo WhatsApp</BtnPrimary>
+                </div>
+                {qLinks[tipo] && <input readOnly value={qLinks[tipo]} onFocus={e => e.target.select()} style={{ width: '100%', boxSizing: 'border-box', marginTop: 6, padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12, background: '#f9fafb' }} />}
+              </div>
+            ))}
+            <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 8 }}>O Stylist Cerimonial não tem quiz.</p>
+          </Card>
           {precisamQuiz.length > 0 && (
             <Card style={{ marginBottom: 16, background: '#fffdf7' }}>
               <h3 style={{ fontWeight: 700, marginBottom: 8 }}>Ainda sem quiz enviado</h3>
