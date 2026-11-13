@@ -415,10 +415,10 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, quizEnvio
 
           {view === 'semana' && (
             <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden', background: '#fff' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: '#111' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', background: '#111' }}>
                 {semana.map((d, i) => <div key={i} style={{ padding: '10px 8px', textAlign: 'center', color: '#c4a45a', fontWeight: 600, fontSize: 13, borderRight: i < 6 ? '1px solid #222' : 'none' }}><div>{DIAS[i]}</div><div style={{ color: mesmoDia(d, hoje) ? '#c4a45a' : '#fff', fontSize: 16, fontWeight: 700 }}>{d.getDate()}</div></div>)}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: 300 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', minHeight: 300 }}>
                 {semana.map((d, i) => <div key={i} onClick={() => novoEvento(d)} title="Clique para criar um evento neste dia" style={{ padding: 8, borderRight: i < 6 ? '1px solid #e5e7eb' : 'none', borderTop: '1px solid #e5e7eb', minHeight: 140, cursor: 'pointer', background: mesmoDia(d, hoje) ? '#fffbeb' : '#fff' }}>{doDia(d).map(a => chipEvento(a))}{tarefasDoDia(d).map(chipTarefa)}</div>)}
               </div>
             </div>
@@ -426,10 +426,10 @@ export default function AgendaTarefas({ agenda, tarefas, clientes, os, quizEnvio
 
           {view === 'mes' && (
             <div style={{ border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden', background: '#fff' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: '#111' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', background: '#111' }}>
                 {DIAS.map(d => <div key={d} style={{ padding: 8, textAlign: 'center', color: '#c4a45a', fontWeight: 600, fontSize: 13 }}>{d}</div>)}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
                 {gradeMes.map((d, i) => (
                   <div key={i} onClick={() => novoEvento(d)} style={{ minHeight: 92, padding: 6, borderTop: '1px solid #e5e7eb', borderRight: i % 7 < 6 ? '1px solid #e5e7eb' : 'none', cursor: 'pointer', background: mesmoDia(d, hoje) ? '#fffbeb' : d.getMonth() === cursor.getMonth() ? '#fff' : '#fafafa', opacity: d.getMonth() === cursor.getMonth() ? 1 : 0.55 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{d.getDate()}</div>
