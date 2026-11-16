@@ -2,6 +2,8 @@
 // da cliente pela função quiz_responder() no banco (só preenchem o que estiver vazio).
 // Mudar texto/ordem aqui é seguro; mudar um id (ficha) exige mudar a função SQL também.
 
+import { QUIZ_RAIOX } from './quizRaioX.js';
+
 export const BUCKET_ANEXOS = 'quiz-anexos';
 
 const QUIZ_COMPLETO = [
@@ -162,13 +164,13 @@ const QUIZ_MPS = [...QUIZ_COMPLETO.slice(0, -1), {
   ],
 }, QUIZ_COMPLETO[QUIZ_COMPLETO.length - 1]];
 
-export const QUIZ_POR_TIPO = { completo: QUIZ_COMPLETO, consultivo: QUIZ_CONSULTIVO, tecido: QUIZ_TECIDO, orcamento: QUIZ_ORCAMENTO, mps: QUIZ_MPS };
+export const QUIZ_POR_TIPO = { completo: QUIZ_COMPLETO, consultivo: QUIZ_CONSULTIVO, tecido: QUIZ_TECIDO, orcamento: QUIZ_ORCAMENTO, mps: QUIZ_MPS, raiox: QUIZ_RAIOX };
 export const QUIZ_SECOES = QUIZ_COMPLETO; // compatibilidade: o quiz completo
 export const secoesDoQuiz = (tipo) => QUIZ_POR_TIPO[tipo] || QUIZ_COMPLETO;
 // todas as seções de todos os quizzes, sem repetir pergunta (para exibir o briefing de qualquer um)
 export function secoesParaBriefing() {
   const vistos = new Set();
-  return [...QUIZ_MPS, ...QUIZ_CONSULTIVO, ...QUIZ_TECIDO, ...QUIZ_ORCAMENTO].map(sec => ({ ...sec, perguntas: sec.perguntas.filter(p => { if (vistos.has(p.id)) return false; vistos.add(p.id); return true; }) })).filter(sec => sec.perguntas.length);
+  return [...QUIZ_MPS, ...QUIZ_CONSULTIVO, ...QUIZ_TECIDO, ...QUIZ_ORCAMENTO, ...QUIZ_RAIOX].map(sec => ({ ...sec, perguntas: sec.perguntas.filter(p => { if (vistos.has(p.id)) return false; vistos.add(p.id); return true; }) })).filter(sec => sec.perguntas.length);
 }
 
 // Perguntas de versões anteriores do quiz: quem já respondeu continua com essas respostas visíveis no briefing.
