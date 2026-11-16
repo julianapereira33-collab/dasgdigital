@@ -5,10 +5,12 @@ import { secoesDoQuiz } from './modulos/quizConsultoria.js';
 import { CampoAnexo } from './modulos/AnexosQuiz.jsx';
 
 const dourado = '#c4a45a';
-const TITULO_POR_TIPO = { completo: 'Estilista com Ju Pereira · Questionário', consultivo: 'Curadoria Consultiva · Questionário', orcamento: 'Orçamento Couture', mps: 'My Personal Stylist · Questionário', tecido: 'My Curadoria de Tecidos' };
+const TITULO_POR_TIPO = { completo: 'Estilista com Ju Pereira · Questionário', consultivo: 'Curadoria Consultiva · Questionário', orcamento: 'Orçamento Couture', mps: 'My Personal Stylist · Questionário', raiox: 'Raio X do Estilo · Questionário', tecido: 'My Curadoria de Tecidos' };
 const chaveRascunho = (t) => 'dasg_quiz_' + t;
 
-export default function QuizPublico({ token }) {
+export default function QuizPublico({ token, modo }) {
+  const rpcObter = modo === 'raiox' ? 'raiox_quiz_obter' : 'quiz_obter';
+  const rpcResponder = modo === 'raiox' ? 'raiox_quiz_responder' : 'quiz_responder';
   const [estado, setEstado] = useState('carregando'); // carregando | invalido | pronto | enviado | erro
   const [nome, setNome] = useState('');
   const [tipoQuiz, setTipoQuiz] = useState('completo');
@@ -20,11 +22,11 @@ export default function QuizPublico({ token }) {
   useEffect(() => {
     let vivo = true;
     (async () => {
-      const { data, error } = await supabase.rpc('quiz_obter', { p_token: token });
+      const { data, error } = await supabase.rpc(rpcObter, { p_token: token });
       if (!vivo) return;
       if (error) { setEstado('erro'); setMsgErro(error.message); return; }
       if (!data) { setEstado('invalido'); return; }
-      setNome(data.nome || ''); setTipoQuiz(data.tipo_quiz || 'completo');
+      setNome(data.nome || ''); setTipoQuiz(modo === 'raiox' ? 'raiox' : (data.tipo_quiz || 'completo'));
       if (data.status === 'respondido') { setEstado('enviado'); return; }
       let rascunho = {};
       try { rascunho = JSON.parse(localStorage.getItem(chaveRascunho(token)) || '{}'); } catch { /* sem storage: segue em branco */ }
@@ -44,7 +46,7 @@ export default function QuizPublico({ token }) {
 
   async function enviar() {
     setEnviando(true); setMsgErro('');
-    const { data, error } = await supabase.rpc('quiz_responder', { p_token: token, p_respostas: resp });
+    const { data, error } = await supabase.rpc(rpcResponder, { p_token: token, p_respostas: resp });
     setEnviando(false);
     if (error || !data?.ok) { setMsgErro(error?.message || 'Não consegui enviar agora. Tente de novo em instantes.'); return; }
     try { localStorage.removeItem(chaveRascunho(token)); } catch { /* ignora */ }
@@ -68,7 +70,7 @@ export default function QuizPublico({ token }) {
     <div style={{ textAlign: 'center', paddingTop: 40 }}>
       <div style={{ fontSize: 44 }}>✨</div>
       <h2 style={{ margin: '12px 0 8px' }}>Obrigada{nome ? ', ' + nome.split(' ')[0] : ''}!</h2>
-      <p style={{ color: '#4b5563' }}>Suas respostas chegaram. A Juliana vai usá-las para preparar a nossa conversa e criar uma peça com a sua cara.</p>
+      <p style={{ color: '#4b5563' }}>Suas respostas chegaram. {modo === 'raiox' ? 'A Ju vai preparar o seu Raio X do Estilo e você recebe o dossiê por e-mail e WhatsApp.' : 'A Juliana vai usá-las para preparar a nossa conversa e criar uma peça com a sua cara.'}</p>
     </div>
   );
 
